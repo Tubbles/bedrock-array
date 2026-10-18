@@ -14,6 +14,9 @@ SCENE_PAGE_DISTANCE_MAXIMUM :: f32(20)
 // Orbit distances per second a held key walks the target.
 SCENE_PAGE_WALK_SPEED :: f32(0.6)
 SCENE_PAGE_STEP_LIMIT :: f32(0.1)
+SCENE_PAGE_STICK_DEAD_ZONE :: f32(0.15)
+SCENE_PAGE_STICK_TURN_RADIANS_PER_SECOND :: f32(2)
+SCENE_PAGE_TRIGGER_ZOOM_PER_SECOND :: f32(0.8)
 
 // A pointer on the canvas: one drags the orbit, two pinch the distance.
 Scene_Page_Pointer :: struct {
@@ -45,11 +48,13 @@ Scene_Page :: struct {
 	active_pointers:             [2]Scene_Page_Pointer,
 	active_pointer_count:        int,
 	keys_held:                   bit_set[Scene_Page_Key],
+	gamepad_index:               int,
 	ready:                       bool,
 }
 
 scene_page_init :: proc(page: ^Scene_Page, canvas_id: string, library_data, scene_data: []byte) -> (problem: string) {
 	page.canvas_id = canvas_id
+	page.gamepad_index = -1
 	gl.CreateCurrentContextById(canvas_id, {})
 	scene_page_resize(page)
 	scene_page_listen(page)
@@ -68,7 +73,9 @@ scene_page_init :: proc(page: ^Scene_Page, canvas_id: string, library_data, scen
 scene_page_step :: proc(page: ^Scene_Page, delta_time: f32) {
 	if !page.ready do return
 	// A hidden tab delivers its whole span as one step; a walk that long would leave the scene.
-	scene_page_walk(page, min(delta_time, SCENE_PAGE_STEP_LIMIT))
+	step_time := min(delta_time, SCENE_PAGE_STEP_LIMIT)
+	scene_page_walk(page, step_time)
+	scene_page_gamepad(page, step_time)
 	draw_list_clear(&page.draw_list)
 	page.draw_list.camera = orbit_camera(page.orbit, math.PI / 3, 0.1, 100)
 	page.draw_list.sun = page.scene.sun
@@ -96,12 +103,35 @@ scene_page_walk :: proc(page: ^Scene_Page, delta_time: f32) {
 	page.orbit = orbit_walk(page.orbit, input, page.orbit.distance * SCENE_PAGE_WALK_SPEED * delta_time)
 }
 
+// The standard mapping: the left stick walks, the right stick turns, the triggers zoom, the d-pad moves up and down.
+@(private = "file")
+scene_page_gamepad :: proc(page: ^Scene_Page, delta_time: f32) {
+	state: js.Gamepad_State
+	if page.gamepad_index < 0 || !js.get_gamepad_state(page.gamepad_index, &state) || !state.connected do return
+	left := [2]f32{stick_dead_zone(f32(state.axes[0]), SCENE_PAGE_STICK_DEAD_ZONE), stick_dead_zone(f32(state.axes[1]), SCENE_PAGE_STICK_DEAD_ZONE)}
+	right := [2]f32{stick_dead_zone(f32(state.axes[2]), SCENE_PAGE_STICK_DEAD_ZONE), stick_dead_zone(f32(state.axes[3]), SCENE_PAGE_STICK_DEAD_ZONE)}
+	vertical := f32(int(state.buttons[12].pressed) - int(state.buttons[13].pressed))
+	walk_input := [3]f32{left.x, vertical, -left.y}
+	if walk_input != {} {
+		page.orbit = orbit_walk(page.orbit, walk_input, page.orbit.distance * SCENE_PAGE_WALK_SPEED * delta_time)
+	}
+	if right != {} {
+		page.orbit = orbit_drag(page.orbit, right * SCENE_PAGE_STICK_TURN_RADIANS_PER_SECOND * delta_time, 1)
+	}
+	trigger := f32(state.buttons[7].value) - f32(state.buttons[6].value)
+	if trigger != 0 {
+		page.orbit = orbit_zoom(page.orbit, 1 - trigger * SCENE_PAGE_TRIGGER_ZOOM_PER_SECOND * delta_time, SCENE_PAGE_DISTANCE_MINIMUM, SCENE_PAGE_DISTANCE_MAXIMUM)
+	}
+}
+
 @(private = "file")
 scene_page_listen :: proc(page: ^Scene_Page) {
 	js.add_window_event_listener(.Resize, page, on_scene_page_resize)
 	js.add_window_event_listener(.Key_Down, page, on_scene_page_key_down)
 	js.add_window_event_listener(.Key_Up, page, on_scene_page_key_up)
 	js.add_window_event_listener(.Blur, page, on_scene_page_blur)
+	js.add_window_event_listener(.Gamepad_Connected, page, on_scene_page_gamepad_connected)
+	js.add_window_event_listener(.Gamepad_Disconnected, page, on_scene_page_gamepad_disconnected)
 	js.add_event_listener(page.canvas_id, .Pointer_Down, page, on_scene_page_pointer_down)
 	js.add_event_listener(page.canvas_id, .Pointer_Move, page, on_scene_page_pointer_move)
 	js.add_event_listener(page.canvas_id, .Pointer_Up, page, on_scene_page_pointer_up)
@@ -166,18 +196,31 @@ on_scene_page_key_down :: proc(event: js.Event) {
 	page.keys_held += {key}
 }
 
-@(private = "file")
 // The browser sends no key up for a key released while another window has focus.
+@(private = "file")
 on_scene_page_blur :: proc(event: js.Event) {
 	page := (^Scene_Page)(event.user_data)
 	page.keys_held = {}
 }
 
+@(private = "file")
 on_scene_page_key_up :: proc(event: js.Event) {
 	key, known := scene_page_key_from_code(event.data.key.code)
 	if !known do return
 	page := (^Scene_Page)(event.user_data)
 	page.keys_held -= {key}
+}
+
+@(private = "file")
+on_scene_page_gamepad_connected :: proc(event: js.Event) {
+	page := (^Scene_Page)(event.user_data)
+	page.gamepad_index = event.data.gamepad.index
+}
+
+@(private = "file")
+on_scene_page_gamepad_disconnected :: proc(event: js.Event) {
+	page := (^Scene_Page)(event.user_data)
+	if page.gamepad_index == event.data.gamepad.index do page.gamepad_index = -1
 }
 
 @(private = "file")

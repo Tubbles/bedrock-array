@@ -106,6 +106,14 @@ test_orbit_walk_moves_along_the_ground :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_stick_dead_zone :: proc(t: ^testing.T) {
+	testing.expect(t, stick_dead_zone(0.1, 0.15) == 0)
+	testing.expect(t, math.abs(stick_dead_zone(1, 0.15) - 1) < 1e-5)
+	testing.expect(t, math.abs(stick_dead_zone(0.575, 0.15) - 0.5) < 1e-5)
+	testing.expect(t, math.abs(stick_dead_zone(-0.575, 0.15) + 0.5) < 1e-5)
+}
+
+@(test)
 test_box_mesh_has_six_faces :: proc(t: ^testing.T) {
 	mesh := box_mesh({2, 2, 2})
 	defer mesh_data_destroy(&mesh)

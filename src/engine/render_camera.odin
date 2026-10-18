@@ -75,6 +75,12 @@ orbit_walk :: proc(orbit: Orbit, input: [3]f32, metres: f32) -> Orbit {
 	return result
 }
 
+// A stick axis with its dead zone removed: 0 inside it, the rest rescaled to 0..1 with the sign kept.
+stick_dead_zone :: proc(value, dead: f32) -> f32 {
+	if math.abs(value) <= dead do return 0
+	return math.sign(value) * (math.abs(value) - dead) / (1 - dead)
+}
+
 @(private = "file")
 orbit_right_and_up :: proc(orbit: Orbit) -> (right, up: [3]f32) {
 	camera := orbit_camera(orbit, 0, 0, 0)
