@@ -31,6 +31,14 @@ glass = {
 	metallic = 0
 }
 
+// The furnace's window: dark glass over a hot interior, the glow its state cue.
+furnace_glow = {
+	albedo = [0.05, 0.03, 0.02]
+	roughness = 0.25
+	metallic = 0
+	emissive = [4.0, 1.2, 0.25]
+}
+
 rubber = {
 	albedo = [0.05, 0.05, 0.05]
 	roughness = 0.90
