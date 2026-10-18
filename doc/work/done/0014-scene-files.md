@@ -1,6 +1,6 @@
 # 0014: Scene files
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, 4fe6c8e)
 
 Goal: a demo's scene is data, `data/demos/<name>/scene.sjson`, parsed by the engine into a `Scene` the demo turns into meshes, lights and a draw list, so the cave and surface scenes of D1 are edited as text (CLAUDE.md: never hardcode content in Odin) and later from the in game editor. This item is the format and the parser; 0015 moves the light demo onto it.
 
