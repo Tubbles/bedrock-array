@@ -1,6 +1,6 @@
 # 0039: Techtonica study, the machines
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, ac69351)
 
 Goal: question 2 of the Techtonica study (DESIGN.md, The Techtonica study): the grid cell size, the footprints and blocked areas per machine, the placement and snapping rules, the rotation, read from the local install with the study's tools (AssetRipper over the Addressables for the machine definitions and prefabs, ILSpy over `Assembly-CSharp.dll` for the placement code), so the smelter's brief of D4 carries measured sizes rather than guesses. The boundary of the study holds: mechanisms and numbers only, nothing of Techtonica's enters the game. Refers to item 0038.
 
