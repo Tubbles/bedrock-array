@@ -38,9 +38,6 @@ Webgl_Renderer :: struct {
 	meshes:           [dynamic]Webgl_Mesh,
 }
 
-// A constant ambient term until the sky ambient of stage 1 replaces it.
-WEBGL_AMBIENT :: 0.15
-
 // Matches MAX_POINT_LIGHTS in forward.frag; lights beyond it are not drawn.
 WEBGL_MAX_POINT_LIGHTS :: 8
 
@@ -189,7 +186,7 @@ webgl_renderer_draw :: proc(renderer: ^Webgl_Renderer, list: Draw_List, library:
 	sun_colour := list.sun.colour * list.sun.intensity
 	gl.Uniform3f(uniforms.sun_direction, sun_direction.x, sun_direction.y, sun_direction.z)
 	gl.Uniform3f(uniforms.sun_colour, sun_colour.r, sun_colour.g, sun_colour.b)
-	gl.Uniform1f(uniforms.ambient, WEBGL_AMBIENT)
+	gl.Uniform1f(uniforms.ambient, list.ambient)
 	camera_position := list.camera.position
 	gl.Uniform3f(uniforms.camera_position, camera_position.x, camera_position.y, camera_position.z)
 	webgl_upload_point_lights(uniforms, list.lights[:])

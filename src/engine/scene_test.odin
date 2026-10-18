@@ -88,3 +88,34 @@ test_scene_item_mesh_by_shape :: proc(t: ^testing.T) {
 	defer mesh_data_destroy(&cylinder)
 	testing.expect_value(t, len(cylinder.vertices), 36)
 }
+
+@(test)
+test_parse_scene_ambient_default_and_value :: proc(t: ^testing.T) {
+	library, _ := parse_material_library(transmute([]byte)string(TEST_LIBRARY_TEXT))
+	defer material_library_destroy(&library)
+	without_ambient := `
+camera = { target = [0, 0.5, 0], yaw = 0.6, pitch = 0.5, distance = 5 }
+sun = { direction = [0.4, -1, -0.3], colour = [1, 0.96, 0.9], intensity = 1 }
+exposure = 1
+items = [
+	{ shape = "box", size = [1, 1, 1], position = [0, 0.5, 0], material = "painted_steel" }
+]
+`
+	default_scene, default_problem := parse_scene(transmute([]byte)without_ambient, library)
+	defer scene_destroy(&default_scene)
+	testing.expect_value(t, default_problem, "")
+	testing.expect_value(t, default_scene.ambient, 0.15)
+	with_ambient := `
+camera = { target = [0, 0.5, 0], yaw = 0.6, pitch = 0.5, distance = 5 }
+sun = { direction = [0.4, -1, -0.3], colour = [1, 0.96, 0.9], intensity = 1 }
+exposure = 1
+ambient = 0.02
+items = [
+	{ shape = "box", size = [1, 1, 1], position = [0, 0.5, 0], material = "painted_steel" }
+]
+`
+	dark_scene, dark_problem := parse_scene(transmute([]byte)with_ambient, library)
+	defer scene_destroy(&dark_scene)
+	testing.expect_value(t, dark_problem, "")
+	testing.expect_value(t, dark_scene.ambient, 0.02)
+}

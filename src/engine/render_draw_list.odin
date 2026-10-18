@@ -27,6 +27,8 @@ Draw_List :: struct {
 	sun:      Directional_Light,
 	// Scales the linear scene colour before the tone map, 1 keeps it as is.
 	exposure: f32,
+	// The fraction of the albedo lit from everywhere, until the sky ambient.
+	ambient:  f32,
 	items:    [dynamic]Draw_Item,
 	lights:   [dynamic]Point_Light,
 }

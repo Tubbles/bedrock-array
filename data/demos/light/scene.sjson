@@ -2,6 +2,7 @@
 camera = { target = [0, 0.5, 0], yaw = 0.6, pitch = 0.5, distance = 5 }
 sun = { direction = [0.4, -1, -0.3], colour = [1, 0.96, 0.9], intensity = 1 }
 exposure = 1
+ambient = 0.15
 items = [
 	{ shape = "box", size = [1, 1, 1], position = [0, 0.5, 0], material = "painted_steel" }
 	{ shape = "cylinder", radius = 0.5, height = 1, segments = 24, position = [1.5, 0.5, 0], material = "copper" }

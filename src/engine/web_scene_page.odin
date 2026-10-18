@@ -56,6 +56,7 @@ scene_page_step :: proc(page: ^Scene_Page) {
 	page.draw_list.camera = orbit_camera(page.orbit, math.PI / 3, 0.1, 100)
 	page.draw_list.sun = page.scene.sun
 	page.draw_list.exposure = page.scene.exposure
+	page.draw_list.ambient = page.scene.ambient
 	for light in page.scene.lights {
 		draw_list_add_light(&page.draw_list, light)
 	}

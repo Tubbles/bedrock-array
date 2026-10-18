@@ -22,6 +22,7 @@ Scene :: struct {
 	camera:   Orbit,
 	sun:      Directional_Light,
 	exposure: f32,
+	ambient:  f32,
 	items:    []Scene_Item,
 	lights:   []Point_Light,
 }
@@ -42,7 +43,7 @@ parse_scene :: proc(data: []byte, library: Material_Library, allocator := contex
 	}
 	for key in fields {
 		switch key {
-		case "camera", "sun", "exposure", "items", "lights":
+		case "camera", "sun", "exposure", "ambient", "items", "lights":
 		case:
 			return {}, fmt.tprintf("scene: unknown key %s", key)
 		}
@@ -55,6 +56,12 @@ parse_scene :: proc(data: []byte, library: Material_Library, allocator := contex
 	}
 	if scene.exposure, problem = scene_non_negative_field("scene", "exposure", fields); problem != "" {
 		return {}, problem
+	}
+	scene.ambient = 0.15
+	if "ambient" in fields {
+		if scene.ambient, problem = scene_non_negative_field("scene", "ambient", fields); problem != "" {
+			return {}, problem
+		}
 	}
 	items_array, items_problem := scene_array_field("scene", "items", fields)
 	if items_problem != "" {
