@@ -1,6 +1,6 @@
 # 0034: The wear rule on primitives
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, 03be8ac)
 
 Goal: the chipped paint of `doc/workflows/materials.md`: the renderer cuts the baked wear field against the fragment's distance to its primitive's edges, and a chip shows the bare metal, its roughness and its metallic reflection, so the machine block of the surface page wears at its edges. Refers to items 0028, 0031 and 0033.
 
