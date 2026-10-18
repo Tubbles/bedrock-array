@@ -11,6 +11,14 @@ Material :: struct {
 	albedo:              [3]f32,
 	roughness, metallic: f32,
 	emissive:            [3]f32,
+	textures:            string,
+	wear:                Material_Wear,
+}
+
+// The wear rule of doc/workflows/materials.md, zeros when the preset has none.
+Material_Wear :: struct {
+	edge_width, chip_threshold, amount: f32,
+	metal:                              [3]f32,
 }
 
 // Indexed by Material_Id: the materials in alphabetical order of name.
@@ -45,6 +53,7 @@ parse_material_library :: proc(data: []byte, allocator := context.allocator) -> 
 	for material, index in materials {
 		library.materials[index] = material
 		library.materials[index].name = strings.clone(material.name, allocator)
+		library.materials[index].textures = strings.clone(material.textures, allocator)
 	}
 	return library, ""
 }
@@ -52,6 +61,7 @@ parse_material_library :: proc(data: []byte, allocator := context.allocator) -> 
 material_library_destroy :: proc(library: ^Material_Library, allocator := context.allocator) {
 	for material in library.materials {
 		delete(material.name, allocator)
+		delete(material.textures, allocator)
 	}
 	delete(library.materials, allocator)
 	library.materials = nil
@@ -85,7 +95,7 @@ parse_material :: proc(name: string, value: json.Value) -> (material: Material, 
 	}
 	for key in fields {
 		switch key {
-		case "albedo", "roughness", "metallic", "emissive":
+		case "albedo", "roughness", "metallic", "emissive", "textures", "wear":
 		case:
 			return {}, fmt.tprintf("material %s: unknown key %s", name, key)
 		}
@@ -94,21 +104,64 @@ parse_material :: proc(name: string, value: json.Value) -> (material: Material, 
 	if material.albedo, problem = material_colour_field(name, "albedo", fields, true); problem != "" {
 		return {}, problem
 	}
-	if material.roughness, problem = material_unit_field(name, "roughness", fields); problem != "" {
+	if material.roughness, problem = material_number_field(name, "roughness", fields, true); problem != "" {
 		return {}, problem
 	}
-	if material.metallic, problem = material_unit_field(name, "metallic", fields); problem != "" {
+	if material.metallic, problem = material_number_field(name, "metallic", fields, true); problem != "" {
 		return {}, problem
 	}
 	if "emissive" in fields {
-		material.emissive, problem = material_colour_field(name, "emissive", fields, false)
+		if material.emissive, problem = material_colour_field(name, "emissive", fields, false); problem != "" {
+			return {}, problem
+		}
 	}
-	return material, problem
+	if textures, present := fields["textures"]; present {
+		is_string: bool
+		if material.textures, is_string = textures.(json.String); !is_string {
+			return {}, fmt.tprintf("material %s: textures must be a string", name)
+		}
+	}
+	if "wear" in fields {
+		if material.wear, problem = material_wear_field(name, fields); problem != "" {
+			return {}, problem
+		}
+	}
+	return material, ""
 }
 
-// A number between 0 and 1.
+// The wear object's problems read "material <name>: wear: <key> ...".
 @(private = "file")
-material_unit_field :: proc(name, key: string, fields: json.Object) -> (number: f32, problem: string) {
+material_wear_field :: proc(name: string, fields: json.Object) -> (wear: Material_Wear, problem: string) {
+	wear_fields, is_object := fields["wear"].(json.Object)
+	if !is_object {
+		return {}, fmt.tprintf("material %s: wear must be an object", name)
+	}
+	for key in wear_fields {
+		switch key {
+		case "edge_width", "chip_threshold", "amount", "metal":
+		case:
+			return {}, fmt.tprintf("material %s: wear: unknown key %s", name, key)
+		}
+	}
+	prefix := fmt.tprintf("%s: wear", name)
+	if wear.edge_width, problem = material_number_field(prefix, "edge_width", wear_fields, false); problem != "" {
+		return {}, problem
+	}
+	if wear.chip_threshold, problem = material_number_field(prefix, "chip_threshold", wear_fields, true); problem != "" {
+		return {}, problem
+	}
+	if wear.amount, problem = material_number_field(prefix, "amount", wear_fields, false); problem != "" {
+		return {}, problem
+	}
+	if wear.metal, problem = material_colour_field(prefix, "metal", wear_fields, true); problem != "" {
+		return {}, problem
+	}
+	return wear, ""
+}
+
+// A number 0 to 1, or 0 or more when at_most_one is false.
+@(private = "file")
+material_number_field :: proc(name, key: string, fields: json.Object, at_most_one: bool) -> (number: f32, problem: string) {
 	value, present := fields[key]
 	if !present {
 		return 0, fmt.tprintf("material %s: %s missing", name, key)
@@ -117,8 +170,8 @@ material_unit_field :: proc(name, key: string, fields: json.Object) -> (number: 
 	if number, is_number = json_number(value); !is_number {
 		return 0, fmt.tprintf("material %s: %s must be a number", name, key)
 	}
-	if number < 0 || number > 1 {
-		return 0, fmt.tprintf("material %s: %s %v is outside 0 to 1", name, key, number)
+	if number < 0 || (at_most_one && number > 1) {
+		return 0, fmt.tprintf("material %s: %s %v is outside %s", name, key, number, at_most_one ? "0 to 1" : "0 or more")
 	}
 	return number, ""
 }
@@ -145,10 +198,12 @@ material_colour_field :: proc(name, key: string, fields: json.Object, at_most_on
 json_number :: proc(value: json.Value) -> (f32, bool) {
 	#partial switch number in value {
 	case json.Float:
-		if math.is_nan(number) || math.is_inf(number) {
+		// The cast to f32 overflows a large finite f64 to infinity, so the check follows it.
+		narrowed := f32(number)
+		if math.is_nan(narrowed) || math.is_inf(narrowed) {
 			return 0, false
 		}
-		return f32(number), true
+		return narrowed, true
 	case json.Integer:
 		return f32(number), true
 	}

@@ -4,6 +4,13 @@ painted_steel = {
 	albedo = [0.20, 0.24, 0.30]
 	roughness = 0.55
 	metallic = 0
+	textures = "painted_steel"
+	wear = {
+		edge_width = 0.05
+		chip_threshold = 0.85
+		amount = 0.5
+		metal = [0.56, 0.57, 0.58]
+	}
 }
 
 bare_alloy = {
