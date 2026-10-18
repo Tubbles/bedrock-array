@@ -1,6 +1,6 @@
 # 0027: Bloom as lens scattering
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, cbb774f)
 
 Goal: the bloom becomes the current form, a lens scattering term: no threshold, a chain of progressively smaller targets filled by 13 tap downsamples, added back level by level with 3 by 3 tent upsamples, and mixed into the scene at a few percent, so bright things get a wide soft veil rather than a halo (the user, 2026-10-18, on the threshold bloom of 0019: "Isn't bloom kindof no no, I mean outdated?", and the call "let's try 1"). After Jimenez 2014 (Call of Duty: Advanced Warfare) with the partial Karis average on the first downsample. Replaces 0019's passes.
 
