@@ -92,7 +92,7 @@ def turnaround_prompt(style, view):
     return (f"{style} Repaint the first image, a flat orthographic {view} elevation of the machine's blockout, as finished "
             f"concept art in exactly that view: no perspective, the camera, silhouette and proportions of the first image. "
             f"The second image is the finished hero view of the same machine: take its materials, colours and details from it, "
-            f"not its camera. Leave the grey capsule as it is where the first image has one, and add no astronaut. No text.")
+            f"not its camera. Add no astronaut. No text.")
 
 
 def number_text(value):

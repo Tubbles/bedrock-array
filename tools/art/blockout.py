@@ -310,7 +310,7 @@ def black_world():
 
 
 def prepare_mask(scene, hidden_objects):
-    """The figure and the ground hidden, a black world, every part white, no tone mapping."""
+    """The ground hidden, a black world, every part white, no tone mapping."""
     for hidden_object in hidden_objects:
         hidden_object.hide_render = True
     scene.world = black_world()
@@ -319,10 +319,14 @@ def prepare_mask(scene, hidden_objects):
     scene.render.dither_intensity = 0
 
 
-def render_all(scene, cameras, hidden_objects, directory):
-    for name, camera in cameras.items():
-        render_view(scene, camera, os.path.join(directory, name + ".png"))
-    prepare_mask(scene, hidden_objects)
+def render_all(scene, cameras, figure, ground, directory):
+    """The figure only in the hero, for the repaint's scale. The orthographic views and the masks go without it."""
+    render_view(scene, cameras["hero"], os.path.join(directory, "hero.png"))
+    for figure_object in figure:
+        figure_object.hide_render = True
+    for name in ORTHOGRAPHIC_VIEWS:
+        render_view(scene, cameras[name], os.path.join(directory, name + ".png"))
+    prepare_mask(scene, [ground])
     for name, camera in cameras.items():
         path = os.path.join(directory, name + "_mask.png")
         render_view(scene, camera, path)
@@ -347,7 +351,7 @@ def main():
     cameras = add_cameras(scene, brief, parts, figure)
     directory = os.path.join(REPOSITORY_ROOT, "work", "art", machine_id, "blockout")
     os.makedirs(directory, exist_ok=True)
-    render_all(scene, cameras, figure + [ground], directory)
+    render_all(scene, cameras, figure, ground, directory)
 
 
 if __name__ == "__main__":
