@@ -1,0 +1,21 @@
+// Bake parameters for worn painted steel: paint mottle and orange peel over steel, a wear field in the surface map's blue channel.
+seed = 7
+tile_metres = 2
+paint = {
+	mottle_amount = 0.08
+	mottle_scale = 5
+	roughness = 0.55
+	roughness_variation = 0.12
+	orange_peel_height = 0.0015
+	orange_peel_scale = 60
+}
+steel = {
+	roughness = 0.35
+	roughness_variation = 0.1
+	scale = 8
+}
+wear_field = {
+	voronoi_scale = 4
+	noise_scale = 7
+	blend = 0.5
+}

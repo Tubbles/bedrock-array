@@ -21,15 +21,15 @@ Maps are 512 square: the sets are low detail by design, a page embeds them and t
 ## The steps
 
 1. Write or edit `data/materials/bake/<name>.sjson`.
-2. Bake: `flatpak run org.blender.Blender -b --python tools/materials/bake.py -- <name>`, which writes the three maps.
-3. Review: `flatpak run org.blender.Blender -b --python tools/materials/review.py -- <name>`, which writes `work/materials/<name>_review.png` and prints the checks.
+2. Bake: `flatpak run org.blender.Blender -b --python "$PWD/tools/materials/bake.py" -- <name>` from the repository root (the flatpak starts in its own directory, so the script path is absolute; the script finds the data from its own location), which writes the three maps and prints the seam check: each map's edge difference against the image's mean neighbour step.
+3. Review: `flatpak run org.blender.Blender -b --python "$PWD/tools/materials/review.py" -- <name>`, which writes `work/materials/<name>_review.png` and prints the checks.
 4. The agent reads the review image and the checks, then the user judges the review image and, once the set is on a page, the page. A set lands only on the user's yes.
 
 The wear rule in the shader: `edge` is the distance from the fragment to the nearest edge of its box, `wear = step(chip_threshold, wear_field + amount * (1 - smoothstep(0, edge_width, edge)))`, and `wear` picks bare metal over paint, roughness G over R, and sets metallic to one. The review sheet builds the same rule in nodes, so the two copies must change together; the three parameters come from the one library file.
 
 ## The review sheet
 
-One image: the bevelled box at machine size with the set at both scales and the wear rule, under a sun and a flat sky, near and far; every map tiled 2 by 2, which shows a seam; the albedo tiled 8 by 8 at both scales, which shows repetition. The checks printed with it: the seam difference against the neighbour difference, no autocorrelation peak away from zero, the albedo within the plausible sRGB range (about 30 to 240), the roughness within its range, the wear coverage within bounds. The checks are mechanical; the look is the user's.
+One image: the bevelled box at machine size with the set at both scales and the wear rule, under a sun and a flat sky, near and far; every map tiled 2 by 2, which shows a seam; the albedo tiled 8 by 8 at both scales, which shows repetition. The checks printed with it: the seam difference against the neighbour difference, no autocorrelation peak away from zero, the tinted albedo (the preset's colour times the map) within the plausible sRGB range (about 30 to 240), the map itself being near white, the roughness within its range, the wear coverage within bounds. The checks are mechanical; the look is the user's.
 
 ## Rejected
 
