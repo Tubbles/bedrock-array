@@ -1,6 +1,6 @@
 # 0048: Bevels on blockout shapes
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-19, 1367611)
 
 Goal: the smelter's blockout of item 0042 reads as stacked boxes (user, 2026-10-18: "too blocky, it needs chamfers, cylinders, etc, more polys"). Any shape of a brief may carry a bevel, so edges chamfer or round, and the smelter's brief uses it, with its hearth mouth rebuilt as a frame of four bars around a recessed glowing face.
 
