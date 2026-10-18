@@ -1,6 +1,6 @@
 # 0023: Gamepad
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, 8a69815)
 
 Goal: a standard gamepad drives the page: the left stick walks, the right stick orbits, the triggers zoom, the d-pad moves up and down, with a dead zone so a resting stick drifts nothing (user, 2026-10-18: "and support gamepad"; CLAUDE.md: gamepad first, through the Gamepad API). Builds on 0022.
 
