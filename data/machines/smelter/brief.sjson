@@ -1,6 +1,6 @@
 // The smelter's brief (doc/workflows/art_book.md, Files): the data every step of D4 reads.
 // Sizes from the Techtonica study (doc/techtonica.md, The smelter): 2 by 2 cells of a metre, 2 m tall, a one cell clearance ring.
-// The front faces +z; y is up; positions are metres from the footprint's bottom centre.
+// The front faces +z; y is up; positions are metres from the footprint's bottom centre. A part's blockout is one shape or a list of shapes.
 id = "smelter"
 family = "furnace"
 role = "melts ore into ingots"
@@ -17,9 +17,9 @@ parts = [
 	{ name = "base" material = "bare_alloy" role = "base" blockout = { shape = "box" size = [2.0, 0.25, 2.0] position = [0, 0.125, 0] } }
 	{ name = "body" material = "painted_steel" role = "shell" blockout = { shape = "cylinder" radius = 0.9 height = 1.25 position = [0, 0.875, 0] } }
 	{ name = "lid" material = "copper" role = "lid" blockout = { shape = "dome" radius = 0.95 height = 0.3 position = [0, 1.5, 0] } }
-	{ name = "stack" material = "bare_alloy" role = "stack" blockout = { shape = "cylinder" radius = 0.12 height = 0.45 position = [0, 1.75, -0.6] } }
+	{ name = "stack" material = "bare_alloy" role = "stack" blockout = { shape = "cylinder" radius = 0.12 height = 0.45 position = [0, 1.775, -0.6] } }
 	{ name = "window" material = "furnace_glow" role = "emissive" blockout = { shape = "box" size = [0.6, 0.3, 0.1] position = [0, 1.0, 0.87] } }
-	{ name = "grille" material = "bare_alloy" role = "grille" blockout = { shape = "box" size = [0.7, 0.4, 0.04] position = [0, 1.0, 0.93] } }
+	{ name = "grille" material = "bare_alloy" role = "grille" blockout = [ { shape = "box" size = [0.7, 0.03, 0.03] position = [0, 0.9, 0.95] } { shape = "box" size = [0.7, 0.03, 0.03] position = [0, 1.0, 0.95] } { shape = "box" size = [0.7, 0.03, 0.03] position = [0, 1.1, 0.95] } ] }
 ]
 cues = [
 	{ name = "working" behaviour = "the window glows orange with heat and flickers, a shimmer over the lid" parts = ["window"] sockets = ["heat"] }

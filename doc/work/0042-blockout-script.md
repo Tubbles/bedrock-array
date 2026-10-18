@@ -1,6 +1,6 @@
 # 0042: The blockout script
 
-Status: designed (2026-10-18)
+Status: verified (2026-10-18)
 
 Goal: step 2 of `doc/workflows/art_book.md`: `tools/art/blockout.py` builds a machine's blockout from its brief, primitives in library materials with the 1.8 m figure beside it under the review light, and renders the hero view, the four orthographic views and a silhouette mask of each, the reference images the repaint step takes. Refers to items 0038 and 0041.
 
@@ -18,3 +18,5 @@ Binding facts: the brief's keys (`data/machines/smelter/brief.sjson`: `parts[].b
 - Outputs under `work/art/<id>/blockout/` (created). Short procedures: the brief reading, one procedure per shape, the material, the figure, the cameras, the render, the mask render, `main`.
 
 Verify: the command; the ten files; the hero read with the Read tool.
+
+First run, 2026-10-18: the brief's grille, a solid box, hid the window, so the grille became three bars and a part's `blockout` may be a list of shapes; the ground sits at z 0, the hero is framed by a camera fit with a margin of a tenth, the masks render with the Standard transform and no dither and are thresholded at half after the render, since the pixel filter leaves grey edges (review).

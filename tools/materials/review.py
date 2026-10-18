@@ -357,4 +357,5 @@ def main():
     print_checks(maps, preset)
 
 
-main()
+if __name__ == "__main__":
+    main()
