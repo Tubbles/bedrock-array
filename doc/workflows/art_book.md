@@ -10,13 +10,15 @@ The image model runs through OpenRouter (the key at `~/.config/openrouter/key`) 
 
 ## Files
 
-- `data/machines/<id>/brief.sjson`: `id`, `family`, `role`, `footprint = { cells, blocked }`, `height_m`, `figure_m`, `silhouette` (one sentence), `feature` (the one readable feature), `parts` (name, library material, role), `cues` (name, the behaviour in words, the parts, sockets and pivot it needs), `art = { model, seeds }`. The brief drives the blockout, the prompts and later the model's finishing.
+- `data/machines/<id>/brief.sjson`: `id`, `family`, `role`, `footprint = { cells, clearance, cell_metres }`, `height_metres`, `figure_metres`, `entry` (the entry page's clause: setting, state, colours), `silhouette` (one sentence), `feature` (the one readable feature), `parts` (name, library material, role), `cues` (name, the behaviour in words, the parts, sockets and pivot it needs), `art = { model, seeds }`. The brief drives the blockout, the prompts and later the model's finishing.
 - `data/art/families.sjson`: one style paragraph per machine family, composed into every prompt of the family, and the family's `palette` for the review sheet.
+- `data/art/book.sjson`: the art book's `pitch` and `page`, written once for the game, composed around each brief's `entry` in the entry round.
 - `work/art/<id>/`: the rounds, each image beside its prompt file, untracked (DESIGN.md, Working files).
 - `data/art/<id>/`: the kept hero and turnaround with their prompt sidecars, through Git LFS. Whether these pages ship in the game is still the open call of DESIGN.md.
 
 ## The steps
 
+0. Entry round, when the machine's look is open: `tools/art/concept.py <id> --entry --round <n> [--seeds 7 11]` paints the machine as a page of the art book (hero view, dimensioned elevations, named parts, named swatches, the figure) into `work/art/<id>/entry-<n>/`, on Banana (GPT drops the lettering and paints photographic grime, the 2026-10-18 trial). The chosen entry's parts and proportions are read into the brief and its swatches into the family's palette.
 1. Write or edit the brief.
 2. Blockout: `flatpak run org.blender.Blender -b --python "$PWD/tools/art/blockout.py" -- <id>` renders `hero.png`, `front.png`, `left.png`, `back.png`, `right.png` and a silhouette mask of each into `work/art/<id>/blockout/`.
 3. Repaint: `tools/art/concept.py <id> --round <n> [--model <name>] [--seeds 7 11 19]` sends the hero render as the reference with the prompt composed from the brief and the family style, two or three seeds per model, into `work/art/<id>/round-<n>/`. The user picks the hero.

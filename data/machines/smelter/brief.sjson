@@ -13,6 +13,7 @@ height_metres = 2.0
 figure_metres = 1.8
 silhouette = "a squat drum on a low base, a domed copper lid, a short stack at the back"
 feature = "a glowing grille window as the face on the front"
+entry = "in a cave lit by its own hearth and the glowing flora, shown working, in slate blue painted panels with copper fittings"
 parts = [
 	{ name = "base" material = "bare_alloy" role = "base" blockout = { shape = "box" size = [2.0, 0.25, 2.0] position = [0, 0.125, 0] } }
 	{ name = "body" material = "painted_steel" role = "shell" blockout = { shape = "cylinder" radius = 0.9 height = 1.25 position = [0, 0.875, 0] } }

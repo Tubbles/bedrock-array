@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
-"""Repaint a machine's blockout renders into concept art (doc/workflows/art_book.md, steps 3 and 4).
+"""Paint a machine's art book entry and repaint its blockout renders into concept art (doc/workflows/art_book.md, steps 0, 3 and 4).
 
     tools/art/concept.py <id> --round <n> [--model banana] [--seeds 7 11 19] [--dry-run]
     tools/art/concept.py <id> --turnaround <hero image> --round <n> [--model banana] [--dry-run]
+    tools/art/concept.py <id> --entry --round <n> [--model banana] [--seeds 7 11] [--dry-run]
 
 The prompt is composed from the brief (data/machines/<id>/brief.sjson) and its family's style
 (data/art/families.sjson), never written by hand. The hero round repaints work/art/<id>/blockout/hero.png
 once per seed into work/art/<id>/round-<n>/; the turnaround repaints each orthographic render with the
-chosen hero as the second reference into work/art/<id>/round-<n>/turnaround/<view>.png.
+chosen hero as the second reference into work/art/<id>/round-<n>/turnaround/<view>.png. The entry round
+paints a page of the art book from data/art/book.sjson and the brief's entry, without a reference, once
+per seed into work/art/<id>/entry-<n>/.
 --dry-run prints the prompt and the calls without calling the API.
 """
 import argparse
@@ -23,6 +26,7 @@ import sjson  # noqa: E402
 
 VIEWS = ["front", "left", "back", "right"]
 RATIO = "1:1"  # the blockout renders are square; a repaint keeps the reference's camera
+ENTRY_RATIO = "4:3"  # an art book page
 
 
 def read_sjson(path):
@@ -47,6 +51,13 @@ def read_style(family):
     if family not in families:
         fail(f"no family {family!r} in data/art/families.sjson")
     return families[family]["style"]
+
+
+def read_book():
+    path = os.path.join(ROOT, "data", "art", "book.sjson")
+    if not os.path.isfile(path):
+        fail("no data/art/book.sjson")
+    return read_sjson(path)
 
 
 def require_files(paths):
@@ -76,6 +87,22 @@ def turnaround_prompt(style, view):
             "keeping its silhouette and proportions; finished concept art, no text.")
 
 
+def number_text(value):
+    """A number as the prompt prints it, without trailing zeros: 2 not 2.0."""
+    return f"{value:g}"
+
+
+def entry_prompt(book, brief):
+    if "entry" not in brief:
+        fail(f"no entry in the brief of {brief['id']}")
+    footprint = brief["footprint"]
+    width, depth = (number_text(cells * footprint["cell_metres"]) for cells in footprint["cells"])
+    machine = (f"The entry shows the {brief['id']}, a machine filling a {width} by {depth} metre footprint "
+               f"and {number_text(brief['height_metres'])} metres tall, {brief['entry']}, beside a futuristic "
+               f"EVA suited astronaut {number_text(brief['figure_metres'])} metres tall for scale.")
+    return " ".join([book["pitch"], machine, book["page"]])
+
+
 def art_directory(machine):
     return os.path.join(ROOT, "work", "art", machine)
 
@@ -84,19 +111,19 @@ def view_render(machine, view):
     return os.path.join(art_directory(machine), "blockout", f"{view}.png")
 
 
-def call(model, prompt, seed, references, dry_run):
+def call(model, prompt, seed, references, dry_run, ratio=RATIO):
     """One image call; returns (images, cost, seed), or None on a dry run."""
     if dry_run:
         return None
-    images, cost, seed = generate.generate_openrouter(model, prompt, 1, RATIO, seed, references)
+    images, cost, seed = generate.generate_openrouter(model, prompt, 1, ratio, seed, references)
     if not images:
         sys.exit("the model returned no image")
     return images, cost, seed
 
 
-def describe(model, seed, references, out):
+def describe(model, seed, references, out, ratio=RATIO):
     relative = [os.path.relpath(path, ROOT) for path in references]
-    print(f"call: model={model} ({generate.OPENROUTER_MODELS[model]}) seed={seed} ratio={RATIO} references={relative} out={os.path.relpath(out, ROOT)}")
+    print(f"call: model={model} ({generate.OPENROUTER_MODELS[model]}) seed={seed} ratio={ratio} references={relative} out={os.path.relpath(out, ROOT)}")
 
 
 def write_view(out, view, model, prompt, images, cost, seed):
@@ -125,6 +152,18 @@ def hero_round(machine, round_number, model, seeds, dry_run):
             print(cost_text, *written)
 
 
+def entry_round(machine, round_number, model, seeds, dry_run):
+    prompt = entry_prompt(read_book(), read_brief(machine))
+    print(prompt)
+    out = os.path.join(art_directory(machine), f"entry-{round_number}")
+    for seed in seeds:
+        describe(model, seed, [], out, ENTRY_RATIO)
+        result = call(model, prompt, seed, [], dry_run, ENTRY_RATIO)
+        if result:
+            written, cost_text = generate.write_images(out, model, prompt, ENTRY_RATIO, *result)
+            print(cost_text, *written)
+
+
 def turnaround(machine, round_number, model, hero, dry_run):
     style = read_style(read_brief(machine)["family"])
     hero = os.path.abspath(hero)
@@ -146,14 +185,19 @@ def main():
     parser.add_argument("machine", help="the brief's id, data/machines/<id>/brief.sjson")
     parser.add_argument("--round", type=int, required=True, dest="round_number")
     parser.add_argument("--model", choices=generate.OPENROUTER_MODELS, help="default: the brief's art.model")
-    parser.add_argument("--seeds", type=int, nargs="+", help="the hero round's seeds, default 7 11 19")
+    parser.add_argument("--seeds", type=int, nargs="+", help="the hero round's seeds, default 7 11 19; the entry round's, default 7 11")
     parser.add_argument("--turnaround", metavar="HERO", help="the chosen hero image; repaints the four orthographic views")
+    parser.add_argument("--entry", action="store_true", help="paint art book entries from data/art/book.sjson and the brief's entry")
     parser.add_argument("--dry-run", action="store_true", help="print the prompt and the calls, call nothing")
     arguments = parser.parse_args()
     if arguments.turnaround and arguments.seeds:
         parser.error("--seeds applies to the hero round, not to --turnaround")
+    if arguments.turnaround and arguments.entry:
+        parser.error("--entry and --turnaround exclude each other")
     model = arguments.model or read_brief(arguments.machine)["art"]["model"]
-    if arguments.turnaround:
+    if arguments.entry:
+        entry_round(arguments.machine, arguments.round_number, model, arguments.seeds or [7, 11], arguments.dry_run)
+    elif arguments.turnaround:
         turnaround(arguments.machine, arguments.round_number, model, arguments.turnaround, arguments.dry_run)
     else:
         hero_round(arguments.machine, arguments.round_number, model, arguments.seeds or [7, 11, 19], arguments.dry_run)
