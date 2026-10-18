@@ -28,7 +28,7 @@ The engine commands pass `-define:BUILD_INFO="<commit> <UTC time>"`, for example
 
 ## Writing a demo
 
-A demo is one package under `src/demos/<name>/`. `odin.js` runs its `main` once at load, then calls the exported `step :: proc(delta_time: f64) -> bool` every animation frame for as long as it returns true. Rendering goes through `vendor:wasm/WebGL` with WebGL2 calls only, never WebGL1 (CLAUDE.md, Stack). Input from `core:sys/wasm/js`: the `.Pointer_Down` event covers touch and mouse alike, so one listener serves the phone and the laptop. A scene demo is the engine's `Scene_Page` plus its scene file `data/demos/<name>/scene.sjson`, passed with `#load` to `scene_page_init` with the material library ([render.md](render.md), Scene files, holds the format). The page brings the orbit input: drag, pinch and wheel.
+A demo is one package under `src/demos/<name>/`. `odin.js` runs its `main` once at load, then calls the exported `step :: proc(delta_time: f64) -> bool` every animation frame for as long as it returns true. Rendering goes through `vendor:wasm/WebGL` with WebGL2 calls only, never WebGL1 (CLAUDE.md, Stack). Input from `core:sys/wasm/js`: the `.Pointer_Down` event covers touch and mouse alike, so one listener serves the phone and the laptop. A scene demo is the engine's `Scene_Page` plus its scene file `data/demos/<name>/scene.sjson`, passed with `#load` to `scene_page_init` with the material library ([render.md](render.md), Scene files, holds the format), and the texture directory `data/materials/textures/` through `#load_directory`. The page brings the orbit input: drag, pinch and wheel.
 
 ## Installing the demos
 

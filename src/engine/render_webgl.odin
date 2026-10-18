@@ -38,6 +38,12 @@ Webgl_Target :: struct {
 	width, height: i32,
 }
 
+// The uploaded images of a material's texture set; present is false for a material without one.
+Webgl_Texture_Set :: struct {
+	albedo, normal, surface: gl.Texture,
+	present:                 bool,
+}
+
 Webgl_Renderer :: struct {
 	program:          gl.Program,
 	uniforms:         Webgl_Uniforms,
@@ -51,6 +57,8 @@ Webgl_Renderer :: struct {
 	// Level 0 is half the canvas, each next level half the previous; after the passes level 0 holds the bloom.
 	bloom_targets:       [WEBGL_BLOOM_LEVELS]Webgl_Target,
 	meshes:              [dynamic]Webgl_Mesh,
+	// Indexed by Material_Id.
+	texture_sets:        [dynamic]Webgl_Texture_Set,
 }
 
 // Matches MAX_POINT_LIGHTS in forward.frag; lights beyond it are not drawn.
@@ -159,6 +167,37 @@ webgl_renderer_upload_mesh :: proc(renderer: ^Webgl_Renderer, mesh: Mesh_Data) -
 	gl.BindVertexArray(0)
 	append(&renderer.meshes, uploaded)
 	return Mesh_Id(len(renderer.meshes) - 1)
+}
+
+// Stores the set at the material's index, growing the list to cover it.
+webgl_renderer_upload_texture_set :: proc(renderer: ^Webgl_Renderer, material: Material_Id, set: Texture_Set_Data) {
+	if int(material) >= len(renderer.texture_sets) {
+		resize(&renderer.texture_sets, int(material) + 1)
+	}
+	renderer.texture_sets[material] = Webgl_Texture_Set {
+		albedo  = webgl_upload_image(set.albedo, true),
+		normal  = webgl_upload_image(set.normal, false),
+		surface = webgl_upload_image(set.surface, false),
+		present = true,
+	}
+}
+
+// A mipmapped, repeating texture; srgb decodes the colour to linear on sampling.
+@(private = "file")
+webgl_upload_image :: proc(image: Image_Data, srgb: bool) -> gl.Texture {
+	texture := gl.CreateTexture()
+	internal_format := gl.SRGB8_ALPHA8 if srgb else gl.RGBA8
+	gl.BindTexture(gl.TEXTURE_2D, texture)
+	// The PNG holds the top row first; flipped, t runs upward, which the normal map's +Y assumes.
+	gl.PixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1)
+	gl.TexImage2DSlice(gl.TEXTURE_2D, 0, internal_format, i32(image.width), i32(image.height), 0, gl.RGBA, gl.UNSIGNED_BYTE, image.pixels)
+	gl.GenerateMipmap(gl.TEXTURE_2D)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, i32(gl.LINEAR_MIPMAP_LINEAR))
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, i32(gl.LINEAR))
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, i32(gl.REPEAT))
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, i32(gl.REPEAT))
+	gl.BindTexture(gl.TEXTURE_2D, 0)
+	return texture
 }
 
 // (Re)creates the target when the size differs, deleting the old handles.

@@ -1,6 +1,6 @@
 # 0032: Texture sets reach the renderer
 
-Status: designed (2026-10-18)
+Status: verified (2026-10-18)
 
 Goal: a page embeds `data/materials/textures/`, decodes the sets the library names and uploads them as WebGL textures, one set per material, so the sampling item (0033) has them bound. Nothing samples them yet. Refers to items 0028, 0030 and 0031.
 
@@ -19,3 +19,5 @@ Binding facts, verified 2026-10-18: `core:image/png` and `#load_directory` (as a
 - `doc/render.md`, The WebGL2 renderer: one sentence on the texture sets: decoded at page load from the embedded directory by `texture_set_from_files`, uploaded with mipmaps, repeat wrapping and the albedo as sRGB, one `Webgl_Texture_Set` per material; `doc/build.md`, Writing a demo: the directory passed beside the library and the scene.
 
 Verify: `./build.sh check`, `./build.sh test` (thirty four tests), `./build.sh web surface`.
+
+Review, 2026-10-18: the upload flips the rows (`UNPACK_FLIP_Y_WEBGL`) so t runs upward, the convention the baked normal map's +Y assumes, and each demo frees the temp arena after the init, since the decoded images live there.

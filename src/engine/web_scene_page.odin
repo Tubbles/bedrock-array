@@ -1,6 +1,7 @@
 #+build js wasm32
 package engine
 
+import "base:runtime"
 import "core:fmt"
 import "core:math"
 import "core:math/linalg"
@@ -52,7 +53,7 @@ Scene_Page :: struct {
 	ready:                       bool,
 }
 
-scene_page_init :: proc(page: ^Scene_Page, canvas_id: string, library_data, scene_data: []byte) -> (problem: string) {
+scene_page_init :: proc(page: ^Scene_Page, canvas_id: string, library_data, scene_data: []byte, textures: []runtime.Load_Directory_File) -> (problem: string) {
 	page.canvas_id = canvas_id
 	page.gamepad_index = -1
 	gl.CreateCurrentContextById(canvas_id, {})
@@ -65,6 +66,8 @@ scene_page_init :: proc(page: ^Scene_Page, canvas_id: string, library_data, scen
 	page.orbit = page.scene.camera
 	if !webgl_renderer_init(&page.renderer) do return "the WebGL2 shaders did not compile"
 	scene_page_upload_meshes(page)
+	problem = scene_page_upload_textures(page, textures)
+	if problem != "" do return fmt.tprintf("textures: %s", problem)
 	page.ready = true
 	return ""
 }
@@ -149,6 +152,19 @@ scene_page_upload_meshes :: proc(page: ^Scene_Page) {
 		page.item_mesh_ids[index] = webgl_renderer_upload_mesh(&page.renderer, mesh)
 		mesh_data_destroy(&mesh)
 	}
+}
+
+// One set per material that names one; the decoded pixels live in the temp allocator until uploaded.
+@(private = "file")
+scene_page_upload_textures :: proc(page: ^Scene_Page, textures: []runtime.Load_Directory_File) -> (problem: string) {
+	for material, index in page.library.materials {
+		if material.textures == "" do continue
+		set: Texture_Set_Data
+		set, problem = texture_set_from_files(textures, material.textures, context.temp_allocator)
+		if problem != "" do return problem
+		webgl_renderer_upload_texture_set(&page.renderer, Material_Id(index), set)
+	}
+	return ""
 }
 
 @(private = "file")
