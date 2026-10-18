@@ -104,8 +104,8 @@ def entry_prompt(book, brief):
     footprint = brief["footprint"]
     width, depth = (number_text(cells * footprint["cell_metres"]) for cells in footprint["cells"])
     machine = (f"The entry shows the {brief['id']}, a machine filling a {width} by {depth} metre footprint "
-               f"and {metres_text(brief['height_metres'])} tall, {brief['entry']}, beside the astronaut "
-               f"already on the page, who is {metres_text(brief['figure_metres'])} tall, for scale.")
+               f"and {metres_text(brief['height_metres'])} tall, {brief['entry']}, beside a futuristic "
+               f"EVA suited astronaut {metres_text(brief['figure_metres'])} tall for scale.")
     return " ".join([book["pitch"], machine, book["page"]])
 
 
