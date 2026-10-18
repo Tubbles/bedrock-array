@@ -11,7 +11,7 @@ The image model runs through OpenRouter (the key at `~/.config/openrouter/key`) 
 ## Files
 
 - `data/machines/<id>/brief.sjson`: `id`, `family`, `role`, `footprint = { cells, blocked }`, `height_m`, `figure_m`, `silhouette` (one sentence), `feature` (the one readable feature), `parts` (name, library material, role), `cues` (name, the behaviour in words, the parts, sockets and pivot it needs), `art = { model, seeds }`. The brief drives the blockout, the prompts and later the model's finishing.
-- `data/art/families.sjson`: one style paragraph per machine family, composed into every prompt of the family.
+- `data/art/families.sjson`: one style paragraph per machine family, composed into every prompt of the family, and the family's `palette` for the review sheet.
 - `work/art/<id>/`: the rounds, each image beside its prompt file, untracked (DESIGN.md, Working files).
 - `data/art/<id>/`: the kept hero and turnaround with their prompt sidecars, through Git LFS. Whether these pages ship in the game is still the open call of DESIGN.md.
 
@@ -21,7 +21,7 @@ The image model runs through OpenRouter (the key at `~/.config/openrouter/key`) 
 2. Blockout: `flatpak run org.blender.Blender -b --python "$PWD/tools/art/blockout.py" -- <id>` renders `hero.png`, `front.png`, `left.png`, `back.png`, `right.png` and a silhouette mask of each into `work/art/<id>/blockout/`.
 3. Repaint: `tools/art/concept.py <id> --round <n> [--model <name>] [--seeds 7 11 19]` sends the hero render as the reference with the prompt composed from the brief and the family style, two or three seeds per model, into `work/art/<id>/round-<n>/`. The user picks the hero.
 4. Turnaround: `tools/art/concept.py <id> --turnaround <hero image> --round <n>` repaints each orthographic render with the chosen hero as the second reference into `work/art/<id>/round-<n>/turnaround/`. The cue states (idle, working) as edits of the hero when the brief has them.
-5. Review sheet: `work/art/<id>_review.png`, the blockout row over the repaint row, the turnaround, a 64 pixel greyscale thumbnail row (the squint test for the readable feature) and the figure line. The checks: the silhouette overlap of each repaint against its blockout mask (above about 0.85), the dominant colours within a distance of the family palette, consistent sizes. The user's eye decides; the kept images go to `data/art/<id>/`.
+5. Review sheet: `tools/art/sheet.py <id> --round <n>` writes `round-<n>/review.png`: blockout, repaints, turnaround, a 64 pixel greyscale squint row, the height line. Per repaint against its mask, read from edges so horizon and shadows do not count: `SILHOUETTE` the share of the mask outline with an image edge near (ok above 0.85), `PALETTE` masked share near the family `palette` (above 0.6), `HEIGHT` the signed offset of the top edge from the mask's top over its height (within 0.05). The user's eye decides; the kept images go to `data/art/<id>/`.
 
 ## Rejected
 

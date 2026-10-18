@@ -1,5 +1,6 @@
-// One style paragraph per machine family, composed into every prompt of the family (doc/workflows/art_book.md).
+// One style paragraph per machine family, composed into every prompt of the family, and its palette for the review sheet (doc/workflows/art_book.md).
 // The look is DESIGN.md's stylised realism: real light on real materials, simplified shapes, no outlines, no toy palette.
 furnace = {
 	style = "Concept art of an industrial machine for a factory game, stylised realism: physically plausible materials under natural light, simplified shapes with one big readable feature, no outlines, no cartoon palette. A squat drum body of slate blue painted steel, the paint worn with chipped edges showing bare metal, a copper lid, a glowing grille window as the face, small bolts and panel seams, a short stack. Clean concept presentation on a neutral ground, an astronaut figure beside it for scale, no text, no logos."
+	palette = [[0.2, 0.24, 0.3], [0.95, 0.64, 0.54], [0.56, 0.57, 0.58], [1.0, 0.55, 0.2]]
 }
