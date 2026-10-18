@@ -1,6 +1,6 @@
 # 0010: Shader files and validation
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, 7a95d63)
 
 Goal: the GLSL leaves the Odin string constants for files under `src/engine/shaders/`, and `./build.sh check` validates every shader with glslang, so a shader error surfaces in the check and not only in a browser console nobody in a session can read. No behaviour change on the page.
 
