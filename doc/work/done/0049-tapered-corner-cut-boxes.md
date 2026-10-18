@@ -1,6 +1,6 @@
 # 0049: Tapered and corner cut boxes
 
-Status: verified (2026-10-19)
+Status: landed (2026-10-19, c5a5c97)
 
 Goal: the bevels of item 0048 round the smelter's edges but leave it a stack of cubes (user, 2026-10-19: "cut up the literal cubeiness of it, make it slant inwards slightly towards the top, cut out the corners of the upper body"). A box may taper toward its top and have its vertical edges chamfered, and the smelter's body and lid use both.
 
