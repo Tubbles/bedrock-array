@@ -1,6 +1,6 @@
 # 0018: The cave page
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, d2a7cc4)
 
 Goal: the first picture of D1's target, a cave lit by its own flora: rock walls and stalagmites in two rock materials, patches of glowing moss and clusters of glowing fungus, each with a point light of its colour, no sun, a low ambient and a raised exposure. A second page, `cave`, beside `light`, built from a scene file and the engine's `Scene_Page`. Builds on 0017.
 
