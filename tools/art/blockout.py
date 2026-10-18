@@ -296,7 +296,8 @@ def threshold_mask(path):
     """The render's edge antialiasing leaves grey pixels; the mask is the pixels above half."""
     pixels = review.read_png(path)
     mask = (pixels[..., :1] > 0.5).astype(numpy.float64)
-    images.write_png(path, numpy.repeat(mask, 3, axis=2), "linear")
+    # The reader gives the top row first, the writer takes the bottom row first (the bake's convention).
+    images.write_png(path, numpy.repeat(mask, 3, axis=2)[::-1], "linear")
 
 
 # Main
