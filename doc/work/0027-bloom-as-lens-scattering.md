@@ -1,0 +1,19 @@
+# 0027: Bloom as lens scattering
+
+Status: todo (2026-10-18)
+
+Goal: the bloom becomes the current form, a lens scattering term: no threshold, a chain of progressively smaller targets filled by 13 tap downsamples, added back level by level with 3 by 3 tent upsamples, and mixed into the scene at a few percent, so bright things get a wide soft veil rather than a halo (the user, 2026-10-18, on the threshold bloom of 0019: "Isn't bloom kindof no no, I mean outdated?", and the call "let's try 1"). After Jimenez 2014 (Call of Duty: Advanced Warfare) with the partial Karis average on the first downsample. Replaces 0019's passes.
+
+Verify:
+- `./build.sh check` validates six shaders, `./build.sh web cave`; the moss and fungus of the cave sit in a wide soft glow that fades over a good part of the frame, with no hard edge and no haloes on dim things, and the surface page gains at most a faint softness around the sun lit alloy (the user).
+
+## Specification (main agent, 2026-10-18)
+
+Binding facts read 2026-10-18: `gl.Enable(gl.BLEND)`, `gl.Disable(gl.BLEND)`, `gl.BlendFunc(gl.ONE, gl.ONE)` for additive drawing into a bound target.
+
+- `src/engine/shaders/bright.frag` and `blur.frag` are deleted. `src/engine/shaders/downsample.frag`: `uniform mediump sampler2D source; uniform vec2 texel; uniform int karis;` the 13 tap filter of Jimenez: with the centre e at `uv`, the 3 by 3 ring a..i at offsets of 2 texels (a (-2, 2), b (0, 2), c (2, 2), d (-2, 0), f (2, 0), g (-2, -2), h (0, -2), i (2, -2)) and the inner square j (-1, 1), k (1, 1), l (-1, -1), m (1, -1); the result as five boxes, `box0 = (a + b + d + e) / 4`, `box1 = (b + c + e + f) / 4`, `box2 = (d + e + g + h) / 4`, `box3 = (e + f + h + i) / 4`, `box4 = (j + k + l + m) / 4`, combined as `0.125 * (box0 + box1 + box2 + box3) + 0.5 * box4`; when `karis` is 1 each box is weighted by `1 / (1 + luma(box))` (luma = dot with (0.2126, 0.7152, 0.0722)) and the sum is divided by the sum of the weights, which kills the fireflies of a single bright pixel on the first level. `src/engine/shaders/upsample.frag`: `uniform mediump sampler2D source; uniform vec2 texel;` the 3 by 3 tent with weights 1, 2, 1 over 2, 4, 2 over 1, 2, 1 divided by 16 at offsets of one source texel.
+- `src/engine/shaders/tonemap.frag`: `linear = mix(scene, bloom, bloom_strength)` before the exposure and the curve.
+- `src/engine/render_webgl.odin`: `WEBGL_BLOOM_LEVELS :: 5`, `WEBGL_BLOOM_STRENGTH :: f32(0.05)`, the threshold constant gone; `bloom_targets: [WEBGL_BLOOM_LEVELS]Webgl_Target`, level 0 at half the canvas, each next level half the previous, floored at 1, linear filtering, no depth; the bright and blur programs replaced by `downsample_program` and `upsample_program` with their uniform structs. The passes after the forward pass, depth test off: level 0 downsampled from the scene colour with `karis = 1` and `texel` the scene texel, then level n from level n - 1 with `karis = 0`; then with `gl.Enable(gl.BLEND)` and `gl.BlendFunc(gl.ONE, gl.ONE)`, for n from the last level down to 1, the upsample of level n drawn into level n - 1 with `texel` the source level's texel, so each level accumulates the levels below it; blending disabled after; the tonemap reads level 0 as the bloom. `webgl_bloom_passes(renderer)` as one small procedure calling two helpers, `webgl_downsample_pass` and `webgl_upsample_pass`.
+- `doc/render.md`, The WebGL2 renderer: the bloom paragraph rewritten for the chain, the two filters, the Karis average, the mix and the constants; `build.sh` needs no change (six shaders validated).
+
+Verify: `./build.sh check` (silent, six shaders), `./build.sh test` (twenty nine tests), `./build.sh web cave`, `./build.sh web surface`, `./build.sh web light`.
