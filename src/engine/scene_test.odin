@@ -87,6 +87,9 @@ test_scene_item_mesh_by_shape :: proc(t: ^testing.T) {
 	cylinder := scene_item_mesh(Scene_Item{shape = .Cylinder, radius = 0.5, height = 1, segments = 8})
 	defer mesh_data_destroy(&cylinder)
 	testing.expect_value(t, len(cylinder.vertices), 36)
+	room := scene_item_mesh(Scene_Item{shape = .Room, size = {1, 1, 1}})
+	defer mesh_data_destroy(&room)
+	testing.expect_value(t, len(room.vertices), 24)
 }
 
 @(test)

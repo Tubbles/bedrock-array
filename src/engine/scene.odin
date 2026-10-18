@@ -6,9 +6,10 @@ import "core:fmt"
 Scene_Shape :: enum {
 	Box,
 	Cylinder,
+	Room,
 }
 
-// size for a box, radius, height and segments for a cylinder.
+// size for a box or a room, radius, height and segments for a cylinder.
 Scene_Item :: struct {
 	shape:          Scene_Shape,
 	size:           [3]f32,
@@ -115,6 +116,8 @@ scene_item_mesh :: proc(item: Scene_Item) -> Mesh_Data {
 		return box_mesh(item.size)
 	case .Cylinder:
 		return cylinder_mesh(item.radius, item.height, item.segments)
+	case .Room:
+		return room_mesh(item.size)
 	}
 	return {}
 }
@@ -183,13 +186,18 @@ parse_scene_item :: proc(owner: string, value: json.Value, library: Material_Lib
 		if item.size, problem = parse_scene_box(owner, fields); problem != "" {
 			return {}, problem
 		}
+	case "room":
+		item.shape = .Room
+		if item.size, problem = parse_scene_box(owner, fields); problem != "" {
+			return {}, problem
+		}
 	case "cylinder":
 		item.shape = .Cylinder
 		if item.radius, item.height, item.segments, problem = parse_scene_cylinder(owner, fields); problem != "" {
 			return {}, problem
 		}
 	case:
-		return {}, fmt.tprintf("%s: shape %s is neither box nor cylinder", owner, shape_name)
+		return {}, fmt.tprintf("%s: shape %s is neither box, cylinder nor room", owner, shape_name)
 	}
 	if item.position, problem = scene_vector_field(owner, "position", fields); problem != "" {
 		return {}, problem

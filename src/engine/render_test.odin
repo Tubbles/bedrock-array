@@ -2,6 +2,7 @@
 package engine
 
 import "core:math"
+import "core:math/linalg"
 import "core:testing"
 
 @(private = "file")
@@ -140,6 +141,24 @@ test_box_mesh_has_six_faces :: proc(t: ^testing.T) {
 	}
 	for index in mesh.indices {
 		testing.expect(t, index < 24)
+	}
+}
+
+@(test)
+test_room_mesh_faces_inward :: proc(t: ^testing.T) {
+	mesh := room_mesh({2, 2, 2})
+	defer mesh_data_destroy(&mesh)
+	testing.expect_value(t, len(mesh.vertices), 24)
+	testing.expect_value(t, len(mesh.indices), 36)
+	for vertex in mesh.vertices {
+		testing.expect(t, linalg.dot(vertex.normal, vertex.position) < 0)
+	}
+	for index := 0; index < len(mesh.indices); index += 3 {
+		a := mesh.vertices[mesh.indices[index]]
+		b := mesh.vertices[mesh.indices[index + 1]]
+		c := mesh.vertices[mesh.indices[index + 2]]
+		winding := linalg.cross(b.position - a.position, c.position - a.position)
+		testing.expect(t, linalg.dot(winding, a.normal) > 0)
 	}
 }
 

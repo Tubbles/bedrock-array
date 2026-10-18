@@ -1,14 +1,10 @@
-// The cave: rock walls and stalagmites lit by glowing moss and fungus, no sun.
+// The cave: a room of rock walls, see through from outside, and stalagmites lit by glowing moss and fungus, no sun.
 camera = { target = [0, 1, 0], yaw = 0.4, pitch = 0.35, distance = 8 }
 sun = { direction = [0, -1, 0], colour = [0, 0, 0], intensity = 0 }
 exposure = 2
 ambient = 0.02
 items = [
-	{ shape = "box", size = [14, 0.2, 14], position = [0, -0.1, 0], material = "cave_rock" }
-	{ shape = "box", size = [14, 5, 0.4], position = [0, 2.5, -7], material = "cave_rock" }
-	{ shape = "box", size = [0.4, 5, 14], position = [-7, 2.5, 0], material = "cave_rock" }
-	{ shape = "box", size = [0.4, 5, 14], position = [7, 2.5, 0], material = "cave_rock" }
-	{ shape = "box", size = [14, 0.4, 14], position = [0, 5.2, 0], material = "cave_rock" }
+	{ shape = "room", size = [14, 5, 14], position = [0, 2.5, 0], material = "cave_rock" }
 	{ shape = "cylinder", radius = 0.35, height = 1.8, segments = 12, position = [-4, 0.9, -3], material = "wet_rock" }
 	{ shape = "cylinder", radius = 0.35, height = 1.8, segments = 12, position = [-2.5, 0.9, 2], material = "wet_rock" }
 	{ shape = "cylinder", radius = 0.35, height = 1.8, segments = 12, position = [3, 0.9, -4.5], material = "wet_rock" }

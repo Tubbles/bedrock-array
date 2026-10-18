@@ -1,6 +1,6 @@
 # 0026: See through room walls
 
-Status: todo (2026-10-18)
+Status: verified (2026-10-18)
 
 Goal: the cave's floor, walls and ceiling become one inside out box, a room, whose faces point into the cave: from inside they draw as before, from outside they are back faces and culled, so a camera that orbits or walks out of the cave looks straight in instead of at a wall (user, 2026-10-18: "when camera gets behind the wall I see only the wall. Can you make the walls floor and roof see through"). Builds on 0018.
 

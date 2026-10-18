@@ -45,6 +45,18 @@ box_mesh :: proc(size: [3]f32, allocator := context.allocator) -> Mesh_Data {
 	return Mesh_Data{vertices = vertices, indices = indices}
 }
 
+// A box whose faces point inward, so the room is seen from inside and culled from outside.
+room_mesh :: proc(size: [3]f32, allocator := context.allocator) -> Mesh_Data {
+	mesh := box_mesh(size, allocator)
+	for &vertex in mesh.vertices {
+		vertex.normal = -vertex.normal
+	}
+	for index := 0; index < len(mesh.indices); index += 3 {
+		mesh.indices[index + 1], mesh.indices[index + 2] = mesh.indices[index + 2], mesh.indices[index + 1]
+	}
+	return mesh
+}
+
 // A cylinder along y, centred at the origin: 4 * (segments + 1) vertices,
 // 12 * segments indices.
 cylinder_mesh :: proc(radius, height: f32, segments: int, allocator := context.allocator) -> Mesh_Data {
