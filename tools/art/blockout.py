@@ -138,6 +138,14 @@ def shape_names(part):
     return [("%s.%d" % (part["name"], index), shape) for index, shape in enumerate(blockout)]
 
 
+def add_bevel(part_object, bevel):
+    """A bevel modifier of the shape's width and segments, on the edges sharper than the angle limit."""
+    modifier = part_object.modifiers.new("bevel", "BEVEL")
+    modifier.width = bevel["width"]
+    modifier.segments = bevel["segments"]
+    modifier.limit_method = "ANGLE"
+
+
 def add_part(part, library):
     """One object per shape of the part's blockout, all with the part's material."""
     material = preset_material(part["name"], library[part["material"]])
@@ -145,6 +153,10 @@ def add_part(part, library):
     for name, shape in shape_names(part):
         part_object = SHAPE_BUILDERS[shape["shape"]](shape)
         part_object.name = name
+        # Applied so a bevel's width is in metres, not in the shape's unscaled space.
+        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+        if "bevel" in shape:
+            add_bevel(part_object, shape["bevel"])
         bpy.ops.object.shade_auto_smooth()
         part_object.data.materials.append(material)
         part_objects.append(part_object)
