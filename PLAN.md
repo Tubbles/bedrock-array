@@ -36,7 +36,7 @@ The Techtonica study ([DESIGN.md](DESIGN.md)) feeds D1 and D4 (study 6), D2 (4 a
 
 ## Phase B: the engine
 
-Written as items when phase A ends. The shape is [DESIGN.md](DESIGN.md), The engine and the modules: the wasm host carried from Heimdall, the natives and their versioning, the first module, the voxel store with the worldgen module's crossing, intercom with the factory module's skeleton and the crossing benchmark, the input layer and the actions module, the UI toolkit in the ui module, saves, the editor, the modding documentation generated from the natives table, the native build on raylib with the couch path: the Steam shortcut, the play build install, the Deck delivery.
+Written as items when phase A ends. The shape is [DESIGN.md](DESIGN.md), The engine and the modules: the wasm host carried from Heimdall, the natives and their versioning, the first module, the voxel store with the worldgen module's crossing, intercom with the factory module's skeleton and the crossing benchmark, the input layer and the actions module, the UI toolkit in the ui module, the materials module with the noise and voronoi natives (DESIGN.md, The material generator), saves, the editor, the modding documentation generated from the natives table, the native build on raylib with the couch path: the Steam shortcut, the play build install, the Deck delivery.
 
 ## Phase C: the game
 

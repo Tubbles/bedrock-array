@@ -89,6 +89,12 @@ The consequence is the grouping rule above: a per entity per tick flow never cro
 
 Rejected: direct imports through the linker (both instances must share one wasmtime store, and a pointer argument means nothing in the other module's memory, so only scalar calls would work); one memory imported by every module (each separately linked Odin module places its data segment, stack and heap at its own addresses, and nothing in Odin's build flags links wasm modules together, so the partition would be by hand); the component model (no Odin tooling).
 
+### The material generator
+
+Decided 2026-10-18 (the user's thought, the main agent's sketch). A material's procedural fields are layer stacks in SJSON (`doc/workflows/materials.md`, The fields), and the generator that evaluates them is a `materials` module: it exports `generate(stack, size)`, fills the map in its own memory and hands the engine one pixel view per map, which the engine uploads as it reads a draw list. One crossing per map, no call per texel, so the rule holds. The engine offers the heavy primitives as natives, fill this buffer with 4D noise or voronoi at a scale and seed, threaded and vectorised, a handful of crossings per map; a module may compute its own primitives in guest memory, slower but allowed, which is how a mod adds a kind the engine never heard of. The module's exports are the vocabulary the editor edits: the kinds, the combines and their keys. A mod that wants a new kind, another curve or a new combination ships its own module with the same entry and ignores the core one, the two layer rule. Two data extensions come before any code: a named curve for `gate` and `mix` (smoothstep, linear, smootherstep, a list of points) and expression layers (a layer that is a `mul` or `add` of sub stacks).
+
+The module is a pure function of stack and seed, so it hot reloads without state: edit, build to wasm, the file watcher reloads it, every stack in use is generated again and uploaded. A procedural material then ships as a stack and a seed, regenerated at load, deterministic, no texture files. Blender's noise is not Odin's: the stack is the contract and the noise functions an implementation, so the look shifts and is retuned on the review sheet when the generator moves, and Blender keeps the review render. The engine's noise kernel in Odin, pure and tested, is the optional phase A step that makes the shift smaller.
+
 ### Cellular systems
 
 Decided 2026-10-18. Water, decay and growth are engine kernels, their rules are block data.
