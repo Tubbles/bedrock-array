@@ -1,6 +1,6 @@
 # 0002: The web build and a hello page
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, b161f36)
 
 Goal: `./build.sh web <demo>` builds `src/demos/<demo>` with `-target:js_wasm32` into `build/web/<demo>/` together with the toolchain's `odin.js` and the page shell from `web/` (one HTML file, one stylesheet, a canvas that fills the viewport on a phone and a laptop). `src/demos/hello` clears a WebGL2 canvas to a colour that changes with a tap or a click. `doc/build.md` gains the web section.
 
