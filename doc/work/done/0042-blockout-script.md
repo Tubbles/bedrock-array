@@ -1,6 +1,6 @@
 # 0042: The blockout script
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, 3f68fd7)
 
 Goal: step 2 of `doc/workflows/art_book.md`: `tools/art/blockout.py` builds a machine's blockout from its brief, primitives in library materials with the 1.8 m figure beside it under the review light, and renders the hero view, the four orthographic views and a silhouette mask of each, the reference images the repaint step takes. Refers to items 0038 and 0041.
 
