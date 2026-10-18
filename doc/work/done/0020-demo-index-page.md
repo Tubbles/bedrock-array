@@ -1,6 +1,6 @@
 # 0020: The demo index page
 
-Status: todo (2026-10-18)
+Status: landed (2026-10-18, e8a5477)
 
 Goal: the page at the host's root lists every tech demo as a card with its name and a description of what it shows and how to drive it, and every demo page carries a link back to it, so the phone and the laptop have one place to start from (user, 2026-10-18: "Can we get some index page for all tech demos").
 
