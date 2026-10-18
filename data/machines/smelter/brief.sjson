@@ -1,15 +1,15 @@
 // The smelter's brief (doc/workflows/art_book.md, Files): the data every step of D4 reads.
-// Sizes from the Techtonica study (doc/techtonica.md, The smelter): 2 by 2 cells of a metre, 2 m tall, a one cell clearance ring.
+// 1 by 1 cells of a metre, 1 m tall (user, 2026-10-18): the study's box (doc/techtonica.md, Footprints and heights) read massive on the entry pages, and Techtonica's machines stand no taller than the player.
 // The front faces +z; y is up; positions are metres from the footprint's bottom centre. A part's blockout is one shape or a list of shapes.
 id = "smelter"
 family = "furnace"
 role = "melts ore into ingots"
 footprint = {
-	cells = [2, 2]
+	cells = [1, 1]
 	clearance = 1
 	cell_metres = 1
 }
-height_metres = 2.0
+height_metres = 1.0
 figure_metres = 1.8
 silhouette = "a squat drum on a low base, a domed copper lid, a short stack at the back"
 feature = "a glowing grille window as the face on the front"

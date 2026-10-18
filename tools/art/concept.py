@@ -93,14 +93,19 @@ def number_text(value):
     return f"{value:g}"
 
 
+def metres_text(value):
+    """A length with its unit, singular at one: 1 metre, 1.8 metres."""
+    return f"{number_text(value)} metre" + ("" if value == 1 else "s")
+
+
 def entry_prompt(book, brief):
     if "entry" not in brief:
         fail(f"no entry in the brief of {brief['id']}")
     footprint = brief["footprint"]
     width, depth = (number_text(cells * footprint["cell_metres"]) for cells in footprint["cells"])
     machine = (f"The entry shows the {brief['id']}, a machine filling a {width} by {depth} metre footprint "
-               f"and {number_text(brief['height_metres'])} metres tall, {brief['entry']}, beside the astronaut "
-               f"already on the page, who is {number_text(brief['figure_metres'])} metres tall, for scale.")
+               f"and {metres_text(brief['height_metres'])} tall, {brief['entry']}, beside the astronaut "
+               f"already on the page, who is {metres_text(brief['figure_metres'])} tall, for scale.")
     return " ".join([book["pitch"], machine, book["page"]])
 
 
