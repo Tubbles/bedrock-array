@@ -72,19 +72,25 @@ def as_sentence(text):
     return text[0].upper() + text[1:] + ("" if text.endswith(".") else ".")
 
 
-def hero_prompt(style, brief):
+def figure_sentence(figure):
+    """The grey capsule of the blockout is a stand-in: painted as the book's astronaut, at its height and place."""
+    return f"The grey capsule beside the machine is a stand-in for {figure}: paint it as that astronaut, at the same height and place."
+
+
+def hero_prompt(style, brief, figure):
     return " ".join([
         style,
-        "Repaint this blockout as finished concept art, keeping its silhouette, proportions, camera and the figure for scale exactly as they are.",
+        "Repaint this blockout as finished concept art, keeping its silhouette, proportions and camera exactly as they are.",
+        figure_sentence(figure),
         as_sentence(brief["silhouette"]),
         as_sentence(brief["feature"]),
         "No text, no logos.",
     ])
 
 
-def turnaround_prompt(style, view):
+def turnaround_prompt(style, view, figure):
     return (f"{style} The same machine as the second image, redrawn in the exact orthographic {view} view of the first image, "
-            "keeping its silhouette and proportions; finished concept art, no text.")
+            f"keeping its silhouette and proportions; finished concept art, no text. {figure_sentence(figure)}")
 
 
 def number_text(value):
@@ -150,7 +156,7 @@ def write_view(out, view, model, prompt, images, cost, seed):
 
 def hero_round(machine, round_number, model, seeds, dry_run):
     brief = read_brief(machine)
-    prompt = hero_prompt(read_style(brief["family"]), brief)
+    prompt = hero_prompt(read_style(brief["family"]), brief, read_book()["figure"])
     print(prompt)
     out = os.path.join(art_directory(machine), f"round-{round_number}")
     references = [os.path.join(art_directory(machine), "blockout", "hero.png")]
@@ -178,11 +184,12 @@ def entry_round(machine, round_number, model, seeds, dry_run):
 
 def turnaround(machine, round_number, model, hero, dry_run):
     style = read_style(read_brief(machine)["family"])
+    figure = read_book()["figure"]
     hero = os.path.abspath(hero)
     require_files([view_render(machine, view) for view in VIEWS] + [hero])
     out_directory = os.path.join(art_directory(machine), f"round-{round_number}", "turnaround")
     for view in VIEWS:
-        prompt = turnaround_prompt(style, view)
+        prompt = turnaround_prompt(style, view, figure)
         print(prompt)
         references = [view_render(machine, view), hero]
         out = os.path.join(out_directory, f"{view}.png")
