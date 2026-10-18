@@ -1,6 +1,6 @@
 # 0001: The build script and an empty engine package
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, 59f3db4)
 
 Goal: `build.sh` with `check` and `test` over `src/engine/`, holding one package with one test, and `doc/build.md` describing it. The shape of Mine oh Belowed's `build.sh` without its commands for other platforms.
 
