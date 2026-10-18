@@ -16,19 +16,23 @@ Beside the phases: the Techtonica study ([DESIGN.md](DESIGN.md), The Techtonica 
 
 ## Phase A: the tech demos
 
-A proposal, open to the user (SUGGESTIONS.md). Each demo is a milestone with one verify statement: the user, on the phone and on the laptop, judges it as release quality. Both see every commit from the first page on, so the web host on bazzite comes before the first demo. The Steam shortcut and the couch build arrive with the native engine in phase B.
+Each demo answers one question. The user, on the phone and on the laptop, judges the answer on the page, and that judgement closes the demo. The web host on bazzite came before the first demo so both devices see every commit. The Steam shortcut and the couch build arrive with the native engine in phase B.
 
-| Demo | Settles | Defines the workflow for | Draws on |
+The user's reading on 2026-10-18, after D1's two pages: a renderer on flat coloured primitives decides nothing, so a demo's next item is always the one that moves its question, and engineering that can wait (the screenshot tool, clustered lights) waits. D1 runs on to its first finished material. After D1 the series below is pruned to the demos with a real open question (user, 2026-10-18), so the rows after D1 are provisional.
+
+| Demo | The question | Defines the workflow for | State |
 | --- | --- | --- | --- |
-| D1 Light | Renderer stage 1 (physically based forward shading, clustered lights, HDR, bloom, vertex ambient occlusion), the material library, stylised realism in the concrete: a cave lit by its flora and a surface under the sun, primitives in library materials | Textures and materials (parametric generation, generated physically based sets) | Techtonica study 6 |
-| D2 Ground | The smooth voxel planet carried from Mine oh Belowed under the new light, sky, day and weather, the powered pickaxe breaking terrain with debris and dust | Nothing new, the first dig sounds wait for D6 | Study 4 and 5 |
-| D3 Water | The cellular kernels with data rules: flow, pooling, a dug pit filling and draining, the water surface | Nothing new | |
-| D4 Machine | One machine from the art book to a finished model: concept, model, materials, animation, state cues (glow, motion, heat), alone and in a row of many | The art book and the modelling (Blender) | Study 2 and 6 |
-| D5 Belts | Items travelling on belts between two machines, lanes, splitting and merging, instanced drawing | Nothing new | Study 1 |
-| D6 Sound | Cave ambience, the machine hum, belt and dig sounds, in no perceivable repetition clusters, over the scene of D2 to D5 | Sound effects, and the Web Audio glue the pages need | Study 7 |
-| D7 Screens | The inventory and crafting screen with the gamepad layers and glyphs in the 10 foot UI, Techtonica's bar, a gamepad through the browser's Gamepad API and touch as the pointer | Icons and UI art | Study 3 |
-| D8 Music | A biome playlist with intensity layers | Music | Study 7 |
-| D9 Voice | A short Mission Control exchange, written and synthesised, that passes lesson 1 | Writing and voice | |
+| D1 Light | Is stylised realism the look: worn paint with chipped edges over metal, a glowing face on a machine, a world lit by what glows, under a physically based light | Textures and materials | The renderer stands (0004 to 0027: shading, HDR and tone map, point lights, bloom, hemisphere ambient, scene files, the cave and surface pages, touch, mouse, keyboard and gamepad input). The question is open: the pages show flat colours on primitives. Next: the material workflow (0028) and the first finished material on the surface page's machine block |
+| D2 Ground | Does the smooth voxel planet of Mine oh Belowed hold up under the new light, with sky, day and weather, and the powered pickaxe breaking terrain with debris and dust | Nothing new | Todo |
+| D3 Water | Do cellular kernels with data rules give believable flow, pooling, a dug pit filling and draining, and a water surface | Nothing new | Todo |
+| D4 Machine | Can one machine go from the art book to a finished model: concept, model, materials, animation, state cues (glow, motion, heat), alone and in a row of many | The art book and the modelling (Blender) | Todo |
+| D5 Belts | Do items travelling on belts between two machines, with lanes, splitting and merging, read as Techtonica's, drawn instanced | Nothing new | Todo |
+| D6 Sound | Do cave ambience, the machine hum, belt and dig sounds hold up in no perceivable repetition clusters over the scene of D2 to D5 | Sound effects, and the Web Audio glue the pages need | Todo |
+| D7 Screens | Do the inventory and crafting screen with the gamepad layers and glyphs in the 10 foot UI, Techtonica's bar, a gamepad through the browser's Gamepad API and touch as the pointer, work from the couch | Icons and UI art | Todo |
+| D8 Music | Does a biome playlist with intensity layers carry the mood | Music | Todo |
+| D9 Voice | Does a short Mission Control exchange, written and synthesised, pass lesson 1 | Writing and voice | Todo |
+
+The Techtonica study ([DESIGN.md](DESIGN.md)) feeds D1 and D4 (study 6), D2 (4 and 5), D5 (1), D6 and D8 (7), D7 (3).
 
 ## Phase B: the engine
 
@@ -40,21 +44,13 @@ Defined when phase B is in sight. The first target is the spine of [DESIGN.md](D
 
 ## Where it stands
 
-- 2026-10-18: the definition read and worked out into DESIGN.md with the user (the engine and module split, intercom, cellular systems, the look and the renderer, the underground, asset storage, the Techtonica study, `doc/log/2026-10-18.md`). M0 landed the same day: the build script, the browser build with the hello page, the web host on bazzite at `http://192.168.1.7:8080/`, the draw list with the camera and the primitive meshes, Git LFS. D1 reached its two scene pages (the cave and the surface) the same evening, with the orbit, pan, walk and gamepad input the user asked for on the way.
+- 2026-10-18: the definition read and worked out into DESIGN.md with the user (the engine and module split, intercom, cellular systems, the look and the renderer, the underground, asset storage, the Techtonica study, `doc/log/2026-10-18.md`). M0 landed the same day: the build script, the browser build with the hello page, the web host on bazzite at `http://192.168.1.7:8080/`, the draw list with the camera and the primitive meshes, Git LFS. D1 reached its two scene pages (the cave and the surface) the same evening, with the orbit, pan, walk and gamepad input the user asked for on the way. The user's reading of the pages: nothing decided yet, Mine oh Belowed with bloom. D1 runs on to the first finished material, and the series is pruned after it (the Phase A section).
 
 ## Milestones
 
 | Milestone | Work items | Status |
 | --- | --- | --- |
 | M0 Structure | 0001 to 0005 | Landed 2026-10-18 |
-| D1 Light | 0004, 0006 to 0026 landed: the renderer stages (shading, HDR and tone map, point lights, bloom, hemisphere ambient), the scene files, the cave and surface pages, the input (touch, mouse, keyboard, gamepad), the demo index. Clustered lights wait for a scene with more than eight lights, vertex ambient occlusion for the voxel terrain of D2. The user's judgement of the two pages closes the milestone | Under way since 2026-10-18 |
-| D2 Ground | | Todo |
-| D3 Water | | Todo |
-| D4 Machine | | Todo |
-| D5 Belts | | Todo |
-| D6 Sound | | Todo |
-| D7 Screens | | Todo |
-| D8 Music | | Todo |
-| D9 Voice | | Todo |
+| Phase A The tech demos | D1 under way (the table above holds each demo's state) | Under way since 2026-10-18 |
 | Phase B The engine | | Todo |
 | Phase C The game | | Todo |
