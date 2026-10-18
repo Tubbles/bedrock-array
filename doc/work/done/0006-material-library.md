@@ -1,6 +1,6 @@
 # 0006: The material library
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, c3da82a)
 
 Goal: `data/materials/library.sjson` with the first presets (painted steel, bare alloy, copper, glass, rubber, concrete) as albedo, roughness, metallic and emissive, and `src/engine/material.odin` (package `engine`) parsing it with `core:encoding/json` as SJSON into a `Material_Library`, strict on unknown keys and ranges. The demos embed the file with `#load`. DESIGN.md, Consistency comes from the renderer.
 
