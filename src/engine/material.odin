@@ -125,6 +125,8 @@ parse_material :: proc(name: string, value: json.Value) -> (material: Material, 
 		if material.wear, problem = material_wear_field(name, fields); problem != "" {
 			return {}, problem
 		}
+	} else if material.textures != "" {
+		return {}, fmt.tprintf("material %s: textures without wear", name)
 	}
 	return material, ""
 }
@@ -146,6 +148,10 @@ material_wear_field :: proc(name: string, fields: json.Object) -> (wear: Materia
 	prefix := fmt.tprintf("%s: wear", name)
 	if wear.edge_width, problem = material_number_field(prefix, "edge_width", wear_fields, false); problem != "" {
 		return {}, problem
+	}
+	// The shader's smoothstep over the width is undefined at zero.
+	if wear.edge_width <= 0 {
+		return {}, fmt.tprintf("material %s: wear: edge_width must be above 0", name)
 	}
 	if wear.chip_threshold, problem = material_number_field(prefix, "chip_threshold", wear_fields, true); problem != "" {
 		return {}, problem

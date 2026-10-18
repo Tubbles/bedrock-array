@@ -16,9 +16,11 @@ Point_Light :: struct {
 }
 
 Draw_Item :: struct {
-	mesh:      Mesh_Id,
-	material:  Material_Id,
-	transform: matrix[4, 4]f32,
+	mesh:         Mesh_Id,
+	material:     Material_Id,
+	transform:    matrix[4, 4]f32,
+	// The primitive's half extents in its local space, for the edge distance of the wear rule.
+	half_extents: [3]f32,
 }
 
 // What a demo or module fills each frame and the renderer only reads.
@@ -33,8 +35,8 @@ Draw_List :: struct {
 	lights:                    [dynamic]Point_Light,
 }
 
-draw_list_add :: proc(list: ^Draw_List, mesh: Mesh_Id, material: Material_Id, transform: matrix[4, 4]f32) {
-	append(&list.items, Draw_Item{mesh = mesh, material = material, transform = transform})
+draw_list_add :: proc(list: ^Draw_List, mesh: Mesh_Id, material: Material_Id, transform: matrix[4, 4]f32, half_extents: [3]f32) {
+	append(&list.items, Draw_Item{mesh = mesh, material = material, transform = transform, half_extents = half_extents})
 }
 
 draw_list_add_light :: proc(list: ^Draw_List, light: Point_Light) {

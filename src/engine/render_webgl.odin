@@ -18,6 +18,8 @@ Webgl_Uniforms :: struct {
 	point_light_range:                                           i32,
 	has_textures, albedo_map, normal_map, surface_map:           i32,
 	texture_metres:                                              i32,
+	half_extents, wear_edge_width, wear_chip_threshold:          i32,
+	wear_amount, wear_metal:                                     i32,
 }
 
 Webgl_Tonemap_Uniforms :: struct {
@@ -110,6 +112,11 @@ webgl_renderer_init :: proc(renderer: ^Webgl_Renderer) -> bool {
 		normal_map           = gl.GetUniformLocation(program, "normal_map"),
 		surface_map          = gl.GetUniformLocation(program, "surface_map"),
 		texture_metres       = gl.GetUniformLocation(program, "texture_metres"),
+		half_extents         = gl.GetUniformLocation(program, "half_extents"),
+		wear_edge_width      = gl.GetUniformLocation(program, "wear_edge_width"),
+		wear_chip_threshold  = gl.GetUniformLocation(program, "wear_chip_threshold"),
+		wear_amount          = gl.GetUniformLocation(program, "wear_amount"),
+		wear_metal           = gl.GetUniformLocation(program, "wear_metal"),
 	}
 	// Set once: the texture units the material's maps bind to, and the near scale.
 	gl.UseProgram(program)
@@ -391,6 +398,7 @@ webgl_renderer_draw :: proc(renderer: ^Webgl_Renderer, list: Draw_List, library:
 		gl.Uniform1f(uniforms.metallic, material.metallic)
 		gl.Uniform3f(uniforms.emissive, emissive.r, emissive.g, emissive.b)
 		webgl_bind_material_textures(renderer, uniforms, item.material)
+		webgl_upload_wear(uniforms, item, material)
 		gl.UniformMatrix4fv(uniforms.model, item.transform)
 		gl.BindVertexArray(mesh.vertex_array)
 		gl.DrawElements(gl.TRIANGLES, mesh.index_count, gl.UNSIGNED_INT, nil)
@@ -415,4 +423,16 @@ webgl_bind_material_textures :: proc(renderer: ^Webgl_Renderer, uniforms: Webgl_
 		gl.BindTexture(gl.TEXTURE_2D, texture)
 	}
 	gl.Uniform1i(uniforms.has_textures, 1)
+}
+
+// The item's half extents and the material's wear rule for the forward shader.
+@(private = "file")
+webgl_upload_wear :: proc(uniforms: Webgl_Uniforms, item: Draw_Item, material: Material) {
+	half_extents := item.half_extents
+	wear := material.wear
+	gl.Uniform3f(uniforms.half_extents, half_extents.x, half_extents.y, half_extents.z)
+	gl.Uniform1f(uniforms.wear_edge_width, wear.edge_width)
+	gl.Uniform1f(uniforms.wear_chip_threshold, wear.chip_threshold)
+	gl.Uniform1f(uniforms.wear_amount, wear.amount)
+	gl.Uniform3f(uniforms.wear_metal, wear.metal.r, wear.metal.g, wear.metal.b)
 }

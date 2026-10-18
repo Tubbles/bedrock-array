@@ -186,8 +186,8 @@ test_cylinder_mesh_counts_and_normals :: proc(t: ^testing.T) {
 test_draw_list_add_and_clear :: proc(t: ^testing.T) {
 	list: Draw_List
 	defer draw_list_destroy(&list)
-	draw_list_add(&list, 1, 2, 1)
-	draw_list_add(&list, 3, 4, 1)
+	draw_list_add(&list, 1, 2, 1, {1, 1, 1})
+	draw_list_add(&list, 3, 4, 1, {1, 1, 1})
 	testing.expect_value(t, len(list.items), 2)
 	draw_list_clear(&list)
 	testing.expect_value(t, len(list.items), 0)
@@ -197,7 +197,7 @@ test_draw_list_add_and_clear :: proc(t: ^testing.T) {
 test_draw_list_lights_add_and_clear :: proc(t: ^testing.T) {
 	list: Draw_List
 	defer draw_list_destroy(&list)
-	draw_list_add(&list, 1, 2, 1)
+	draw_list_add(&list, 1, 2, 1, {1, 1, 1})
 	draw_list_add_light(&list, Point_Light{position = {1, 2, 3}, colour = {1, 0, 0}, intensity = 2, range = 4})
 	draw_list_add_light(&list, Point_Light{position = {-1, 0, 1}, colour = {0, 0, 1}, intensity = 1, range = 3})
 	testing.expect_value(t, len(list.lights), 2)

@@ -38,6 +38,24 @@ test_material_library_rejects_a_roughness_out_of_range :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_material_library_rejects_a_zero_edge_width :: proc(t: ^testing.T) {
+	text := `steel = {albedo = [0.5, 0.5, 0.5], roughness = 0.5, metallic = 0, textures = "x", wear = {edge_width = 0, chip_threshold = 0.5, amount = 0.5, metal = [0.5, 0.5, 0.5]}}`
+	library, problem := parse_material_library(transmute([]byte)text)
+	defer material_library_destroy(&library)
+	testing.expectf(t, strings.contains(problem, "edge_width must be above 0"), "problem: %q", problem)
+	testing.expect_value(t, len(library.materials), 0)
+}
+
+@(test)
+test_material_library_rejects_textures_without_wear :: proc(t: ^testing.T) {
+	text := `steel = {albedo = [0.5, 0.5, 0.5], roughness = 0.5, metallic = 0, textures = "x"}`
+	library, problem := parse_material_library(transmute([]byte)text)
+	defer material_library_destroy(&library)
+	testing.expectf(t, strings.contains(problem, "textures without wear"), "problem: %q", problem)
+	testing.expect_value(t, len(library.materials), 0)
+}
+
+@(test)
 test_material_library_rejects_a_missing_albedo :: proc(t: ^testing.T) {
 	text := "rubber = {roughness = 0.9, metallic = 0}"
 	library, problem := parse_material_library(transmute([]byte)text)

@@ -1,6 +1,6 @@
 # 0034: The wear rule on primitives
 
-Status: designed (2026-10-18)
+Status: verified (2026-10-18)
 
 Goal: the chipped paint of `doc/workflows/materials.md`: the renderer cuts the baked wear field against the fragment's distance to its primitive's edges, and a chip shows the bare metal, its roughness and its metallic reflection, so the machine block of the surface page wears at its edges. Refers to items 0028, 0031 and 0033.
 
@@ -19,3 +19,5 @@ Binding facts, read 2026-10-18: `Draw_Item` is `{ mesh, material, transform }` a
 - `doc/render.md`, The WebGL2 renderer: one sentence that the forward pass applies the wear rule of `doc/workflows/materials.md` from the local position and the item's half extents, with the edge distance formula.
 
 Verify: `./build.sh check`, `./build.sh test`, `./build.sh web surface`.
+
+Decision at the fix round, 2026-10-18: a preset naming a texture set without a `wear` block would upload zeros and read as bare metal everywhere, so the parser rejects it (`textures without wear`), and the step is a strict greater than so `chip_threshold = 1` with `amount = 0` means no chips.

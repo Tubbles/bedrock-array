@@ -122,6 +122,17 @@ scene_item_mesh :: proc(item: Scene_Item) -> Mesh_Data {
 	return {}
 }
 
+// The half extents of the item's mesh around its origin, for the wear rule's edge distance.
+scene_item_half_extents :: proc(item: Scene_Item) -> [3]f32 {
+	switch item.shape {
+	case .Box, .Room:
+		return item.size / 2
+	case .Cylinder:
+		return {item.radius, item.height / 2, item.radius}
+	}
+	return {}
+}
+
 @(private = "file")
 parse_scene_camera :: proc(fields: json.Object) -> (camera: Orbit, problem: string) {
 	camera_fields: json.Object

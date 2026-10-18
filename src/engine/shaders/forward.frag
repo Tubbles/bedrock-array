@@ -22,8 +22,16 @@ uniform sampler2D normal_map;
 uniform sampler2D surface_map;
 // The world size one texture repeat covers at the near scale.
 uniform float texture_metres;
+// The primitive's half extents in its local space.
+uniform vec3 half_extents;
+// The wear rule of doc/workflows/materials.md.
+uniform float wear_edge_width;
+uniform float wear_chip_threshold;
+uniform float wear_amount;
+uniform vec3 wear_metal;
 in vec3 world_normal;
 in vec3 world_position;
+in vec3 local_position;
 out vec4 colour;
 
 struct Surface {
@@ -94,14 +102,28 @@ vec3 triplanar_normal(sampler2D map, vec3 p, vec3 n, vec3 blend) {
 	return normalize(tx.zyx * blend.x + ty.xzy * blend.y + tz.xyz * blend.z);
 }
 
-// The material at this fragment: the uniforms, or the texture set tinted by the albedo uniform.
+// The distance to the box's nearest edge: on a face, the second smallest of the three face distances.
+float edge_distance() {
+	vec3 d = half_extents - abs(local_position);
+	return max(max(min(d.x, d.y), min(d.x, d.z)), min(d.y, d.z));
+}
+
+// 1 where the paint is chipped to the bare metal: where the wear field raised towards the edges exceeds the threshold.
+float wear_at(float field) {
+	float edge_raise = wear_amount * (1.0 - smoothstep(0.0, wear_edge_width, edge_distance()));
+	return 1.0 - step(field + edge_raise, wear_chip_threshold);
+}
+
+// The material at this fragment: the uniforms, or the texture set tinted by the albedo uniform and chipped by the wear rule.
 Surface surface_at(vec3 p, vec3 blend) {
 	if (has_textures == 0) {
 		return Surface(albedo, roughness, metallic);
 	}
-	vec3 textured_albedo = albedo * triplanar_two_scales(albedo_map, p, blend).rgb;
-	float textured_roughness = triplanar_two_scales(surface_map, p, blend).r;
-	return Surface(textured_albedo, textured_roughness, metallic);
+	vec4 surface = triplanar_two_scales(surface_map, p, blend);
+	float wear = wear_at(surface.b);
+	vec3 textured_albedo = mix(albedo * triplanar_two_scales(albedo_map, p, blend).rgb, wear_metal, wear);
+	float textured_roughness = mix(surface.r, surface.g, wear);
+	return Surface(textured_albedo, textured_roughness, mix(metallic, 1.0, wear));
 }
 
 void main() {

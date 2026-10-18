@@ -89,7 +89,7 @@ scene_page_step :: proc(page: ^Scene_Page, delta_time: f32) {
 		draw_list_add_light(&page.draw_list, light)
 	}
 	for item, index in page.scene.items {
-		draw_list_add(&page.draw_list, page.item_mesh_ids[index], item.material, linalg.matrix4_translate_f32(item.position))
+		draw_list_add(&page.draw_list, page.item_mesh_ids[index], item.material, linalg.matrix4_translate_f32(item.position), scene_item_half_extents(item))
 	}
 	webgl_renderer_draw(&page.renderer, page.draw_list, page.library, page.canvas_width, page.canvas_height)
 }

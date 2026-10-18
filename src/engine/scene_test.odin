@@ -176,3 +176,11 @@ test_shipped_scenes_parse :: proc(t: ^testing.T) {
 		testing.expect(t, len(scene.items) > 0)
 	}
 }
+
+@(test)
+test_scene_item_half_extents :: proc(t: ^testing.T) {
+	box := Scene_Item{shape = .Box, size = {2, 4, 6}}
+	testing.expect_value(t, scene_item_half_extents(box), [3]f32{1, 2, 3})
+	cylinder := Scene_Item{shape = .Cylinder, radius = 0.5, height = 2, segments = 24}
+	testing.expect_value(t, scene_item_half_extents(cylinder), [3]f32{0.5, 1, 0.5})
+}

@@ -14,7 +14,7 @@ Files, per material `<name>`:
 - `data/materials/textures/<name>_albedo.png`: sRGB, near white with the mottle, tinted in the shader by the preset's `albedo`.
 - `data/materials/textures/<name>_normal.png`: linear, tangent space, OpenGL (+Y up), from the baked height by wrap around differences, so it tiles like the rest.
 - `data/materials/textures/<name>_surface.png`: linear, R the paint's roughness, G the bare metal's roughness, B the wear field.
-- In `data/materials/library.sjson` the preset names its set with `textures = "<name>"` and its wear rule with `wear = { edge_width, chip_threshold, amount, metal }`, `metal` the bare metal's colour under the chipped paint.
+- In `data/materials/library.sjson` the preset names its set with `textures = "<name>"` and its wear rule with `wear = { edge_width, chip_threshold, amount, metal }`, `metal` the bare metal's colour under the chipped paint. A preset that names a set must carry `wear`; one that must never chip sets `chip_threshold = 1` and `amount = 0`.
 
 Maps are 512 square: the sets are low detail by design, a page embeds them and the phone decodes them, and at the 2 m near scale that is 256 texels per metre. Larger maps are a phase B question. Every map is tileable: the nodes feed 4D noise with the texture coordinate wrapped onto a torus, so the texture's period is the map.
 
@@ -25,7 +25,7 @@ Maps are 512 square: the sets are low detail by design, a page embeds them and t
 3. Review: `flatpak run org.blender.Blender -b --python "$PWD/tools/materials/review.py" -- <name>`, which writes `work/materials/<name>_review.png` and prints the checks.
 4. The agent reads the review image and the checks, then the user judges the review image and, once the set is on a page, the page. A set lands only on the user's yes.
 
-The wear rule in the shader: `edge` is the distance from the fragment to the nearest edge of its box, `wear = step(chip_threshold, wear_field + amount * (1 - smoothstep(0, edge_width, edge)))`, and `wear` picks bare metal over paint, roughness G over R, and sets metallic to one. The review sheet builds the same rule in nodes, so the two copies must change together; the three parameters come from the one library file.
+The wear rule in the shader: `edge` is the distance from the fragment to the nearest edge of its box, `wear = (wear_field + amount * (1 - smoothstep(0, edge_width, edge))) > chip_threshold`, and `wear` picks bare metal over paint, roughness G over R, and sets metallic to one. The review sheet (item 0035) builds the same rule in nodes, so the two copies must change together; the three parameters come from the one library file.
 
 ## The review sheet
 
