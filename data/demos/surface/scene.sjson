@@ -1,0 +1,23 @@
+// The surface: soil and grass under a low afternoon sun, boulders and a painted steel machine block with copper pipes, a blue sky and a brown ground ambient.
+camera = { target = [0, 1, 0], yaw = 0.7, pitch = 0.3, distance = 10 }
+sun = { direction = [-0.6, -0.35, -0.45], colour = [1.0, 0.93, 0.82], intensity = 1.2 }
+exposure = 1
+ambient = 0.15
+sky_colour = [0.25, 0.35, 0.55]
+ground_colour = [0.16, 0.12, 0.08]
+items = [
+	{ shape = "box", size = [30, 0.3, 30], position = [0, -0.15, 0], material = "soil" }
+	{ shape = "box", size = [6, 0.04, 6], position = [-5, 0.02, -4], material = "grass" }
+	{ shape = "box", size = [6, 0.04, 6], position = [6, 0.02, 3], material = "grass" }
+	{ shape = "box", size = [6, 0.04, 6], position = [-3, 0.02, 6], material = "grass" }
+	{ shape = "box", size = [6, 0.04, 6], position = [4, 0.02, -7], material = "grass" }
+	{ shape = "cylinder", radius = 0.9, height = 1.2, segments = 10, position = [-6, 0.6, 2], material = "boulder" }
+	{ shape = "cylinder", radius = 0.9, height = 1.2, segments = 10, position = [7, 0.6, -5], material = "boulder" }
+	{ shape = "cylinder", radius = 0.9, height = 1.2, segments = 10, position = [2, 0.6, 8], material = "boulder" }
+	{ shape = "cylinder", radius = 0.9, height = 1.2, segments = 10, position = [-8, 0.6, -8], material = "boulder" }
+	{ shape = "box", size = [3, 2, 2], position = [0, 1, 0], material = "painted_steel" }
+	{ shape = "box", size = [0.8, 0.8, 0.8], position = [1.1, 2.4, 0], material = "bare_alloy" }
+	{ shape = "cylinder", radius = 0.12, height = 2.6, segments = 12, position = [-1.2, 1.3, 1.1], material = "copper" }
+	{ shape = "cylinder", radius = 0.12, height = 2.6, segments = 12, position = [-0.6, 1.3, 1.1], material = "copper" }
+	{ shape = "cylinder", radius = 0.12, height = 2.6, segments = 12, position = [0, 1.3, 1.1], material = "copper" }
+]

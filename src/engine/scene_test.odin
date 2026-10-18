@@ -156,3 +156,23 @@ items = [
 	testing.expect_value(t, sky_scene.sky_colour, [3]f32{0.2, 0.3, 0.5})
 	testing.expect_value(t, sky_scene.ground_colour, [3]f32{0.1, 0.1, 0.1})
 }
+
+// Every shipped scene parses against the shipped library, so a typo in a
+// scene file fails here and not only in a browser console.
+@(test)
+test_shipped_scenes_parse :: proc(t: ^testing.T) {
+	library, library_problem := parse_material_library(#load("../../data/materials/library.sjson"))
+	defer material_library_destroy(&library)
+	testing.expect_value(t, library_problem, "")
+	scenes := [][]byte {
+		#load("../../data/demos/light/scene.sjson"),
+		#load("../../data/demos/cave/scene.sjson"),
+		#load("../../data/demos/surface/scene.sjson"),
+	}
+	for data in scenes {
+		scene, problem := parse_scene(data, library)
+		defer scene_destroy(&scene)
+		testing.expect_value(t, problem, "")
+		testing.expect(t, len(scene.items) > 0)
+	}
+}
