@@ -59,6 +59,21 @@ test_orbit_camera_rises_with_pitch :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_orbit_drag_turns_and_clamps :: proc(t: ^testing.T) {
+	turned := orbit_drag(Orbit{distance = 5}, {100, 0}, 0.01)
+	expect_near(t, turned.yaw, -1)
+	expect_near(t, turned.pitch, 0)
+	raised := orbit_drag(Orbit{distance = 5}, {0, 1000}, 0.01)
+	testing.expect_value(t, raised.pitch, ORBIT_PITCH_LIMIT)
+}
+
+@(test)
+test_orbit_zoom_scales_and_clamps :: proc(t: ^testing.T) {
+	testing.expect_value(t, orbit_zoom(Orbit{distance = 5}, 2, 2, 20).distance, 10)
+	testing.expect_value(t, orbit_zoom(Orbit{distance = 15}, 2, 2, 20).distance, 20)
+}
+
+@(test)
 test_box_mesh_has_six_faces :: proc(t: ^testing.T) {
 	mesh := box_mesh({2, 2, 2})
 	defer mesh_data_destroy(&mesh)
