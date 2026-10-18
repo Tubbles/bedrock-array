@@ -40,14 +40,14 @@ Defined when phase B is in sight. The first target is the spine of [DESIGN.md](D
 
 ## Where it stands
 
-- 2026-10-18: the definition read and worked out into DESIGN.md with the user (the engine and module split, intercom, cellular systems, the look and the renderer, the underground, asset storage, the Techtonica study, `doc/log/2026-10-18.md`). M0 landed the same day: the build script, the browser build with the hello page, the web host on bazzite at `http://192.168.1.7:8080/`, the draw list with the camera and the primitive meshes, Git LFS. D1 is under way with items 0006 to 0008.
+- 2026-10-18: the definition read and worked out into DESIGN.md with the user (the engine and module split, intercom, cellular systems, the look and the renderer, the underground, asset storage, the Techtonica study, `doc/log/2026-10-18.md`). M0 landed the same day: the build script, the browser build with the hello page, the web host on bazzite at `http://192.168.1.7:8080/`, the draw list with the camera and the primitive meshes, Git LFS. D1 is under way with items 0006 to 0008 landed and 0010 and 0011 next.
 
 ## Milestones
 
 | Milestone | Work items | Status |
 | --- | --- | --- |
 | M0 Structure | 0001 to 0005 | Landed 2026-10-18 |
-| D1 Light | 0004, 0006 to 0008, then the shading, light and sky items | Under way since 2026-10-18 |
+| D1 Light | 0004, 0006 to 0008 landed, 0010 and 0011 (shader files, physically based shading), then the HDR, light and sky items | Under way since 2026-10-18 |
 | D2 Ground | | Todo |
 | D3 Water | | Todo |
 | D4 Machine | | Todo |
