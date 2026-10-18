@@ -1,6 +1,6 @@
 # 0024: Hemisphere ambient
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, 965dcfd)
 
 Goal: the flat ambient becomes a hemisphere: a sky colour from above and a ground colour from below, blended by the normal's height, so a surface scene reads as lit by a sky and the undersides of things go dark. The first half of stage 1's sky ambient; the sky model that feeds the colours comes with the day and weather work. A scene without the keys looks as before. Builds on 0019.
 
