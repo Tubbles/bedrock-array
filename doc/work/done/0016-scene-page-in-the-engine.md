@@ -1,6 +1,6 @@
 # 0016: The scene page in the engine
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, 46fd209)
 
 Goal: what the light demo settled (the canvas, the resize, the orbit input, the scene upload and the draw) moves into the engine as `Scene_Page`, so the cave and surface pages that follow are a scene file and a dozen lines of Odin each, and the pointer and orbit code exists once. The light page behaves exactly as before. Builds on 0015.
 
