@@ -1,6 +1,6 @@
 # 0045: The blockout masks' row order
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, ca151d6)
 
 Goal: the masks of item 0042 are written upside down, which the review sheet of item 0044 found on its calibration (the hero mask against the hero render scored 0.16 as stored and 0.62 flipped). `images.write_png` takes its rows bottom first, the bake's convention, and `threshold_mask` hands it the reader's top first rows. Follow-up of item 0042.
 
