@@ -1,6 +1,6 @@
 // The smelter's brief (doc/workflows/art_book.md, Files): the data every step of D4 reads.
 // Read off the chosen entry, data/art/smelter/entry.png (entry round 8 seed 11, user 2026-10-18), without its pipes and stack: a 1x1x1 m cube on a low skirt, the hearth mouth on the front.
-// The front faces +z; y is up; positions are metres from the footprint's bottom centre. A part's blockout is one shape or a list of shapes, each with an optional bevel = { width, segments }.
+// The front faces +z; y is up; positions are metres from the footprint's bottom centre. A part's blockout is one shape or a list of shapes, each with an optional bevel = { width, segments }, a box also with an optional taper (the top face as a factor of the bottom) and corner_cut (metres chamfered off each vertical edge).
 id = "smelter"
 family = "furnace"
 role = "melts ore into ingots"
@@ -15,14 +15,14 @@ silhouette = "a cube on a low skirt, a flat raised lid plate, nothing rising abo
 feature = "a copper framed hearth mouth glowing on the front over a copper sill"
 entry = "without chutes, in a cave lit by its own hearth and the glowing flora, shown working, in slate blue painted panels with copper fittings"
 parts = [
-	{ name = "skirt" material = "painted_steel" role = "base" blockout = { shape = "box" size = [1.0, 0.4, 1.0] position = [0, 0.2, 0] bevel = { width = 0.03 segments = 3 } } }
-	{ name = "body" material = "painted_steel" role = "shell" blockout = { shape = "box" size = [0.9, 0.5, 0.9] position = [0, 0.65, 0] bevel = { width = 0.04 segments = 3 } } }
-	{ name = "lid" material = "painted_steel" role = "lid" blockout = { shape = "box" size = [0.55, 0.1, 0.55] position = [0, 0.95, 0] bevel = { width = 0.02 segments = 2 } } }
-	{ name = "hearth_frame" material = "copper" role = "frame" blockout = [ { shape = "box" size = [0.5, 0.07, 0.08] position = [0, 0.715, 0.49] bevel = { width = 0.02 segments = 2 } } { shape = "box" size = [0.5, 0.07, 0.08] position = [0, 0.285, 0.49] bevel = { width = 0.02 segments = 2 } } { shape = "box" size = [0.07, 0.36, 0.08] position = [-0.215, 0.5, 0.49] bevel = { width = 0.02 segments = 2 } } { shape = "box" size = [0.07, 0.36, 0.08] position = [0.215, 0.5, 0.49] bevel = { width = 0.02 segments = 2 } } ] }
-	{ name = "hearth" material = "furnace_glow" role = "emissive" blockout = { shape = "box" size = [0.36, 0.36, 0.06] position = [0, 0.5, 0.48] } }
-	{ name = "sill" material = "copper" role = "sill" blockout = { shape = "box" size = [0.5, 0.05, 0.12] position = [0, 0.24, 0.53] bevel = { width = 0.01 segments = 1 } } }
-	{ name = "vents" material = "bare_alloy" role = "grille" blockout = [ { shape = "box" size = [0.04, 0.12, 0.03] position = [-0.08, 0.1, 0.51] } { shape = "box" size = [0.04, 0.12, 0.03] position = [0, 0.1, 0.51] } { shape = "box" size = [0.04, 0.12, 0.03] position = [0.08, 0.1, 0.51] } ] }
-	{ name = "louvre" material = "bare_alloy" role = "grille" blockout = [ { shape = "box" size = [0.03, 0.03, 0.2] position = [-0.46, 0.75, 0.2] } { shape = "box" size = [0.03, 0.03, 0.2] position = [-0.46, 0.8, 0.2] } { shape = "box" size = [0.03, 0.03, 0.2] position = [-0.46, 0.85, 0.2] } ] }
+	{ name = "skirt" material = "painted_steel" role = "base" blockout = { shape = "box" size = [1.0, 0.35, 1.0] position = [0, 0.175, 0] taper = 0.97 bevel = { width = 0.03 segments = 1 } } }
+	{ name = "body" material = "painted_steel" role = "shell" blockout = { shape = "box" size = [0.9, 0.5, 0.9] position = [0, 0.6, 0] taper = 0.94 corner_cut = 0.12 bevel = { width = 0.04 segments = 1 } } }
+	{ name = "lid" material = "painted_steel" role = "lid" blockout = { shape = "box" size = [0.5, 0.1, 0.5] position = [0, 0.9, 0] taper = 0.85 corner_cut = 0.06 bevel = { width = 0.02 segments = 1 } } }
+	{ name = "hearth_frame" material = "copper" role = "frame" blockout = [ { shape = "box" size = [0.5, 0.07, 0.08] position = [0, 0.785, 0.47] bevel = { width = 0.02 segments = 1 } } { shape = "box" size = [0.5, 0.07, 0.08] position = [0, 0.415, 0.47] bevel = { width = 0.02 segments = 1 } } { shape = "box" size = [0.07, 0.3, 0.08] position = [-0.215, 0.6, 0.47] bevel = { width = 0.02 segments = 1 } } { shape = "box" size = [0.07, 0.3, 0.08] position = [0.215, 0.6, 0.47] bevel = { width = 0.02 segments = 1 } } ] }
+	{ name = "hearth" material = "furnace_glow" role = "emissive" blockout = { shape = "box" size = [0.36, 0.3, 0.06] position = [0, 0.6, 0.455] } }
+	{ name = "sill" material = "copper" role = "sill" blockout = { shape = "box" size = [0.5, 0.04, 0.12] position = [0, 0.36, 0.5] bevel = { width = 0.01 segments = 1 } } }
+	{ name = "vents" material = "bare_alloy" role = "grille" blockout = [ { shape = "box" size = [0.04, 0.12, 0.03] position = [-0.08, 0.1, 0.505] } { shape = "box" size = [0.04, 0.12, 0.03] position = [0, 0.1, 0.505] } { shape = "box" size = [0.04, 0.12, 0.03] position = [0.08, 0.1, 0.505] } ] }
+	{ name = "louvre" material = "bare_alloy" role = "grille" blockout = [ { shape = "box" size = [0.03, 0.03, 0.2] position = [-0.435, 0.72, 0.2] } { shape = "box" size = [0.03, 0.03, 0.2] position = [-0.435, 0.77, 0.2] } { shape = "box" size = [0.03, 0.03, 0.2] position = [-0.435, 0.82, 0.2] } ] }
 ]
 cues = [
 	{ name = "working" behaviour = "the hearth mouth glows orange with heat and flickers, a shimmer over the lid" parts = ["hearth"] sockets = ["heat"] }

@@ -25,6 +25,8 @@ import images  # noqa: E402
 import review  # noqa: E402
 
 FIGURE_RADIUS = 0.2
+# Edges flatter than this shade smooth: a 48 sided cylinder's 7.5 degree facets do, a chamfer's edges (14 degrees and up) do not.
+AUTO_SMOOTH_DEGREES = 10
 FIGURE_GAP_METRES = 1.4
 HERO_ELEVATION_DEGREES = 15
 HERO_MARGIN = 0.1
@@ -98,7 +100,30 @@ def add_box_shape(blockout):
     box = bpy.context.active_object
     width, height, depth = blockout["size"]
     box.scale = (width, depth, height)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    if "corner_cut" in blockout:
+        cut_corners(box.data, blockout["corner_cut"])
+    if "taper" in blockout:
+        taper_top(box.data, blockout["taper"])
     return box
+
+
+def cut_corners(mesh, cut):
+    """Chamfers each vertical edge, the two vertices sharing x and y, by the cut in metres."""
+    editable = bmesh.new()
+    editable.from_mesh(mesh)
+    vertical_edges = [edge for edge in editable.edges if (edge.verts[0].co.xy - edge.verts[1].co.xy).length < 1e-6]
+    bmesh.ops.bevel(editable, geom=vertical_edges, offset=cut, offset_type="OFFSET", segments=1, profile=0.5, affect="EDGES")
+    editable.to_mesh(mesh)
+    editable.free()
+
+
+def taper_top(mesh, taper):
+    """Scales the x and y of every vertex above the centre by the taper."""
+    for vertex in mesh.vertices:
+        if vertex.co.z > 0:
+            vertex.co.x *= taper
+            vertex.co.y *= taper
 
 
 def add_cylinder_shape(blockout):
@@ -157,7 +182,7 @@ def add_part(part, library):
         bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
         if "bevel" in shape:
             add_bevel(part_object, shape["bevel"])
-        bpy.ops.object.shade_auto_smooth()
+        bpy.ops.object.shade_auto_smooth(angle=math.radians(AUTO_SMOOTH_DEGREES))
         part_object.data.materials.append(material)
         part_objects.append(part_object)
     return part_objects
