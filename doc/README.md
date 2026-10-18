@@ -8,3 +8,4 @@ The entry point to the details. Each topic has one document, and each fact one p
 - [log/](log/): dated decision logs, write once. The drill-down behind the work items.
 - [work/](work/): work items, the user's overview of the work in flight. Landed under [work/done/](work/done/), closed under [work/cancelled/](work/cancelled/).
 - `build.md`: how to build, check and test, how a demo page is built and how the web host on bazzite serves it. Written with item 0001.
+- [render.md](render.md): the draw list, the camera and coordinate conventions, the primitive meshes. Written with item 0004.

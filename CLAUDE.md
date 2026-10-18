@@ -14,7 +14,7 @@ Read this together with the global `~/.claude/CLAUDE.md`. This file holds the pr
 
 ## Layout
 
-The global project structure, plus: `src/engine/` (native packages: render, field, water, audio, input, host), `src/demos/<name>/` (the tech demos of phase A, one package each), `src/modules/<name>/` (the wasm modules of phase B), `web/` (the page shell: HTML, CSS and the small JS glue for what the Odin runtime lacks, audio, gamepad, resize, each in one file), `shared/` (collections), `tools/`, `data/` (`data/materials/` is the material library every demo and module shares, `data/demos/<name>/` a demo's own scene data), `bin/web/` the installed pages the host serves to the LAN, later `bin/play/` the play build. `work/` and `tmp/` are untracked. Work items under `doc/work/`, landed ones under `doc/work/done/`, closed ones under `doc/work/cancelled/`. `TODO.md` is the user's inbox, `SUGGESTIONS.md` holds only decisions the user must make.
+The global project structure, plus: `src/engine/` (one package, `engine`, split into files by concern, `render_*`, `field_*` and so on; web only files carry the `#+build js` tag so native checks and tests skip them), `src/demos/<name>/` (the tech demos of phase A, one package each), `src/modules/<name>/` (the wasm modules of phase B), `web/` (the page shell: HTML, CSS and the small JS glue for what the Odin runtime lacks, audio, gamepad, resize, each in one file), `shared/` (collections), `tools/`, `data/` (`data/materials/` is the material library every demo and module shares, `data/demos/<name>/` a demo's own scene data), `bin/web/` the installed pages the host serves to the LAN, later `bin/play/` the play build. `work/` and `tmp/` are untracked. Work items under `doc/work/`, landed ones under `doc/work/done/`, closed ones under `doc/work/cancelled/`. `TODO.md` is the user's inbox, `SUGGESTIONS.md` holds only decisions the user must make.
 
 ## Code rules
 
@@ -23,6 +23,7 @@ The global project structure, plus: `src/engine/` (native packages: render, fiel
 - Engine code is engine grade from the first demo: kernels are pure procedures with tests, and the renderer is driven by draw lists only. A demo builds a draw list and hands it over, never reaches into the renderer. What the demos settle moves into the engine phase, not rewritten.
 - A page works with touch, with mouse and keyboard, and with a gamepad through the Gamepad API where it applies, and its layout fits a phone in portrait as well as a laptop.
 - Module code compiles both ways: a module is a plain Odin package, built to wasm for the shipped game and natively for its tests and the fused debug build. The couch build runs the wasm build.
+- Test files carry `#+build !js` because the test library does not exist for the browser, and web only files carry `#+build js wasm32`.
 - Across the wasm boundary only fixed layout structs without pointers (DESIGN.md, The natives), no host call per entity per tick, outputs as views.
 - The simulation is deterministic: fixed tick, seeded, integer or fixed point in simulation state, no wall clock. Rendering interpolates and the simulation never reads the frame time.
 - No perceivable repetition (the global memory principle, DESIGN.md): every new sound, animation and texture is checked before it lands.

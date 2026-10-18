@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Check, test or build for the web. See doc/build.md.
 #   ./build.sh [check]   odin check src/engine -no-entry-point -vet
-#                        -strict-style (default), then every src/demos/*/
-#                        for -target:js_wasm32
+#                        -strict-style (default), natively and again for
+#                        -target:js_wasm32, then every src/demos/*/ for
+#                        -target:js_wasm32
 #   ./build.sh test      odin test src/engine -all-packages -vet -strict-style,
 #                        so the tests of the packages under src/engine/ run too
 #   ./build.sh web <demo>
@@ -90,6 +91,7 @@ build_web() {
 case "$mode" in
 	check)
 		"$odin" check src/engine -no-entry-point -vet -strict-style -define:BUILD_INFO="$build_info"
+		"$odin" check src/engine -no-entry-point -target:js_wasm32 -vet -strict-style -define:BUILD_INFO="$build_info"
 		check_demos
 		;;
 	test) "$odin" test src/engine -all-packages -vet -strict-style -define:BUILD_INFO="$build_info" ;;

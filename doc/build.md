@@ -10,7 +10,7 @@ Odin at `~/opt/odin` (the dev-2026-09 nightly). The environment variable `ODIN` 
 
 | Command | Runs |
 | --- | --- |
-| `./build.sh check` (the default) | `odin check src/engine -no-entry-point -vet -strict-style` with the build stamp define (the engine is a library package without `main`), then `odin check` of every `src/demos/*/` for `-target:js_wasm32` |
+| `./build.sh check` (the default) | `odin check src/engine -no-entry-point -vet -strict-style` with the build stamp define (the engine is a library package without `main`), the same check of the engine again for `-target:js_wasm32` so it compiles for both targets (test files carry `#+build !js`, since `core:testing` does not compile for the browser), then `odin check` of every `src/demos/*/` for `-target:js_wasm32` |
 | `./build.sh test` | `odin test src/engine -all-packages -vet -strict-style` with the build stamp define, so the tests of the packages under `src/engine/` run too |
 | `./build.sh web <demo>` | builds `src/demos/<demo>` for the browser, see [The web build](#the-web-build) |
 
