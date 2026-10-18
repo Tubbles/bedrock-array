@@ -1,28 +1,30 @@
 // Bake parameters for worn painted steel: paint mottle and orange peel over steel, a wear field in the surface map's blue channel.
 seed = 7
 tile_metres = 2
+fields = {
+	mottle = [
+		{ kind = "noise" scale = 5 detail = 4 }
+	]
+	orange_peel = [
+		{ kind = "noise" scale = 60 detail = 2 }
+	]
+	steel_grain = [
+		{ kind = "noise" scale = 8 detail = 3 }
+	]
+	wear = [
+		{ kind = "blobs" scale = 4 radius = 1.0 radius_variation = 0.7 }
+		{ kind = "blobs" scale = 1.2 radius = 1.2 radius_variation = 0.7 combine = "max" }
+		{ kind = "noise" scale = 1.1 detail = 1 combine = "gate" low = 0.4 high = 0.7 amount = 0.7 }
+		{ kind = "noise" scale = 7 detail = 2 combine = "mix" amount = 0.35 }
+	]
+}
 paint = {
 	mottle_amount = 0.08
-	mottle_scale = 5
 	roughness = 0.55
 	roughness_variation = 0.12
 	orange_peel_height = 0.0015
-	orange_peel_scale = 60
 }
 steel = {
 	roughness = 0.35
 	roughness_variation = 0.1
-	scale = 8
-}
-wear_field = {
-	flake_scale = 4
-	flake_radius = 1.0
-	large_flake_scale = 1.2
-	large_flake_radius = 1.2
-	occurrence_scale = 1.1
-	occurrence_low = 0.4
-	occurrence_high = 0.7
-	occurrence_amount = 0.7
-	noise_scale = 7
-	blend = 0.35
 }

@@ -119,19 +119,7 @@ def mix_float(tree, first, second, blend):
     return math_node(tree, "ADD", first, math_node(tree, "MULTIPLY", difference, blend))
 
 
-# Channels
-
-
-def mottle_channel(tree, coordinate, parameters):
-    return noise_4d(tree, coordinate, parameters["paint"]["mottle_scale"], 4)
-
-
-def orange_peel_channel(tree, coordinate, parameters):
-    return noise_4d(tree, coordinate, parameters["paint"]["orange_peel_scale"], 2)
-
-
-def steel_noise_channel(tree, coordinate, parameters):
-    return noise_4d(tree, coordinate, parameters["steel"]["scale"], 3)
+# Fields
 
 
 def voronoi_cells_4d(tree, coordinate, scale):
@@ -148,15 +136,6 @@ def voronoi_cells_4d(tree, coordinate, scale):
     return node.outputs["Distance"], separate.outputs["Red"]
 
 
-def flake_family(tree, coordinate, scale, radius):
-    """Blobs of 1 at each cell's point falling to 0 at a per cell radius, so flakes vary in size."""
-    distance, random = voronoi_cells_4d(tree, coordinate, scale)
-    radius_cell = math_node(tree, "ADD", math_node(tree, "MULTIPLY", random, 0.7 * radius), 0.3 * radius)
-    blob = math_node(tree, "SUBTRACT", 1.0, math_node(tree, "DIVIDE", distance, radius_cell))
-    blob.node.use_clamp = True
-    return blob
-
-
 def smoothstep(tree, value, low, high):
     node = tree.nodes.new("ShaderNodeMapRange")
     node.interpolation_type = "SMOOTHSTEP"
@@ -167,22 +146,100 @@ def smoothstep(tree, value, low, high):
     return node.outputs["Result"]
 
 
-def patch_factor(tree, coordinate, wear):
-    """A slow contrast stretched noise that keeps the blobs below the threshold in the clean regions."""
-    patch_noise = noise_4d(tree, coordinate, wear["occurrence_scale"], 1)
-    patch = smoothstep(tree, patch_noise, wear["occurrence_low"], wear["occurrence_high"])
-    amount = wear["occurrence_amount"]
-    return math_node(tree, "ADD", math_node(tree, "MULTIPLY", patch, amount), 1.0 - amount)
+def noise_layer(tree, coordinate, layer):
+    return noise_4d(tree, coordinate, layer["scale"], layer["detail"])
 
 
-def wear_field_channel(tree, coordinate, parameters):
-    wear = parameters["wear_field"]
-    small = flake_family(tree, coordinate, wear["flake_scale"], wear["flake_radius"])
-    large = flake_family(tree, coordinate, wear["large_flake_scale"], wear["large_flake_radius"])
-    blobs = math_node(tree, "MAXIMUM", small, large)
-    gathered = math_node(tree, "MULTIPLY", blobs, patch_factor(tree, coordinate, wear))
-    noise = noise_4d(tree, coordinate, wear["noise_scale"], 2)
-    return mix_float(tree, gathered, noise, wear["blend"])
+def blobs_layer(tree, coordinate, layer):
+    """Blobs of 1 at each cell's point falling to 0 at a per cell radius, so blobs vary in size."""
+    distance, random = voronoi_cells_4d(tree, coordinate, layer["scale"])
+    radius, variation = layer["radius"], layer["radius_variation"]
+    radius_cell = math_node(tree, "ADD", math_node(tree, "MULTIPLY", random, variation * radius), (1 - variation) * radius)
+    blob = math_node(tree, "SUBTRACT", 1.0, math_node(tree, "DIVIDE", distance, radius_cell))
+    blob.node.use_clamp = True
+    return blob
+
+
+def combine_max(tree, value, layer_socket, layer):
+    return math_node(tree, "MAXIMUM", value, layer_socket)
+
+
+def combine_add(tree, value, layer_socket, layer):
+    return math_node(tree, "ADD", value, math_node(tree, "MULTIPLY", layer_socket, layer.get("amount", 1)))
+
+
+def combine_multiply(tree, value, layer_socket, layer):
+    return math_node(tree, "MULTIPLY", value, layer_socket)
+
+
+def combine_mix(tree, value, layer_socket, layer):
+    return mix_float(tree, value, layer_socket, layer["amount"])
+
+
+def combine_gate(tree, value, layer_socket, layer):
+    gate = smoothstep(tree, layer_socket, layer["low"], layer["high"])
+    amount = layer["amount"]
+    factor = math_node(tree, "ADD", math_node(tree, "MULTIPLY", gate, amount), 1.0 - amount)
+    return math_node(tree, "MULTIPLY", value, factor)
+
+
+# Per kind: the procedure and its keys. Per combine: the procedure, its required keys and its optional keys.
+KINDS = {
+    "noise": (noise_layer, {"scale", "detail"}),
+    "blobs": (blobs_layer, {"scale", "radius", "radius_variation"}),
+}
+COMBINES = {
+    "max": (combine_max, set(), set()),
+    "add": (combine_add, set(), {"amount"}),
+    "multiply": (combine_multiply, set(), set()),
+    "mix": (combine_mix, {"amount"}, set()),
+    "gate": (combine_gate, {"low", "high", "amount"}, set()),
+}
+
+
+def check_layer(field, index, layer):
+    """Raise on an unknown kind, combine or key, or a missing key."""
+    where = "field %s layer %d" % (field, index)
+    if layer.get("kind") not in KINDS:
+        raise ValueError("%s: unknown kind %r" % (where, layer.get("kind")))
+    combine = layer.get("combine", "max")
+    if combine not in COMBINES:
+        raise ValueError("%s: unknown combine %r" % (where, combine))
+    required = KINDS[layer["kind"]][1] | COMBINES[combine][1] | {"kind"}
+    allowed = required | COMBINES[combine][2] | {"combine"}
+    if required - set(layer):
+        raise ValueError("%s: missing keys %s" % (where, sorted(required - set(layer))))
+    if set(layer) - allowed:
+        raise ValueError("%s: unknown keys %s" % (where, sorted(set(layer) - allowed)))
+
+
+def layer_value(tree, coordinate, layer):
+    return KINDS[layer["kind"]][0](tree, coordinate, layer)
+
+
+def combine_layer(tree, value, layer_socket, layer):
+    return COMBINES[layer.get("combine", "max")][0](tree, value, layer_socket, layer)
+
+
+def is_identity_on_zero(layer):
+    """A max, or an add of amount 1, against the zero start is the layer itself."""
+    combine = layer.get("combine", "max")
+    return combine == "max" or (combine == "add" and layer.get("amount", 1) == 1)
+
+
+def field_stack(tree, coordinate, field, layers):
+    """A field's value: the layers joined in order onto a value that starts at 0."""
+    if not layers:
+        raise ValueError("field %s: empty stack" % field)
+    value = 0.0
+    for index, layer in enumerate(layers):
+        check_layer(field, index, layer)
+        layer_socket = layer_value(tree, coordinate, layer)
+        if index == 0 and is_identity_on_zero(layer):
+            value = layer_socket
+        else:
+            value = combine_layer(tree, value, layer_socket, layer)
+    return value
 
 
 # Bake
@@ -231,27 +288,31 @@ def stretch(values):
 def surface_map(channels, parameters):
     paint, steel = parameters["paint"], parameters["steel"]
     red = paint["roughness"] + paint["roughness_variation"] * (channels["mottle"] - 0.5) * 2
-    green = steel["roughness"] + steel["roughness_variation"] * (channels["steel_noise"] - 0.5) * 2
-    blue = stretch(channels["wear_field"])
+    green = steel["roughness"] + steel["roughness_variation"] * (channels["steel_grain"] - 0.5) * 2
+    blue = stretch(channels["wear"])
     return numpy.clip(numpy.stack([red, green, blue], axis=-1), 0, 1)
 
 
 # Main
 
-CHANNELS = {
-    "mottle": mottle_channel,
-    "orange_peel": orange_peel_channel,
-    "steel_noise": steel_noise_channel,
-    "wear_field": wear_field_channel,
-}
+
+# The fields the assembly reads; a parameter file names exactly these.
+FIELD_NAMES = ("mottle", "orange_peel", "steel_grain", "wear")
+
+
+def check_field_names(fields):
+    names = set(fields)
+    if names != set(FIELD_NAMES):
+        raise ValueError("fields: expected %s, found %s" % (sorted(FIELD_NAMES), sorted(names)))
 
 
 def bake_channels(parameters, size):
+    check_field_names(parameters["fields"])
     reset_scene()
     tree = create_bake_plane()
     emission, texture = create_output(tree)
     coordinate = torus_coordinate(tree, parameters["seed"])
-    sockets = {name: build(tree, coordinate, parameters) for name, build in CHANNELS.items()}
+    sockets = {name: field_stack(tree, coordinate, name, layers) for name, layers in parameters["fields"].items()}
     return {name: bake_channel(tree, emission, texture, socket, size) for name, socket in sockets.items()}
 
 

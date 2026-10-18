@@ -10,13 +10,30 @@ Blender 5.2 runs as the flatpak `org.blender.Blender`, headless on the CPU (Cycl
 
 Files, per material `<name>`:
 
-- `data/materials/bake/<name>.sjson`: the bake parameters and the seed.
+- `data/materials/bake/<name>.sjson`: the bake parameters and the seed, the procedural fields as layer stacks (The fields, below).
 - `data/materials/textures/<name>_albedo.png`: sRGB, near white with the mottle, tinted in the shader by the preset's `albedo`.
 - `data/materials/textures/<name>_normal.png`: linear, tangent space, OpenGL (+Y up), from the baked height by wrap around differences, so it tiles like the rest.
 - `data/materials/textures/<name>_surface.png`: linear, R the paint's roughness, G the bare metal's roughness, B the wear field.
 - In `data/materials/library.sjson` the preset names its set with `textures = "<name>"` and its wear rule with `wear = { edge_width, chip_threshold, amount, metal }`, `metal` the bare metal's colour under the chipped paint. A preset that names a set must carry `wear`; one that must never chip sets `chip_threshold = 1` and `amount = 0`.
 
 Maps are 512 square: the sets are low detail by design, a page embeds them and the phone decodes them, and at the 2 m near scale that is 256 texels per metre. Larger maps are a phase B question. Every map is tileable: the nodes feed 4D noise with the texture coordinate wrapped onto a torus, so the texture's period is the map.
+
+## The fields
+
+Every procedural field of a material (the mottle, the orange peel, the steel grain, the wear field) is a stack of layers under `fields` in the bake file, one array per field, and the bake script evaluates the stack. Each layer reads the 4D torus coordinate with the material's seed. A layer has a `kind`:
+
+- `noise`, keys `scale` and `detail`: the 4D noise's Fac.
+- `blobs`, keys `scale`, `radius` and `radius_variation`: a 4D voronoi's F1 distance with the red of its cell colour as a per cell random, `radius_cell = radius * (1 - radius_variation + radius_variation * random)`, the layer `clamp(1 - distance / radius_cell, 0, 1)`.
+
+The stack's value starts at 0, and each layer's `combine` says how it joins the value so far:
+
+- `max` (the default): `max(value, layer)`.
+- `add`: `value + amount * layer`, `amount` 1 by default.
+- `multiply`: `value * layer`.
+- `mix`: `mix(value, layer, amount)`.
+- `gate`: `value * (1 - amount + amount * smoothstep(low, high, layer))`.
+
+An unknown key, kind or combine, or a missing key, stops the bake with the field and the layer index. The stack is the contract an in game generator implements later, should live rerolls in the editor come (the open call in SUGGESTIONS.md).
 
 ## The steps
 
