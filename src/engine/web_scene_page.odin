@@ -11,11 +11,24 @@ SCENE_PAGE_DRAG_RADIANS_PER_PIXEL :: f32(0.005)
 SCENE_PAGE_WHEEL_ZOOM_STEP :: f32(1.1)
 SCENE_PAGE_DISTANCE_MINIMUM :: f32(2)
 SCENE_PAGE_DISTANCE_MAXIMUM :: f32(20)
+// Orbit distances per second a held key walks the target.
+SCENE_PAGE_WALK_SPEED :: f32(0.6)
+SCENE_PAGE_STEP_LIMIT :: f32(0.1)
 
 // A pointer on the canvas: one drags the orbit, two pinch the distance.
 Scene_Page_Pointer :: struct {
 	pointer_id: int,
 	client:     [2]f32,
+}
+
+// A walk direction held on the keyboard.
+Scene_Page_Key :: enum {
+	Forward,
+	Back,
+	Left,
+	Right,
+	Up,
+	Down,
 }
 
 // A scene drawn on a canvas, orbited by drag, pinch and wheel.
@@ -31,6 +44,7 @@ Scene_Page :: struct {
 	client_height:               f32,
 	active_pointers:             [2]Scene_Page_Pointer,
 	active_pointer_count:        int,
+	keys_held:                   bit_set[Scene_Page_Key],
 	ready:                       bool,
 }
 
@@ -51,8 +65,10 @@ scene_page_init :: proc(page: ^Scene_Page, canvas_id: string, library_data, scen
 }
 
 // Draws nothing until the init has run through.
-scene_page_step :: proc(page: ^Scene_Page) {
+scene_page_step :: proc(page: ^Scene_Page, delta_time: f32) {
 	if !page.ready do return
+	// A hidden tab delivers its whole span as one step; a walk that long would leave the scene.
+	scene_page_walk(page, min(delta_time, SCENE_PAGE_STEP_LIMIT))
 	draw_list_clear(&page.draw_list)
 	page.draw_list.camera = orbit_camera(page.orbit, math.PI / 3, 0.1, 100)
 	page.draw_list.sun = page.scene.sun
@@ -67,9 +83,25 @@ scene_page_step :: proc(page: ^Scene_Page) {
 	webgl_renderer_draw(&page.renderer, page.draw_list, page.library, page.canvas_width, page.canvas_height)
 }
 
+// Held keys walk the target at a pace proportional to the orbit distance; opposite keys cancel.
+@(private = "file")
+scene_page_walk :: proc(page: ^Scene_Page, delta_time: f32) {
+	keys := page.keys_held
+	input := [3]f32 {
+		f32(int(.Right in keys) - int(.Left in keys)),
+		f32(int(.Up in keys) - int(.Down in keys)),
+		f32(int(.Forward in keys) - int(.Back in keys)),
+	}
+	if input == {} do return
+	page.orbit = orbit_walk(page.orbit, input, page.orbit.distance * SCENE_PAGE_WALK_SPEED * delta_time)
+}
+
 @(private = "file")
 scene_page_listen :: proc(page: ^Scene_Page) {
 	js.add_window_event_listener(.Resize, page, on_scene_page_resize)
+	js.add_window_event_listener(.Key_Down, page, on_scene_page_key_down)
+	js.add_window_event_listener(.Key_Up, page, on_scene_page_key_up)
+	js.add_window_event_listener(.Blur, page, on_scene_page_blur)
 	js.add_event_listener(page.canvas_id, .Pointer_Down, page, on_scene_page_pointer_down)
 	js.add_event_listener(page.canvas_id, .Pointer_Move, page, on_scene_page_pointer_move)
 	js.add_event_listener(page.canvas_id, .Pointer_Up, page, on_scene_page_pointer_up)
@@ -104,6 +136,48 @@ scene_page_resize :: proc(page: ^Scene_Page) {
 @(private = "file")
 on_scene_page_resize :: proc(event: js.Event) {
 	scene_page_resize((^Scene_Page)(event.user_data))
+}
+
+@(private = "file")
+scene_page_key_from_code :: proc(code: string) -> (Scene_Page_Key, bool) {
+	switch code {
+	case "KeyW", "ArrowUp":
+		return .Forward, true
+	case "KeyS", "ArrowDown":
+		return .Back, true
+	case "KeyA", "ArrowLeft":
+		return .Left, true
+	case "KeyD", "ArrowRight":
+		return .Right, true
+	case "KeyE":
+		return .Up, true
+	case "KeyQ":
+		return .Down, true
+	}
+	return .Forward, false
+}
+
+@(private = "file")
+on_scene_page_key_down :: proc(event: js.Event) {
+	if event.data.key.repeat do return
+	key, known := scene_page_key_from_code(event.data.key.code)
+	if !known do return
+	page := (^Scene_Page)(event.user_data)
+	page.keys_held += {key}
+}
+
+@(private = "file")
+// The browser sends no key up for a key released while another window has focus.
+on_scene_page_blur :: proc(event: js.Event) {
+	page := (^Scene_Page)(event.user_data)
+	page.keys_held = {}
+}
+
+on_scene_page_key_up :: proc(event: js.Event) {
+	key, known := scene_page_key_from_code(event.data.key.code)
+	if !known do return
+	page := (^Scene_Page)(event.user_data)
+	page.keys_held -= {key}
 }
 
 @(private = "file")

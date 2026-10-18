@@ -15,6 +15,6 @@ main :: proc() {
 
 @(export)
 step :: proc(delta_time: f64) -> bool {
-	engine.scene_page_step(&page)
+	engine.scene_page_step(&page, f32(delta_time))
 	return true
 }

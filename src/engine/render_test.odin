@@ -93,6 +93,19 @@ test_orbit_metres_per_pixel :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_orbit_walk_moves_along_the_ground :: proc(t: ^testing.T) {
+	orbit := Orbit{yaw = 0, pitch = 0.5, distance = 5}
+	forward := orbit_walk(orbit, {0, 0, 1}, 1)
+	testing.expect(t, math.abs(forward.target.x) < 1e-5)
+	testing.expect(t, math.abs(forward.target.y) < 1e-5)
+	testing.expect(t, math.abs(forward.target.z + 1) < 1e-5)
+	right := orbit_walk(orbit, {1, 0, 0}, 1)
+	testing.expect(t, math.abs(right.target.x - 1) < 1e-5)
+	testing.expect(t, math.abs(right.target.y) < 1e-5)
+	testing.expect(t, math.abs(right.target.z) < 1e-5)
+}
+
+@(test)
 test_box_mesh_has_six_faces :: proc(t: ^testing.T) {
 	mesh := box_mesh({2, 2, 2})
 	defer mesh_data_destroy(&mesh)

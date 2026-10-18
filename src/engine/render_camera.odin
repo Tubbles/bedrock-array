@@ -63,6 +63,18 @@ orbit_metres_per_pixel :: proc(orbit: Orbit, vertical_fov_radians: f32, canvas_h
 	return 2 * orbit.distance * math.tan(vertical_fov_radians / 2) / canvas_height_pixels
 }
 
+// A walk moves the target: x along the right, y along world up, z along the horizontal forward.
+orbit_walk :: proc(orbit: Orbit, input: [3]f32, metres: f32) -> Orbit {
+	right, _ := orbit_right_and_up(orbit)
+	camera := orbit_camera(orbit, 0, 0, 0)
+	forward := camera.target - camera.position
+	forward.y = 0
+	forward = linalg.normalize(forward)
+	result := orbit
+	result.target += (input.x * right + input.y * [3]f32{0, 1, 0} + input.z * forward) * metres
+	return result
+}
+
 @(private = "file")
 orbit_right_and_up :: proc(orbit: Orbit) -> (right, up: [3]f32) {
 	camera := orbit_camera(orbit, 0, 0, 0)
