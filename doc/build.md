@@ -29,3 +29,11 @@ The engine commands pass `-define:BUILD_INFO="<commit> <UTC time>"`, for example
 ## Writing a demo
 
 A demo is one package under `src/demos/<name>/`. `odin.js` runs its `main` once at load, then calls the exported `step :: proc(delta_time: f64) -> bool` every animation frame for as long as it returns true. Rendering goes through `vendor:wasm/WebGL` with WebGL2 calls only, never WebGL1 (CLAUDE.md, Stack). Input from `core:sys/wasm/js`: the `.Pointer_Down` event covers touch and mouse alike, so one listener serves the phone and the laptop.
+
+## Installing the demos
+
+`tools/install_web_build.sh [commit]` builds every demo of the commit (default `HEAD`) and installs the pages under `bin/web/`. It builds from a `git archive` of the commit in a temporary directory, so the working tree is never served and agents editing `src/` cannot break a page that is open. The archive has no `.git`, so the script passes the commit in `BEDROCK_ARRAY_COMMIT` for the build stamp. Each install goes to its own `bin/web/builds/<UTC time>-<commit>/` with an `index.html` at its root that links every demo and names the commit and the build time. One rename switches the `bin/web/current` link to it, so the server never finds the link missing, and the two newest builds stay (double buffering). Run it after every commit on `main`.
+
+## The web host
+
+`tools/bedrock-array-web.service` is a systemd user unit that serves `bin/web/current` with `python3 -m http.server` on port 8080, bound to every address. Enable it once, from the repository root: `ln -sfn "$PWD/tools/bedrock-array-web.service" ~/.config/systemd/user/`, then `systemctl --user daemon-reload`, then `systemctl --user enable --now bedrock-array-web.service`. The pages are at `http://192.168.1.7:8080/`, or `http://bazzite:8080/` where the name resolves. The firewalld zone (FedoraWorkstation) already opens TCP 1025 to 65535, so the port needs no firewall change. A user service runs while the user is logged in. `loginctl enable-linger` would keep it up without a login.

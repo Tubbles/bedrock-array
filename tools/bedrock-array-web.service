@@ -1,0 +1,9 @@
+[Unit]
+Description=Bedrock Array demo pages
+
+[Service]
+ExecStart=/usr/bin/python3 -m http.server 8080 --bind 0.0.0.0 --directory %h/dev/bedrock-array/bin/web/current
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
