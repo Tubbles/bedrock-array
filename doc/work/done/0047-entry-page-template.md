@@ -1,6 +1,6 @@
 # 0047: The entry round on the page template
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, c56ba5e)
 
 Goal: every entry page is painted into one kept template, an empty page of the book with the astronaut in it, so the presentation and the figure are the same on every machine's page and only the words decide the machine (user, 2026-10-18: a blank page as the reference rather than the smelter's page, which would carry its layout and its machine along). The drill's two first pages differed in page style and both made the machine a vehicle, so the drill's clause says it is placed. Refers to item 0046.
 
