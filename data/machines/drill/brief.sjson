@@ -1,0 +1,14 @@
+// The mining drill's brief (doc/workflows/art_book.md, Files), first draft: the envelope, the figure and the entry clause the entry round reads. The parts, the silhouette and the feature are written from the chosen entry page.
+// Sizes from the Techtonica study (doc/techtonica.md, Footprints and heights): 3 by 3 cells of a metre, 3 m tall, no clearance ring.
+id = "drill"
+family = "mining"
+role = "drills ore out of a rock face, burning coal"
+footprint = {
+	cells = [3, 3]
+	clearance = 0
+	cell_metres = 1
+}
+height_metres = 3.0
+figure_metres = 1.8
+entry = "a coal powered mining drill at an ore face in a cave lit by the glowing flora, shown working, its drill head pointing sideways into the rock and coal smoke rising from its stack, in slate blue painted panels with copper fittings"
+art = { model = "banana" seeds = [] }
