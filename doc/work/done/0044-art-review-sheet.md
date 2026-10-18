@@ -1,6 +1,6 @@
 # 0044: The art review sheet
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, 9032a29)
 
 Goal: step 5 of `doc/workflows/art_book.md`: one sheet per round that puts the blockout renders, the repaints, the turnaround and a squint row side by side, with the checks printed, so a round is judged in a minute. Refers to items 0042 and 0043.
 
