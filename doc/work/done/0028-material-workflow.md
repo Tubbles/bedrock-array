@@ -1,6 +1,6 @@
 # 0028: The material workflow
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, db87dee)
 
 Goal: D1's decisive step, the decision. The workflow for textures and materials, lesson 3 of the definition, chosen and written down as the first asset workflow: `doc/workflows/materials.md`. Its proof, worn painted steel on the surface page's machine block, is the items that follow it (0029 to 0035), and the user's judgement of that page closes D1.
 
