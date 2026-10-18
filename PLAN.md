@@ -22,7 +22,7 @@ The user's reading on 2026-10-18, after D1's two pages: a renderer on flat colou
 
 | Demo | The question | Defines the workflow for | State |
 | --- | --- | --- | --- |
-| D1 Light | Is stylised realism the look: worn paint with chipped edges over metal, a glowing face on a machine, a world lit by what glows, under a physically based light | Textures and materials | The renderer stands (0004 to 0027: shading, HDR and tone map, point lights, bloom, hemisphere ambient, scene files, the cave and surface pages, touch, mouse, keyboard and gamepad input). The question is open: the pages show flat colours on primitives. The material workflow is decided and built (0028 to 0035, `doc/workflows/materials.md`): the bake and review scripts, and the first finished material, worn painted steel with chipped edges, on the surface page's machine block. Next: the user's judgement of that page and the sheet, then the pruning of the series |
+| D1 Light | Is stylised realism the look: worn paint with chipped edges over metal, a glowing face on a machine, a world lit by what glows, under a physically based light | Textures and materials | Parked as good enough (user, 2026-10-18), to be revisited as everything is. Settled: the renderer stages (0004 to 0027: shading, HDR and tone map, point lights, lens scattering bloom, hemisphere ambient, scene files, the cave and surface pages, touch, mouse, keyboard and gamepad input) and the material workflow with its first material, worn painted steel with chipped edges on the surface page's machine block (0028 to 0037, `doc/workflows/materials.md`, the fields as layer stacks). Not settled: shadows (stage 2), the sky model (D2), clustered lights and vertex ambient occlusion (the scenes that need them) |
 | D2 Ground | Does the smooth voxel planet of Mine oh Belowed hold up under the new light, with sky, day and weather, and the powered pickaxe breaking terrain with debris and dust | Nothing new | Todo |
 | D3 Water | Do cellular kernels with data rules give believable flow, pooling, a dug pit filling and draining, and a water surface | Nothing new | Todo |
 | D4 Machine | Can one machine go from the art book to a finished model: concept, model, materials, animation, state cues (glow, motion, heat), alone and in a row of many | The art book and the modelling (Blender) | Todo |
@@ -44,13 +44,13 @@ Defined when phase B is in sight. The first target is the spine of [DESIGN.md](D
 
 ## Where it stands
 
-- 2026-10-18: the definition read and worked out into DESIGN.md with the user (the engine and module split, intercom, cellular systems, the look and the renderer, the underground, asset storage, the Techtonica study, `doc/log/2026-10-18.md`). M0 landed the same day: the build script, the browser build with the hello page, the web host on bazzite at `http://192.168.1.7:8080/`, the draw list with the camera and the primitive meshes, Git LFS. D1 reached its two scene pages (the cave and the surface) the same evening, with the orbit, pan, walk and gamepad input the user asked for on the way. The user's reading of the pages: nothing decided yet, Mine oh Belowed with bloom. D1 runs on to the first finished material, and the series is pruned after it (the Phase A section).
+- 2026-10-18: the definition read and worked out into DESIGN.md with the user (the engine and module split, intercom, cellular systems, the look and the renderer, the underground, asset storage, the Techtonica study, `doc/log/2026-10-18.md`). M0 landed the same day: the build script, the browser build with the hello page, the web host on bazzite at `http://192.168.1.7:8080/`, the draw list with the camera and the primitive meshes, Git LFS. D1 reached its two scene pages (the cave and the surface) the same evening, with the orbit, pan, walk and gamepad input the user asked for on the way. The user's reading of the pages: nothing decided yet, Mine oh Belowed with bloom. D1 ran on to its first finished material and the user parked it as good enough the same evening; the series after it is pruned next (the Phase A section, SUGGESTIONS.md).
 
 ## Milestones
 
 | Milestone | Work items | Status |
 | --- | --- | --- |
 | M0 Structure | 0001 to 0005 | Landed 2026-10-18 |
-| Phase A The tech demos | D1 under way (the table above holds each demo's state) | Under way since 2026-10-18 |
+| Phase A The tech demos | D1 parked as good enough 2026-10-18; the next demo is chosen from the pruned series (the table above holds each demo's state) | Under way since 2026-10-18 |
 | Phase B The engine | | Todo |
 | Phase C The game | | Todo |
