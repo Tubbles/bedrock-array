@@ -35,3 +35,29 @@ concrete = {
 	roughness = 0.95
 	metallic = 0
 }
+
+cave_rock = {
+	albedo = [0.30, 0.27, 0.24]
+	roughness = 0.95
+	metallic = 0
+}
+
+wet_rock = {
+	albedo = [0.16, 0.15, 0.14]
+	roughness = 0.30
+	metallic = 0
+}
+
+glow_moss = {
+	albedo = [0.10, 0.30, 0.15]
+	roughness = 0.80
+	metallic = 0
+	emissive = [0.4, 1.6, 0.8]
+}
+
+glow_fungus = {
+	albedo = [0.30, 0.15, 0.05]
+	roughness = 0.70
+	metallic = 0
+	emissive = [1.6, 0.7, 0.2]
+}

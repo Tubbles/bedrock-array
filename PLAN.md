@@ -47,7 +47,7 @@ Defined when phase B is in sight. The first target is the spine of [DESIGN.md](D
 | Milestone | Work items | Status |
 | --- | --- | --- |
 | M0 Structure | 0001 to 0005 | Landed 2026-10-18 |
-| D1 Light | 0004, 0006 to 0008 landed, 0010 and 0011 (shader files, physically based shading), then the HDR, light and sky items | Under way since 2026-10-18 |
+| D1 Light | 0004, 0006 to 0008 landed, 0010 to 0018 landed the renderer stages, the scene files and the cave page (the first scene of the demo), then the bloom, clustered lights, sky ambient and vertex ambient occlusion items | Under way since 2026-10-18 |
 | D2 Ground | | Todo |
 | D3 Water | | Todo |
 | D4 Machine | | Todo |

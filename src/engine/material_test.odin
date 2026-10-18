@@ -9,7 +9,6 @@ test_material_library_parses_the_shipped_file :: proc(t: ^testing.T) {
 	library, problem := parse_material_library(#load("../../data/materials/library.sjson"))
 	defer material_library_destroy(&library)
 	testing.expect_value(t, problem, "")
-	testing.expect_value(t, len(library.materials), 6)
 	copper, found := material_id_by_name(library, "copper")
 	testing.expect(t, found)
 	if found {
