@@ -16,6 +16,8 @@ Webgl_Uniforms :: struct {
 	roughness, metallic, emissive:                               i32,
 	point_light_count, point_light_position, point_light_colour: i32,
 	point_light_range:                                           i32,
+	has_textures, albedo_map, normal_map, surface_map:           i32,
+	texture_metres:                                              i32,
 }
 
 Webgl_Tonemap_Uniforms :: struct {
@@ -68,6 +70,11 @@ WEBGL_MAX_POINT_LIGHTS :: 8
 WEBGL_BLOOM_LEVELS :: 5
 WEBGL_BLOOM_STRENGTH :: f32(0.05)
 
+// The world size in metres one repeat of a texture set covers at the near scale.
+// Equal to tile_metres of every bake file under data/materials/bake/, which
+// scales the normal map's slopes; a per material value waits for a set that needs it.
+WEBGL_TEXTURE_METRES :: f32(2)
+
 WEBGL_VERTEX_SHADER :: #load("shaders/forward.vert", string)
 WEBGL_FRAGMENT_SHADER :: #load("shaders/forward.frag", string)
 WEBGL_TONEMAP_VERTEX_SHADER :: #load("shaders/tonemap.vert", string)
@@ -98,7 +105,18 @@ webgl_renderer_init :: proc(renderer: ^Webgl_Renderer) -> bool {
 		point_light_position = gl.GetUniformLocation(program, "point_light_position"),
 		point_light_colour   = gl.GetUniformLocation(program, "point_light_colour"),
 		point_light_range    = gl.GetUniformLocation(program, "point_light_range"),
+		has_textures         = gl.GetUniformLocation(program, "has_textures"),
+		albedo_map           = gl.GetUniformLocation(program, "albedo_map"),
+		normal_map           = gl.GetUniformLocation(program, "normal_map"),
+		surface_map          = gl.GetUniformLocation(program, "surface_map"),
+		texture_metres       = gl.GetUniformLocation(program, "texture_metres"),
 	}
+	// Set once: the texture units the material's maps bind to, and the near scale.
+	gl.UseProgram(program)
+	gl.Uniform1i(renderer.uniforms.albedo_map, 0)
+	gl.Uniform1i(renderer.uniforms.normal_map, 1)
+	gl.Uniform1i(renderer.uniforms.surface_map, 2)
+	gl.Uniform1f(renderer.uniforms.texture_metres, WEBGL_TEXTURE_METRES)
 	tonemap_program, tonemap_compiled := gl.CreateProgramFromStrings(
 		{WEBGL_TONEMAP_VERTEX_SHADER},
 		{WEBGL_TONEMAP_FRAGMENT_SHADER},
@@ -234,6 +252,9 @@ webgl_target_ensure :: proc(target: ^Webgl_Target, width, height: i32, with_dept
 		gl.RenderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, width, height)
 		gl.FramebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, target.depth)
 	}
+	// Left bound on the active unit, the new colour texture would feed back into the
+	// forward pass, whose samplers sit on the units 0 to 2.
+	gl.BindTexture(gl.TEXTURE_2D, 0)
 }
 
 // Draws the fullscreen triangle into the framebuffer; the caller sets the program, textures and uniforms.
@@ -369,6 +390,7 @@ webgl_renderer_draw :: proc(renderer: ^Webgl_Renderer, list: Draw_List, library:
 		gl.Uniform1f(uniforms.roughness, material.roughness)
 		gl.Uniform1f(uniforms.metallic, material.metallic)
 		gl.Uniform3f(uniforms.emissive, emissive.r, emissive.g, emissive.b)
+		webgl_bind_material_textures(renderer, uniforms, item.material)
 		gl.UniformMatrix4fv(uniforms.model, item.transform)
 		gl.BindVertexArray(mesh.vertex_array)
 		gl.DrawElements(gl.TRIANGLES, mesh.index_count, gl.UNSIGNED_INT, nil)
@@ -377,4 +399,20 @@ webgl_renderer_draw :: proc(renderer: ^Webgl_Renderer, list: Draw_List, library:
 	webgl_bloom_passes(renderer)
 	webgl_tonemap_pass(renderer, list.exposure, width, height)
 	gl.Enable(gl.DEPTH_TEST)
+}
+
+// Binds the material's texture set to the units 0 to 2, or tells the shader it has none.
+@(private = "file")
+webgl_bind_material_textures :: proc(renderer: ^Webgl_Renderer, uniforms: Webgl_Uniforms, material: Material_Id) {
+	if int(material) >= len(renderer.texture_sets) || !renderer.texture_sets[material].present {
+		gl.Uniform1i(uniforms.has_textures, 0)
+		return
+	}
+	set := renderer.texture_sets[material]
+	textures := [3]gl.Texture{set.albedo, set.normal, set.surface}
+	for texture, unit in textures {
+		gl.ActiveTexture(gl.TEXTURE0 + gl.Enum(unit))
+		gl.BindTexture(gl.TEXTURE_2D, texture)
+	}
+	gl.Uniform1i(uniforms.has_textures, 1)
 }

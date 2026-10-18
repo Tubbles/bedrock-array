@@ -1,6 +1,6 @@
 # 0033: Triplanar sampling of the texture sets
 
-Status: designed (2026-10-18)
+Status: verified (2026-10-18)
 
 Goal: a material with a texture set is drawn with it: the albedo map tinted by the preset, the normal map, the paint roughness, sampled triplanar from the world position at two scales so the period never shows (DESIGN.md, Consistency comes from the renderer). The wear rule is item 0034. Refers to items 0028 and 0032.
 
