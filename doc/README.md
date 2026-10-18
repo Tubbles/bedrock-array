@@ -1,0 +1,10 @@
+# Documentation
+
+The entry point to the details. Each topic has one document, and each fact one place.
+
+- [definition.md](../definition.md): the user's intent. Agents read it and never edit it.
+- [DESIGN.md](../DESIGN.md): the decisions worked out from the definition, with their reasons and the questions still open.
+- [PLAN.md](../PLAN.md): the phases, the tech demo series, the milestones and where the project stands.
+- [log/](log/): dated decision logs, write once. The drill-down behind the work items.
+- [work/](work/): work items, the user's overview of the work in flight. Landed under [work/done/](work/done/), closed under [work/cancelled/](work/cancelled/).
+- `build.md`: how to build, check and test, how a demo page is built and how the web host on bazzite serves it. Written with item 0001.

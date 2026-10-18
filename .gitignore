@@ -1,0 +1,11 @@
+# Throwaway and scratch files at the repository root (global rules, Project
+# structure). Anchored so that doc/work/ stays tracked.
+/tmp/
+/work/
+
+# Build output (build/) and the installed play build (bin/)
+/build/
+/bin/
+
+# Python bytecode, wherever a script is imported from
+__pycache__/
