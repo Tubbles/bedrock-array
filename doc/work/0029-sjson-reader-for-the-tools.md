@@ -1,6 +1,6 @@
 # 0029: An SJSON reader for the tools
 
-Status: implementing (2026-10-18)
+Status: verified (2026-10-18)
 
 Goal: the material scripts of `doc/workflows/materials.md` run inside Blender's Python and read the project's SJSON files (the bake parameters, `data/materials/library.sjson`), which no Python library parses. A small reader with no dependencies, so it runs in Blender's bundled Python and the system Python alike. Refers to item 0028.
 
