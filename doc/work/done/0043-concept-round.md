@@ -1,6 +1,6 @@
 # 0043: The concept round
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, 663221b)
 
 Goal: steps 3 and 4 of `doc/workflows/art_book.md`: a driver that composes a machine's prompt from its brief and its family's style paragraph, never by hand, and runs a round of repaints of the blockout's hero render through the image tool, and after the user's pick, the turnaround repaints with the chosen hero as the second reference. Refers to items 0040 and 0042.
 
