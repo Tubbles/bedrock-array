@@ -1,25 +1,25 @@
 // The smelter's brief (doc/workflows/art_book.md, Files): the data every step of D4 reads.
-// Sizes are provisional until the Techtonica study (item 0039) lands its numbers.
+// Sizes from the Techtonica study (doc/techtonica.md, The smelter): 2 by 2 cells of a metre, 2 m tall, a one cell clearance ring.
 // The front faces +z; y is up; positions are metres from the footprint's bottom centre.
 id = "smelter"
 family = "furnace"
 role = "melts ore into ingots"
 footprint = {
 	cells = [2, 2]
-	blocked = [4, 4]
+	clearance = 1
 	cell_metres = 1
 }
-height_metres = 2.8
+height_metres = 2.0
 figure_metres = 1.8
 silhouette = "a squat drum on a low base, a domed copper lid, a short stack at the back"
 feature = "a glowing grille window as the face on the front"
 parts = [
-	{ name = "base" material = "bare_alloy" role = "base" blockout = { shape = "box" size = [2.0, 0.3, 2.0] position = [0, 0.15, 0] } }
-	{ name = "body" material = "painted_steel" role = "shell" blockout = { shape = "cylinder" radius = 0.85 height = 1.6 position = [0, 1.1, 0] } }
-	{ name = "lid" material = "copper" role = "lid" blockout = { shape = "dome" radius = 0.9 height = 0.35 position = [0, 1.9, 0] } }
-	{ name = "stack" material = "bare_alloy" role = "stack" blockout = { shape = "cylinder" radius = 0.15 height = 0.7 position = [0, 2.45, -0.55] } }
-	{ name = "window" material = "furnace_glow" role = "emissive" blockout = { shape = "box" size = [0.6, 0.35, 0.1] position = [0, 1.0, 0.82] } }
-	{ name = "grille" material = "bare_alloy" role = "grille" blockout = { shape = "box" size = [0.7, 0.45, 0.04] position = [0, 1.0, 0.88] } }
+	{ name = "base" material = "bare_alloy" role = "base" blockout = { shape = "box" size = [2.0, 0.25, 2.0] position = [0, 0.125, 0] } }
+	{ name = "body" material = "painted_steel" role = "shell" blockout = { shape = "cylinder" radius = 0.9 height = 1.25 position = [0, 0.875, 0] } }
+	{ name = "lid" material = "copper" role = "lid" blockout = { shape = "dome" radius = 0.95 height = 0.3 position = [0, 1.5, 0] } }
+	{ name = "stack" material = "bare_alloy" role = "stack" blockout = { shape = "cylinder" radius = 0.12 height = 0.45 position = [0, 1.75, -0.6] } }
+	{ name = "window" material = "furnace_glow" role = "emissive" blockout = { shape = "box" size = [0.6, 0.3, 0.1] position = [0, 1.0, 0.87] } }
+	{ name = "grille" material = "bare_alloy" role = "grille" blockout = { shape = "box" size = [0.7, 0.4, 0.04] position = [0, 1.0, 0.93] } }
 ]
 cues = [
 	{ name = "working" behaviour = "the window glows orange with heat and flickers, a shimmer over the lid" parts = ["window"] sockets = ["heat"] }
