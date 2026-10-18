@@ -40,14 +40,14 @@ Defined when phase B is in sight. The first target is the spine of [DESIGN.md](D
 
 ## Where it stands
 
-- 2026-10-18: the definition read and worked out into DESIGN.md with the user (the engine and module split, intercom, cellular systems, the look and the renderer, the underground, asset storage, the Techtonica study, `doc/log/2026-10-18.md`). M0 landed the same day: the build script, the browser build with the hello page, the web host on bazzite at `http://192.168.1.7:8080/`, the draw list with the camera and the primitive meshes, Git LFS. D1 is under way with items 0006 to 0008 landed and 0010 and 0011 next.
+- 2026-10-18: the definition read and worked out into DESIGN.md with the user (the engine and module split, intercom, cellular systems, the look and the renderer, the underground, asset storage, the Techtonica study, `doc/log/2026-10-18.md`). M0 landed the same day: the build script, the browser build with the hello page, the web host on bazzite at `http://192.168.1.7:8080/`, the draw list with the camera and the primitive meshes, Git LFS. D1 reached its two scene pages (the cave and the surface) the same evening, with the orbit, pan, walk and gamepad input the user asked for on the way.
 
 ## Milestones
 
 | Milestone | Work items | Status |
 | --- | --- | --- |
 | M0 Structure | 0001 to 0005 | Landed 2026-10-18 |
-| D1 Light | 0004, 0006 to 0008 landed, 0010 to 0018 landed the renderer stages, the scene files and the cave page (the first scene of the demo), the surface page (item 0025) as the second scene, then the bloom, clustered lights, sky ambient and vertex ambient occlusion items | Under way since 2026-10-18 |
+| D1 Light | 0004, 0006 to 0026 landed: the renderer stages (shading, HDR and tone map, point lights, bloom, hemisphere ambient), the scene files, the cave and surface pages, the input (touch, mouse, keyboard, gamepad), the demo index. Clustered lights wait for a scene with more than eight lights, vertex ambient occlusion for the voxel terrain of D2. The user's judgement of the two pages closes the milestone | Under way since 2026-10-18 |
 | D2 Ground | | Todo |
 | D3 Water | | Todo |
 | D4 Machine | | Todo |
