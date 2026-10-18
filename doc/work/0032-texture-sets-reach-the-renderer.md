@@ -1,0 +1,21 @@
+# 0032: Texture sets reach the renderer
+
+Status: designed (2026-10-18)
+
+Goal: a page embeds `data/materials/textures/`, decodes the sets the library names and uploads them as WebGL textures, one set per material, so the sampling item (0033) has them bound. Nothing samples them yet. Refers to items 0028, 0030 and 0031.
+
+Verify:
+- `./build.sh test` passes with the two new tests, `./build.sh check`, `./build.sh web surface`.
+
+## Specification (main agent, 2026-10-18)
+
+Binding facts, verified 2026-10-18: `core:image/png` and `#load_directory` (as a `:=` value, flat, `[]runtime.Load_Directory_File` with `name` and `data`) compile for `js_wasm32`; `png.load_from_bytes(data, {.alpha_add_if_missing}, allocator)` returns `^image.Image` with `width`, `height`, `channels`, `depth` and `pixels.buf`; `vendor:wasm/WebGL` has `CreateTexture`, `BindTexture`, `TexImage2DSlice(target, level, internalformat, width, height, border, format, type, slice)`, `GenerateMipmap`, `TexParameteri`, and the enums `SRGB8_ALPHA8`, `RGBA8`, `RGBA`, `UNSIGNED_BYTE`, `LINEAR_MIPMAP_LINEAR`, `LINEAR`, `REPEAT`, `TEXTURE_2D`, `TEXTURE_MIN_FILTER`, `TEXTURE_MAG_FILTER`, `TEXTURE_WRAP_S`, `TEXTURE_WRAP_T`.
+
+- `src/engine/texture.odin` (native and web): `Image_Data :: struct { width, height: int, pixels: []byte }` (RGBA, 8 bit, top row first as the PNG holds it), `Texture_Set_Data :: struct { albedo, normal, surface: Image_Data }`. `texture_set_from_files(files: []runtime.Load_Directory_File, name: string, allocator := context.allocator) -> (set: Texture_Set_Data, problem: string)`: finds `<name>_albedo.png`, `<name>_normal.png` and `<name>_surface.png` by `name` in `files`, decodes each with `png.load_from_bytes` with `.alpha_add_if_missing` into the temp allocator and copies the pixels into `allocator`; a missing file gives `texture set %s: %s missing`, a decode error `texture set %s: %s: %v`, a depth other than 8 or a channel count other than 4 after the option `texture set %s: %s is not 8 bit RGBA`. `texture_set_data_destroy(set: ^Texture_Set_Data, allocator := context.allocator)`. Short procedures: one that finds a file, one that decodes one image, the set procedure over them.
+- `src/engine/texture_test.odin` (`#+build !js`): `test_texture_set_decodes_the_shipped_painted_steel` (`#load_directory("../../data/materials/textures")`, the set's three images are 512 by 512 with `len(pixels) == 512 * 512 * 4`) and `test_texture_set_names_a_missing_file` (the name `nothing`, problem contains `nothing_albedo.png missing`).
+- `src/engine/render_webgl.odin`: `Webgl_Texture_Set :: struct { albedo, normal, surface: gl.Texture, present: bool }`, `Webgl_Renderer.texture_sets: [dynamic]Webgl_Texture_Set` indexed by `Material_Id`. `webgl_renderer_upload_texture_set(renderer, material: Material_Id, set: Texture_Set_Data)` grows `texture_sets` to cover the id and stores the three uploads of a file private `webgl_upload_image(image: Image_Data, srgb: bool) -> gl.Texture`: create, bind `TEXTURE_2D`, `TexImage2DSlice` with `SRGB8_ALPHA8` for the albedo and `RGBA8` for the other two, format `RGBA`, type `UNSIGNED_BYTE`, then `GenerateMipmap`, min filter `LINEAR_MIPMAP_LINEAR`, mag filter `LINEAR`, wrap `REPEAT` on both axes, unbind.
+- `src/engine/web_scene_page.odin`: `scene_page_init` gains `textures: []runtime.Load_Directory_File` after `scene_data`. After `scene_page_upload_meshes`, `scene_page_upload_textures(page, textures) -> (problem: string)`: for every material of the library with a non empty `textures`, `texture_set_from_files` into the temp allocator and `webgl_renderer_upload_texture_set`; a problem is returned by `scene_page_init` prefixed `textures: `.
+- `src/demos/light/main.odin`, `cave/main.odin`, `surface/main.odin`: the call passes `#load_directory("../../../data/materials/textures")` as the fourth argument (a `:=` local in `main` if the compiler refuses the expression inline).
+- `doc/render.md`, The WebGL2 renderer: one sentence on the texture sets: decoded at page load from the embedded directory by `texture_set_from_files`, uploaded with mipmaps, repeat wrapping and the albedo as sRGB, one `Webgl_Texture_Set` per material; `doc/build.md`, Writing a demo: the directory passed beside the library and the scene.
+
+Verify: `./build.sh check`, `./build.sh test` (thirty four tests), `./build.sh web surface`.
