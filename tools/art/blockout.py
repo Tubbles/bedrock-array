@@ -27,8 +27,10 @@ import review  # noqa: E402
 # Edges flatter than this shade smooth: a 48 sided cylinder's 7.5 degree facets do, a chamfer's edges (14 degrees and up) do not.
 AUTO_SMOOTH_DEGREES = 10
 HERO_ELEVATION_DEGREES = 15
-HERO_MARGIN = 0.1
-ORTHOGRAPHIC_SCALE_FACTOR = 1.2
+# The hero's margin as a share of the frame on each side.
+HERO_MARGIN = 0.05
+# The elevations' frame as a factor of the machine's largest extent, shared by the four views so the turnaround stays true.
+ORTHOGRAPHIC_SCALE_FACTOR = 1.15
 ORTHOGRAPHIC_DISTANCE = 10.0
 ORTHOGRAPHIC_VIEWS = {
     "front": Vector((0, -1, 0)),
@@ -229,20 +231,19 @@ def add_hero_camera(framed_objects):
     return camera
 
 
-def orthographic_scale(brief):
-    footprint = brief["footprint"]
-    width = footprint["cells"][0] * footprint["cell_metres"]
-    depth = footprint["cells"][1] * footprint["cell_metres"]
-    return ORTHOGRAPHIC_SCALE_FACTOR * max(brief["height_metres"], math.hypot(width, depth))
+def orthographic_scale(parts):
+    corners = bounding_corners(parts)
+    extents = [max(corner[axis] for corner in corners) - min(corner[axis] for corner in corners) for axis in range(3)]
+    return ORTHOGRAPHIC_SCALE_FACTOR * max(extents)
 
 
-def add_orthographic_camera(name, side, brief):
+def add_orthographic_camera(name, side, brief, parts):
     target = Vector((0, 0, brief["height_metres"] / 2))
     bpy.ops.object.camera_add(location=target + side * ORTHOGRAPHIC_DISTANCE)
     camera = bpy.context.active_object
     camera.name = name
     camera.data.type = "ORTHO"
-    camera.data.ortho_scale = orthographic_scale(brief)
+    camera.data.ortho_scale = orthographic_scale(parts)
     look_at(camera, target)
     return camera
 
@@ -250,7 +251,7 @@ def add_orthographic_camera(name, side, brief):
 def add_cameras(scene, brief, parts):
     cameras = {"hero": add_hero_camera(parts)}
     for name, side in ORTHOGRAPHIC_VIEWS.items():
-        cameras[name] = add_orthographic_camera(name, side, brief)
+        cameras[name] = add_orthographic_camera(name, side, brief, parts)
     return cameras
 
 
