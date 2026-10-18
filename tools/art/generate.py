@@ -56,30 +56,30 @@ def request(url, headers, body=None, method=None):
 REFERENCE_LONG_SIDE = 1024
 
 
-def reference_data_uri(path):
-    """The image as a JPEG data URI, the long side at most REFERENCE_LONG_SIDE:
+def reference_data_uri(path, long_side=REFERENCE_LONG_SIDE):
+    """The image as a JPEG data URI, the long side at most long_side:
     OpenRouter caps the request's text at 8 MB, which one 2K PNG exceeds."""
     from PIL import Image
     import io
     image = Image.open(path).convert("RGB")
-    image.thumbnail((REFERENCE_LONG_SIDE, REFERENCE_LONG_SIDE), Image.LANCZOS)
+    image.thumbnail((long_side, long_side), Image.LANCZOS)
     buffer = io.BytesIO()
     image.save(buffer, format="JPEG", quality=90)
     return "data:image/jpeg;base64," + base64.b64encode(buffer.getvalue()).decode()
 
 
-def reference_entry(path):
+def reference_entry(path, long_side):
     """One input_references element: the shape OpenRouter's images API takes."""
-    return {"type": "image_url", "image_url": {"url": reference_data_uri(path)}}
+    return {"type": "image_url", "image_url": {"url": reference_data_uri(path, long_side)}}
 
 
-def generate_openrouter(model, prompt, count, ratio, seed, references):
+def generate_openrouter(model, prompt, count, ratio, seed, references, reference_long_side=REFERENCE_LONG_SIDE):
     headers = {"Authorization": "Bearer " + read_key("openrouter")}
     body = {"model": OPENROUTER_MODELS[model], "prompt": prompt, "n": count, "aspect_ratio": ratio, "resolution": "2K", "output_format": "png"}
     if seed is not None:
         body["seed"] = seed
     if references:
-        body["input_references"] = [reference_entry(path) for path in references]
+        body["input_references"] = [reference_entry(path, reference_long_side) for path in references]
     result = request("https://openrouter.ai/api/v1/images", headers, body)
     images = [base64.b64decode(entry["b64_json"]) for entry in result.get("data", [])]
     cost = result.get("usage", {}).get("cost")

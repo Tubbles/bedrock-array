@@ -4,13 +4,16 @@
     tools/art/concept.py <id> --round <n> [--model banana] [--seeds 7 11 19] [--dry-run]
     tools/art/concept.py <id> --turnaround --round <n> [--model banana] [--views front back] [--dry-run]
     tools/art/concept.py <id> --entry --round <n> [--model banana] [--seeds 7 11] [--dry-run]
+    tools/art/concept.py <id> --collage --round <n> [--model banana] [--seeds 7] [--dry-run]
 
 The prompt is composed from the brief (data/machines/<id>/brief.sjson) and its family's style
 (data/art/families.sjson), never written by hand. The hero round repaints work/art/<id>/blockout/hero.png
 once per seed into work/art/<id>/round-<n>/; the turnaround repaints each orthographic render, its one
 reference, with the hero's wording into work/art/<id>/round-<n>/turnaround/<view>.png. The entry round
 paints a page of the art book from data/art/book.sjson and the brief's entry into the kept template
-data/art/page.png, its one reference, once per seed into work/art/<id>/entry-<n>/.
+data/art/page.png, its one reference, once per seed into work/art/<id>/entry-<n>/. The collage round
+repaints the five renders on one sheet in one call per seed and splits the output into
+work/art/<id>/round-<n>/collage/<view>.png.
 --dry-run prints the prompt and the calls without calling the API.
 """
 import argparse
@@ -28,6 +31,12 @@ VIEWS = ["front", "left", "back", "right"]
 FRONT_EDGE = {"left": "right", "right": "left"}  # where the front face sits in a side elevation's picture, read off the renders
 RATIO = "1:1"  # the blockout renders are square; a repaint keeps the reference's camera
 ENTRY_RATIO = "4:3"  # the entry illustration
+COLLAGE_PANEL = 512  # a panel's side on the collage sheet, gutter included
+COLLAGE_GUTTER = 4  # the white between two panels
+COLLAGE_NAMES = ["hero", "front", "left", "back", "right"]  # the panels in row major order, the sixth stays white
+COLLAGE_RATIO = "3:2"  # three panels by two
+GUTTER_LUMINANCE = 250  # a column or row whose mean luminance is above this is gutter
+PAINTERLY = "Painterly, soft brushed edges, forms set apart by value and colour, never by lines: no ink lines, no outlines, not a 3D render."
 
 
 def read_sjson(path):
@@ -94,7 +103,7 @@ def repaint_prompt(style, brief, view):
     return " ".join([
         style,
         repaint_sentence(view),
-        "Painterly, soft brushed edges, forms set apart by value and colour, never by lines: no ink lines, no outlines, not a 3D render.",
+        PAINTERLY,
         as_sentence(brief["silhouette"]),
         feature_sentence(brief, view),
         "No text, no logos.",
@@ -136,11 +145,11 @@ def view_render(machine, view):
     return os.path.join(art_directory(machine), "blockout", f"{view}.png")
 
 
-def call(model, prompt, seed, references, dry_run, ratio=RATIO):
+def call(model, prompt, seed, references, dry_run, ratio=RATIO, reference_long_side=generate.REFERENCE_LONG_SIDE):
     """One image call; returns (images, cost, seed), or None on a dry run."""
     if dry_run:
         return None
-    images, cost, seed = generate.generate_openrouter(model, prompt, 1, ratio, seed, references)
+    images, cost, seed = generate.generate_openrouter(model, prompt, 1, ratio, seed, references, reference_long_side)
     if not images:
         sys.exit("the model returned no image")
     return images, cost, seed
@@ -206,6 +215,111 @@ def turnaround(machine, round_number, model, views, dry_run):
             print(write_view(out, view, model, prompt, *result), out)
 
 
+def collage_origin(index):
+    """Where the render of panel index (row major) sits on the sheet, half a gutter in from the panel's corner."""
+    column, row = index % 3, index // 3
+    return column * COLLAGE_PANEL + COLLAGE_GUTTER // 2, row * COLLAGE_PANEL + COLLAGE_GUTTER // 2
+
+
+def compose_collage(machine, path):
+    """The five blockout renders on a white three by two sheet, the sixth panel empty."""
+    from PIL import Image
+    sheet = Image.new("RGB", (3 * COLLAGE_PANEL, 2 * COLLAGE_PANEL), "white")
+    side = COLLAGE_PANEL - COLLAGE_GUTTER
+    for index, name in enumerate(COLLAGE_NAMES):
+        render = Image.open(view_render(machine, name)).convert("RGB").resize((side, side), Image.LANCZOS)
+        sheet.paste(render, collage_origin(index))
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    sheet.save(path)
+
+
+def collage_prompt(style, brief):
+    return " ".join([
+        style,
+        "This image is a sheet of five blockout renders of one machine on white: top row, left to right, a three quarter hero view, "
+        "a flat orthographic front elevation, a flat orthographic left elevation; bottom row, a flat orthographic back elevation, "
+        "a flat orthographic right elevation, and an empty white panel that stays empty.",
+        "Repaint every render in place as finished concept art, keeping each panel's camera, silhouette and proportions exactly as they are, "
+        "the elevations without perspective, the same materials and colours in all five.",
+        PAINTERLY,
+        as_sentence(brief["silhouette"]),
+        as_sentence(brief["feature"]) + " In the side elevations " + brief["feature_edge_on"]
+        + f", the front face at the {FRONT_EDGE['left']} of the left elevation and at the {FRONT_EDGE['right']} of the right."
+        + " In the back elevation the front face is turned away from the camera, out of view.",
+        "No text, no logos.",
+    ])
+
+
+def gutter_runs(values, limit):
+    """The runs of indices whose value is above limit, as (start, end) pairs, end exclusive."""
+    runs = []
+    for index, value in enumerate(values):
+        if value <= limit:
+            continue
+        if runs and runs[-1][1] == index:
+            runs[-1] = (runs[-1][0], index + 1)
+        else:
+            runs.append((index, index + 1))
+    return runs
+
+
+def panel_runs(values, limit):
+    """The non empty runs between the gutters, the panels' extents along one axis."""
+    edges = [0] + [edge for run in gutter_runs(values, limit) for edge in run] + [len(values)]
+    return [(start, end) for start, end in zip(edges[0::2], edges[1::2]) if end > start]
+
+
+def even_runs(length, count):
+    return [(length * index // count, length * (index + 1) // count) for index in range(count)]
+
+
+def mean_luminance(image, size):
+    """The mean luminance of each column (size (width, 1)) or each row (size (1, height))."""
+    from PIL import Image
+    return list(image.convert("L").resize(size, Image.BOX).getdata())
+
+
+def split_panels(image):
+    """The five panels of a collage output in COLLAGE_NAMES order, each 1024 square."""
+    from PIL import Image
+    width, height = image.size
+    columns = panel_runs(mean_luminance(image, (width, 1)), GUTTER_LUMINANCE)
+    rows = panel_runs(mean_luminance(image, (1, height)), GUTTER_LUMINANCE)
+    if len(columns) < 3 or len(rows) < 2:
+        print(f"warning: found {len(columns)} panel columns and {len(rows)} panel rows, splitting in thirds and halves", file=sys.stderr)
+        columns, rows = even_runs(width, 3), even_runs(height, 2)
+    boxes = [(columns[index % 3][0], rows[index // 3][0], columns[index % 3][1], rows[index // 3][1]) for index in range(len(COLLAGE_NAMES))]
+    return [image.crop(box).resize((1024, 1024), Image.LANCZOS) for box in boxes]
+
+
+def write_panels(out, image_data, suffix):
+    """The collage output split into <name><suffix>.png beside it."""
+    from PIL import Image
+    import io
+    panels = split_panels(Image.open(io.BytesIO(image_data)).convert("RGB"))
+    for name, panel in zip(COLLAGE_NAMES, panels):
+        path = os.path.join(out, f"{name}{suffix}.png")
+        panel.save(path)
+        print(path)
+
+
+def collage_round(machine, round_number, model, seeds, dry_run):
+    brief = read_brief(machine)
+    prompt = collage_prompt(read_style(brief["family"]), brief)
+    require_files([view_render(machine, name) for name in COLLAGE_NAMES])
+    out = os.path.join(art_directory(machine), f"round-{round_number}", "collage")
+    sheet = os.path.join(out, "sheet.png")
+    compose_collage(machine, sheet)
+    print(prompt)
+    for seed in seeds:
+        describe(model, seed, [sheet], out, COLLAGE_RATIO)
+        result = call(model, prompt, seed, [sheet], dry_run, COLLAGE_RATIO, 3 * COLLAGE_PANEL)
+        if result:
+            written, cost_text = generate.write_images(out, model, prompt, COLLAGE_RATIO, *result)
+            print(cost_text, *written)
+            write_panels(out, result[0][0], f"_{seed}" if len(seeds) > 1 else "")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("machine", help="the brief's id, data/machines/<id>/brief.sjson")
@@ -215,15 +329,20 @@ def main():
     parser.add_argument("--turnaround", action="store_true", help="repaint the orthographic views")
     parser.add_argument("--views", nargs="+", choices=VIEWS, default=VIEWS, help="the turnaround's views, default all four; a failed view is rerun on its own")
     parser.add_argument("--entry", action="store_true", help="paint art book entries from data/art/book.sjson and the brief's entry")
+    parser.add_argument("--collage", action="store_true", help="repaint the five renders on one sheet in one call per seed, default seed 7")
     parser.add_argument("--dry-run", action="store_true", help="print the prompt and the calls, call nothing")
     arguments = parser.parse_args()
     if arguments.turnaround and arguments.seeds:
         parser.error("--seeds applies to the hero round, not to --turnaround")
     if arguments.turnaround and arguments.entry:
         parser.error("--entry and --turnaround exclude each other")
+    if arguments.turnaround and arguments.collage:
+        parser.error("--collage and --turnaround exclude each other")
     model = arguments.model or read_brief(arguments.machine)["art"]["model"]
     if arguments.entry:
         entry_round(arguments.machine, arguments.round_number, model, arguments.seeds or [7, 11], arguments.dry_run)
+    elif arguments.collage:
+        collage_round(arguments.machine, arguments.round_number, model, arguments.seeds or [7], arguments.dry_run)
     elif arguments.turnaround:
         turnaround(arguments.machine, arguments.round_number, model, arguments.views, arguments.dry_run)
     else:
