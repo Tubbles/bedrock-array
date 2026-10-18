@@ -81,6 +81,7 @@ def hero_prompt(style, brief, figure):
     return " ".join([
         style,
         "Repaint this blockout as finished concept art, keeping its silhouette, proportions and camera exactly as they are.",
+        "Painterly, soft brushed edges, forms set apart by value and colour, never by lines: no ink lines, no outlines, not a 3D render.",
         figure_sentence(figure),
         as_sentence(brief["silhouette"]),
         as_sentence(brief["feature"]),
