@@ -3,7 +3,8 @@
 #   ./build.sh [check]   odin check src/engine -no-entry-point -vet
 #                        -strict-style (default), natively and again for
 #                        -target:js_wasm32, then every src/demos/*/ for
-#                        -target:js_wasm32
+#                        -target:js_wasm32, then every src/engine/shaders/
+#                        file with glslangValidator
 #   ./build.sh test      odin test src/engine -all-packages -vet -strict-style,
 #                        so the tests of the packages under src/engine/ run too
 #   ./build.sh web <demo>
@@ -74,6 +75,23 @@ check_demos() {
 	done
 }
 
+# Parse every shader for the stage its extension names. glslang is
+# optional: without it the check goes on with a note.
+validate_shaders() {
+	if ! command -v glslangValidator >/dev/null; then
+		echo "shader validation skipped: glslangValidator not found (brew install glslang)" >&2
+		return 0
+	fi
+	local file failed=0
+	for file in src/engine/shaders/*.vert src/engine/shaders/*.frag; do
+		[ -f "$file" ] || continue
+		glslangValidator "$file" || failed=1
+	done
+	if [ "$failed" -ne 0 ]; then
+		exit 1
+	fi
+}
+
 build_web() {
 	local demo="${1:-}"
 	if [ -z "$demo" ] || [ ! -d "src/demos/$demo" ]; then
@@ -93,6 +111,7 @@ case "$mode" in
 		"$odin" check src/engine -no-entry-point -vet -strict-style -define:BUILD_INFO="$build_info"
 		"$odin" check src/engine -no-entry-point -target:js_wasm32 -vet -strict-style -define:BUILD_INFO="$build_info"
 		check_demos
+		validate_shaders
 		;;
 	test) "$odin" test src/engine -all-packages -vet -strict-style -define:BUILD_INFO="$build_info" ;;
 	web)

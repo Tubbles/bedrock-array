@@ -23,35 +23,8 @@ Webgl_Renderer :: struct {
 // A constant ambient term until the sky ambient of stage 1 replaces it.
 WEBGL_AMBIENT :: 0.15
 
-WEBGL_VERTEX_SHADER :: `#version 300 es
-layout(location = 0) in vec3 position;
-layout(location = 1) in vec3 normal;
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
-out vec3 world_normal;
-void main() {
-	// Assumes a uniform scale in the model matrix.
-	world_normal = mat3(model) * normal;
-	gl_Position = projection * view * model * vec4(position, 1.0);
-}
-`
-
-WEBGL_FRAGMENT_SHADER :: `#version 300 es
-precision mediump float;
-uniform vec3 sun_direction;
-uniform vec3 sun_colour;
-uniform float ambient;
-uniform vec3 albedo;
-in vec3 world_normal;
-out vec4 colour;
-void main() {
-	// sun_direction is the direction the light travels.
-	float diffuse = max(dot(normalize(world_normal), -sun_direction), 0.0);
-	vec3 linear = albedo * (ambient + diffuse * sun_colour);
-	colour = vec4(pow(linear, vec3(1.0 / 2.2)), 1.0);
-}
-`
+WEBGL_VERTEX_SHADER :: #load("shaders/forward.vert", string)
+WEBGL_FRAGMENT_SHADER :: #load("shaders/forward.frag", string)
 
 webgl_renderer_init :: proc(renderer: ^Webgl_Renderer) -> bool {
 	program, compiled := gl.CreateProgramFromStrings({WEBGL_VERTEX_SHADER}, {WEBGL_FRAGMENT_SHADER})

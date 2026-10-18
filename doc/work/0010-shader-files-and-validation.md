@@ -1,6 +1,6 @@
 # 0010: Shader files and validation
 
-Status: todo (2026-10-18)
+Status: verified (2026-10-18)
 
 Goal: the GLSL leaves the Odin string constants for files under `src/engine/shaders/`, and `./build.sh check` validates every shader with glslang, so a shader error surfaces in the check and not only in a browser console nobody in a session can read. No behaviour change on the page.
 
@@ -14,4 +14,4 @@ Verify:
 - `build.sh`, command `check`: after the Odin checks, a function `validate_shaders` runs `glslangValidator "$file"` for every `src/engine/shaders/*.vert` and `*.frag` (parse only, the stage from the extension) and fails the check on a non zero status. When `glslangValidator` is not on `PATH`, it prints `shader validation skipped: glslangValidator not found (brew install glslang)` to stderr and the check goes on.
 - `doc/build.md`: the toolchain section names glslang (Homebrew `glslang`, optional, `glslangValidator`) and the check row names the shader validation. `doc/render.md`, The WebGL2 renderer: the shaders live in `src/engine/shaders/`, validated by the check.
 
-Verify: `./build.sh check` (validation lines appear, exit 0), `./build.sh test` (sixteen tests), `./build.sh web light`.
+Verify: `./build.sh check` (silent when the shaders pass, exit 0), `./build.sh test` (sixteen tests), `./build.sh web light`.
