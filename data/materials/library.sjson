@@ -1,0 +1,37 @@
+// One object per material. albedo: three numbers 0 to 1, the paint or surface colour for a dielectric (metallic = 0) and the reflectance colour for a metal (metallic = 1). roughness and metallic: 0 to 1. emissive: three numbers 0 or more, optional, default zero.
+
+painted_steel = {
+	albedo = [0.20, 0.24, 0.30]
+	roughness = 0.55
+	metallic = 0
+}
+
+bare_alloy = {
+	albedo = [0.91, 0.92, 0.92]
+	roughness = 0.35
+	metallic = 1
+}
+
+copper = {
+	albedo = [0.95, 0.64, 0.54]
+	roughness = 0.30
+	metallic = 1
+}
+
+glass = {
+	albedo = [0.90, 0.95, 1.00]
+	roughness = 0.05
+	metallic = 0
+}
+
+rubber = {
+	albedo = [0.05, 0.05, 0.05]
+	roughness = 0.90
+	metallic = 0
+}
+
+concrete = {
+	albedo = [0.55, 0.55, 0.52]
+	roughness = 0.95
+	metallic = 0
+}
