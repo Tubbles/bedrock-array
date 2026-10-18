@@ -1,6 +1,6 @@
 # 0011: Physically based shading
 
-Status: todo (2026-10-18)
+Status: verified (2026-10-18)
 
 Goal: the forward program shades with the material's roughness and metallic through a GGX specular lobe and a Lambert diffuse term, the emissive added, so copper reads as metal and painted steel as paint under the one sun. The constant ambient and the gamma output stay until the sky ambient and HDR items. Builds on 0010.
 
