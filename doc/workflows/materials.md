@@ -14,7 +14,7 @@ Files, per material `<name>`:
 - `data/materials/textures/<name>_albedo.png`: sRGB, near white with the mottle, tinted in the shader by the preset's `albedo`.
 - `data/materials/textures/<name>_normal.png`: linear, tangent space, OpenGL (+Y up), from the baked height by wrap around differences, so it tiles like the rest.
 - `data/materials/textures/<name>_surface.png`: linear, R the paint's roughness, G the bare metal's roughness, B the wear field.
-- In `data/materials/library.sjson` the preset names its set with `textures = "<name>"` and its wear rule with `wear = { edge_width, chip_threshold, amount }`.
+- In `data/materials/library.sjson` the preset names its set with `textures = "<name>"` and its wear rule with `wear = { edge_width, chip_threshold, amount, metal }`, `metal` the bare metal's colour under the chipped paint.
 
 Maps are 512 square: the sets are low detail by design, a page embeds them and the phone decodes them, and at the 2 m near scale that is 256 texels per metre. Larger maps are a phase B question. Every map is tileable: the nodes feed 4D noise with the texture coordinate wrapped onto a torus, so the texture's period is the map.
 
