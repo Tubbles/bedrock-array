@@ -1,6 +1,6 @@
 # 0035: The material review sheet
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, 7e5d388)
 
 Goal: step 3 of `doc/workflows/materials.md`: `tools/materials/review.py` renders a baked set on a bevelled box with the wear rule, lays the maps out tiled so seams and repetition show, and prints the mechanical checks, so a set is judged before it lands and after every rebake. Refers to items 0028 and 0030.
 
