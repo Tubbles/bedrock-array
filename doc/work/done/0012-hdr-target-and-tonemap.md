@@ -1,6 +1,6 @@
 # 0012: HDR target and tone mapping
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, ae36ca6)
 
 Goal: the forward pass renders into a half float colour target and a second pass maps it to the canvas with an exposure and a filmic curve, so the sun can be brighter than white and the emissives of the bloom item have headroom. Replaces the gamma output of the forward shader. Builds on 0011.
 
