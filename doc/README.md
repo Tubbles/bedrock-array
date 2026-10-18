@@ -9,4 +9,5 @@ The entry point to the details. Each topic has one document, and each fact one p
 - [work/](work/): work items, the user's overview of the work in flight. Landed under [work/done/](work/done/), closed under [work/cancelled/](work/cancelled/).
 - `build.md`: how to build, check and test, how a demo page is built and how the web host on bazzite serves it. Written with item 0001.
 - [render.md](render.md): the draw list, the camera and coordinate conventions, the primitive meshes. Written with item 0004.
+- [techtonica.md](techtonica.md): the Techtonica study's findings, mechanisms and numbers with the class or asset each came from, under the study's boundary (DESIGN.md). Question 2, the machines, written with item 0039.
 - [workflows/](workflows/): the asset workflows, one document each. [materials.md](workflows/materials.md), written with item 0028; [art_book.md](workflows/art_book.md) and [models.md](workflows/models.md), written with item 0038.
