@@ -19,8 +19,8 @@ The image model runs through OpenRouter (the key at `~/.config/openrouter/key`) 
 
 1. Write or edit the brief.
 2. Blockout: `flatpak run org.blender.Blender -b --python "$PWD/tools/art/blockout.py" -- <id>` renders `hero.png`, `front.png`, `left.png`, `back.png`, `right.png` and a silhouette mask of each into `work/art/<id>/blockout/`.
-3. Repaint: `tools/art/generate.py` with the hero render as the reference, the composed prompt, two or three seeds per model, into the round's directory. The user picks the hero.
-4. Turnaround: each orthographic render repainted with the chosen hero as the second reference. The cue states (idle, working) as edits of the hero when the brief has them.
+3. Repaint: `tools/art/concept.py <id> --round <n> [--model <name>] [--seeds 7 11 19]` sends the hero render as the reference with the prompt composed from the brief and the family style, two or three seeds per model, into `work/art/<id>/round-<n>/`. The user picks the hero.
+4. Turnaround: `tools/art/concept.py <id> --turnaround <hero image> --round <n>` repaints each orthographic render with the chosen hero as the second reference into `work/art/<id>/round-<n>/turnaround/`. The cue states (idle, working) as edits of the hero when the brief has them.
 5. Review sheet: `work/art/<id>_review.png`, the blockout row over the repaint row, the turnaround, a 64 pixel greyscale thumbnail row (the squint test for the readable feature) and the figure line. The checks: the silhouette overlap of each repaint against its blockout mask (above about 0.85), the dominant colours within a distance of the family palette, consistent sizes. The user's eye decides; the kept images go to `data/art/<id>/`.
 
 ## Rejected
