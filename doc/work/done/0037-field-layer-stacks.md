@@ -1,6 +1,6 @@
 # 0037: The procedural fields as layer stacks
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, ddebe73)
 
 Goal: the user's ask (2026-10-18): the voronoi scales and noises of a material become a configurable list, one random process defined the same way everywhere, so the in game editor can later hook into it ("that's exactly the things I'd like to be able to adjust and tinker with in game later"). Every procedural field of a material (the mottle, the orange peel, the steel grain, the wear field) is a stack of layers in the parameter file, and the bake script evaluates stacks instead of holding one construction per field. The maps do not change: the refactor is verified by byte identical output. Refers to items 0030 and 0036.
 
