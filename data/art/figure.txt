@@ -1,0 +1,7 @@
+The astronaut of the art direction book, the figure for scale on every entry page and the first portrait of the player character: the user's astro engineer from their own Banana page of the furnace (their prompt, 2026-10-18, not in the repository), redrawn alone on paper and then without its orange accents (user). Two passes of Banana (google/gemini-3-pro-image, seed 7, 1:1, $0.135 each) by the main agent, 2026-10-18.
+
+Pass 1, reference the user's furnace page:
+Only the astronaut from this page, redrawn alone: the same suit, the same colours and details, the same standing pose, full body from helmet to boots, centred on plain pale cream paper with nothing else, no background, no text, no callouts.
+
+Pass 2, reference the pass 1 image:
+The same astronaut, the same pose, suit and details, with every orange accent removed: the trim, the panel edges, the shoulder plates and the small lights are gunmetal grey and dark steel instead, the visor a neutral mirrored tint, nothing else changed, alone on plain pale cream paper with nothing else.

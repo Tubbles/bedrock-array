@@ -9,8 +9,8 @@ The prompt is composed from the brief (data/machines/<id>/brief.sjson) and its f
 (data/art/families.sjson), never written by hand. The hero round repaints work/art/<id>/blockout/hero.png
 once per seed into work/art/<id>/round-<n>/; the turnaround repaints each orthographic render with the
 chosen hero as the second reference into work/art/<id>/round-<n>/turnaround/<view>.png. The entry round
-paints a page of the art book from data/art/book.sjson and the brief's entry, without a reference, once
-per seed into work/art/<id>/entry-<n>/.
+paints a page of the art book from data/art/book.sjson and the brief's entry into the kept template
+data/art/page.png, its one reference, once per seed into work/art/<id>/entry-<n>/.
 --dry-run prints the prompt and the calls without calling the API.
 """
 import argparse
@@ -27,6 +27,7 @@ import sjson  # noqa: E402
 VIEWS = ["front", "left", "back", "right"]
 RATIO = "1:1"  # the blockout renders are square; a repaint keeps the reference's camera
 ENTRY_RATIO = "4:3"  # an art book page
+PAGE_TEMPLATE = os.path.join(ROOT, "data", "art", "page.png")  # the empty page every entry is painted into
 
 
 def read_sjson(path):
@@ -98,8 +99,8 @@ def entry_prompt(book, brief):
     footprint = brief["footprint"]
     width, depth = (number_text(cells * footprint["cell_metres"]) for cells in footprint["cells"])
     machine = (f"The entry shows the {brief['id']}, a machine filling a {width} by {depth} metre footprint "
-               f"and {number_text(brief['height_metres'])} metres tall, {brief['entry']}, beside a futuristic "
-               f"EVA suited astronaut {number_text(brief['figure_metres'])} metres tall for scale.")
+               f"and {number_text(brief['height_metres'])} metres tall, {brief['entry']}, beside the astronaut "
+               f"already on the page, who is {number_text(brief['figure_metres'])} metres tall, for scale.")
     return " ".join([book["pitch"], machine, book["page"]])
 
 
@@ -154,11 +155,13 @@ def hero_round(machine, round_number, model, seeds, dry_run):
 
 def entry_round(machine, round_number, model, seeds, dry_run):
     prompt = entry_prompt(read_book(), read_brief(machine))
-    print(prompt)
     out = os.path.join(art_directory(machine), f"entry-{round_number}")
+    references = [PAGE_TEMPLATE]
+    require_files(references)
+    print(prompt)
     for seed in seeds:
-        describe(model, seed, [], out, ENTRY_RATIO)
-        result = call(model, prompt, seed, [], dry_run, ENTRY_RATIO)
+        describe(model, seed, references, out, ENTRY_RATIO)
+        result = call(model, prompt, seed, references, dry_run, ENTRY_RATIO)
         if result:
             written, cost_text = generate.write_images(out, model, prompt, ENTRY_RATIO, *result)
             print(cost_text, *written)
