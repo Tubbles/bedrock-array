@@ -1,6 +1,6 @@
 # 0013: Point lights
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, 7e27beb)
 
 Goal: the draw list carries point lights and the forward shader adds up to eight of them with a windowed inverse square falloff, so the light demo can show two lamps beside the sun and the cave scene has its first light source. The CPU clustering of stage 1 comes when a scene needs more than eight. Builds on 0012.
 
