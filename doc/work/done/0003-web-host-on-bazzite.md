@@ -1,6 +1,6 @@
 # 0003: The web host on bazzite
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, 2ed22e4)
 
 Goal: `tools/install_web_build.sh` builds every demo of a commit (HEAD or the argument) into `bin/web/builds/<commit>/` and switches `bin/web/current`, two builds kept as the play build install of Mine oh Belowed keeps them; an index page at the root lists the demos with the installed commit; a systemd user service serves `bin/web/current` over plain http on the LAN, so the phone and the laptop open `http://bazzite:<port>/`. `doc/build.md` names the port and the service.
 
