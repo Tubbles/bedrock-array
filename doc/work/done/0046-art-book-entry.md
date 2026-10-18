@@ -1,6 +1,6 @@
 # 0046: The art book entry round
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, a1189e8)
 
 Goal: a step before the brief in `doc/workflows/art_book.md`: a free round in which the image model invents the machine as a page of the game's art direction book (hero view, dimensioned elevations, named parts, named swatches, the figure), so the brief's parts, proportions and palette are read off a chosen entry instead of the press kit study. The user's idea and first two entries, 2026-10-18; the prompt shape settled on the smelter's trial under `work/art/smelter/explore-1/`. Refers to item 0043.
 
