@@ -1,6 +1,6 @@
 # 0038: The art book and modelling workflows
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, 7989a2b)
 
 Goal: D4's decision. The workflows that take a machine from a brief to a finished model of the look's quality (DESIGN.md, The target: stylised realism; the genre notes of Mine oh Belowed's `doc/inspiration.md`, How machines look in the genre), chosen and written down as the second and third asset workflows, before any tool or engine item is built. The machine is the smelter (user, 2026-10-18). Not a kit of primitives assembled by a script, which is a blockout and reads as programmer art, lesson 1 of the definition; and the state cues are designed behaviours in the brief, not emissive levels (user, 2026-10-18: "heavy MoB vibes").
 
