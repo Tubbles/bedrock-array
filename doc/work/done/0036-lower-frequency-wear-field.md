@@ -1,6 +1,6 @@
 # 0036: Lower frequencies in the wear field
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, 9f48049)
 
 Goal: the user's judgement of the first material (2026-10-18): "the peel is too regular, it needs some lower frequency components as well, in terms of occurrence and flake size". The wear field is one voronoi scale over one noise, so every flake has one size and the flakes spread evenly. The field gains a second, larger voronoi for big flakes and a slow occurrence noise that gathers chips into patches and leaves other regions clean. Refers to items 0030 and 0035.
 
