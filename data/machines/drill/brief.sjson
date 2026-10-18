@@ -10,5 +10,5 @@ footprint = {
 }
 height_metres = 1.0
 figure_metres = 1.8
-entry = "a coal powered mining drill, a placed machine on a fixed base, at an ore face in a cave lit by the glowing flora, shown working, its drill head pointing sideways into the rock and coal smoke rising from its stack, in slate blue painted panels with copper fittings"
+entry = "a mining drill bolted to a baseplate, no wheels, no tracks, at an ore face in a cave lit by the glowing flora, shown working, its drill head pointing sideways into the rock and coal smoke rising from its stack, in slate blue painted panels with copper fittings"
 art = { model = "banana" seeds = [] }
