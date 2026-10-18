@@ -1,7 +1,9 @@
 #version 300 es
 precision highp float;
 uniform mediump sampler2D scene;
+uniform mediump sampler2D bloom;
 uniform float exposure;
+uniform float bloom_strength;
 in vec2 uv;
 out vec4 colour;
 
@@ -11,6 +13,7 @@ vec3 aces_fit(vec3 x) {
 }
 
 void main() {
-	vec3 linear = texture(scene, uv).rgb * exposure;
+	vec3 scene_colour = texture(scene, uv).rgb + texture(bloom, uv).rgb * bloom_strength;
+	vec3 linear = scene_colour * exposure;
 	colour = vec4(pow(aces_fit(linear), vec3(1.0 / 2.2)), 1.0);
 }

@@ -1,6 +1,6 @@
 # 0019: Bloom
 
-Status: todo (2026-10-18)
+Status: verified (2026-10-18)
 
 Goal: the emissive flora of the cave glows beyond its surface: a bright pass at half resolution, a separable Gaussian blur, and the blurred light added before the tone map. Threshold and strength are renderer constants here and move into the scene file in a later item. Builds on 0018.
 
