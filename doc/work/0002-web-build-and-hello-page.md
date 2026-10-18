@@ -1,9 +1,22 @@
 # 0002: The web build and a hello page
 
-Status: todo (2026-10-18)
+Status: verified (2026-10-18)
 
 Goal: `./build.sh web <demo>` builds `src/demos/<demo>` with `-target:js_wasm32` into `build/web/<demo>/` together with the toolchain's `odin.js` and the page shell from `web/` (one HTML file, one stylesheet, a canvas that fills the viewport on a phone and a laptop). `src/demos/hello` clears a WebGL2 canvas to a colour that changes with a tap or a click. `doc/build.md` gains the web section.
 
 Verify:
 - `./build.sh web hello` produces `build/web/hello/index.html`, the wasm file and `odin.js`.
 - The page opens on the phone and the laptop and the colour changes on tap and click (the user).
+
+## Specification (main agent, 2026-10-18)
+
+Facts the implementer needs, read from the toolchain on 2026-10-18: the browser runtime is `~/opt/odin/core/sys/wasm/js/odin.js`, loaded by a page that then calls `odin.runWasm("demo.wasm")` (the second argument, a console element, is optional); it runs `main` once at load and then calls an exported `step :: proc(delta_time: f64) -> bool` every animation frame while it returns true; it fetches the wasm bytes itself, so no MIME type is needed and no `file://` page works, the page must be served. `vendor:wasm/WebGL` is one package, `webgl`, holding WebGL1 and WebGL2 procedures; `CreateCurrentContextById("canvas", {})` makes the context (WebGL2 when the browser has it). `core:sys/wasm/js` has `add_event_listener(id, kind, user_data, callback)`, `add_window_event_listener`, `get_element_key_f64`, `set_element_key_f64` and `device_pixel_ratio`. `Pointer_Down` fires for touch and mouse alike.
+
+- `build.sh`: `odin_root="$(dirname "$odin")"`, `odin_js="$odin_root/core/sys/wasm/js/odin.js"`. `web_flags=(-target:js_wasm32 -vet -strict-style -define:BUILD_INFO="$build_info")`. New command `web <demo>`: without the argument or without `src/demos/<demo>/`, the usage line and exit 2; else `out="build/web/<demo>"`, `mkdir -p "$out"`, `"$odin" build "src/demos/$demo" -out:"$out/demo.wasm" "${web_flags[@]}"`, `cp "$odin_js" "$out/odin.js"`, `sed "s/__DEMO__/$demo/g" web/index.html > "$out/index.html"`, `cp web/style.css "$out/style.css"`. `check` additionally checks every `src/demos/*/` with `"$odin" check <dir> "${web_flags[@]}"` (a demo has `main`, so no `-no-entry-point`). Usage line `usage: ./build.sh [check|test|web <demo>]`, header comment updated.
+- `web/index.html` (new): doctype, `<html lang="en">`, charset utf-8, viewport `width=device-width, initial-scale=1`, title `Bedrock Array: __DEMO__`, `style.css` linked, `<canvas id="canvas"></canvas>`, `<script src="odin.js"></script>`, then a script calling `odin.runWasm("demo.wasm")`.
+- `web/style.css` (new): `html, body` with no margin, full height, black background, hidden overflow; `canvas` displayed block, `100vw` by `100vh`, `touch-action: none` so a drag never scrolls the page.
+- `src/demos/hello/main.odin` (new): `package hello`, imports `gl "vendor:wasm/WebGL"` and `"core:sys/wasm/js"`. A package global `colour_index: int` and a global `colours := [3][4]f32{{0.10, 0.12, 0.16, 1}, {0.55, 0.30, 0.10, 1}, {0.12, 0.40, 0.30, 1}}`. `main`: `gl.CreateCurrentContextById("canvas", {})`, then `resize_canvas()`, then `js.add_event_listener("canvas", .Pointer_Down, nil, on_pointer_down)` and `js.add_window_event_listener(.Resize, nil, on_resize)`. `resize_canvas`: reads the canvas `clientWidth` and `clientHeight`, multiplies by `js.device_pixel_ratio()`, sets the canvas `width` and `height` keys, calls `gl.Viewport(0, 0, width, height)`. `on_pointer_down` advances `colour_index` modulo 3. `on_resize` calls `resize_canvas`. `@(export) step :: proc(delta_time: f64) -> bool`: `gl.ClearColor` with the current colour, `gl.Clear(gl.COLOR_BUFFER_BIT)`, returns true. Nothing else.
+- `doc/build.md`: a section `## The web build` (the command, the output layout `build/web/<demo>/` with `index.html`, `demo.wasm`, `odin.js` and `style.css`, the `__DEMO__` substitution, that `check` covers the demos for the browser target, and viewing a build locally with `python3 -m http.server --directory build/web/<demo> 8000` since a `file://` page cannot fetch the wasm) and a section `## Writing a demo` (one package under `src/demos/<name>/` with `main` run once at load and `step` run every frame, the WebGL2 only rule of CLAUDE.md, the pointer event that covers touch and mouse).
+
+Verify: `./build.sh check`, `./build.sh test`, `./build.sh web hello` produces the four files; the page opens on the phone and the laptop and the colour changes on tap and click (the user, through the host of 0003 or the local server).
+
