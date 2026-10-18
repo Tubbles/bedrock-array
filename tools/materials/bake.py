@@ -114,16 +114,6 @@ def noise_4d(tree, coordinate, scale, detail):
     return node.outputs["Fac"]
 
 
-def voronoi_4d(tree, coordinate, scale):
-    node = tree.nodes.new("ShaderNodeTexVoronoi")
-    node.voronoi_dimensions = "4D"
-    node.feature = "F1"
-    tree.links.new(coordinate[0], node.inputs["Vector"])
-    tree.links.new(coordinate[1], node.inputs["W"])
-    node.inputs["Scale"].default_value = scale
-    return node.outputs["Distance"]
-
-
 def mix_float(tree, first, second, blend):
     difference = math_node(tree, "SUBTRACT", second, first)
     return math_node(tree, "ADD", first, math_node(tree, "MULTIPLY", difference, blend))
@@ -144,12 +134,55 @@ def steel_noise_channel(tree, coordinate, parameters):
     return noise_4d(tree, coordinate, parameters["steel"]["scale"], 3)
 
 
+def voronoi_cells_4d(tree, coordinate, scale):
+    """The F1 distance and a per cell random value from 0 to 1."""
+    node = tree.nodes.new("ShaderNodeTexVoronoi")
+    node.voronoi_dimensions = "4D"
+    node.feature = "F1"
+    node.distance = "EUCLIDEAN"
+    tree.links.new(coordinate[0], node.inputs["Vector"])
+    tree.links.new(coordinate[1], node.inputs["W"])
+    node.inputs["Scale"].default_value = scale
+    separate = tree.nodes.new("ShaderNodeSeparateColor")
+    tree.links.new(node.outputs["Color"], separate.inputs[0])
+    return node.outputs["Distance"], separate.outputs["Red"]
+
+
+def flake_family(tree, coordinate, scale, radius):
+    """Blobs of 1 at each cell's point falling to 0 at a per cell radius, so flakes vary in size."""
+    distance, random = voronoi_cells_4d(tree, coordinate, scale)
+    radius_cell = math_node(tree, "ADD", math_node(tree, "MULTIPLY", random, 0.7 * radius), 0.3 * radius)
+    blob = math_node(tree, "SUBTRACT", 1.0, math_node(tree, "DIVIDE", distance, radius_cell))
+    blob.node.use_clamp = True
+    return blob
+
+
+def smoothstep(tree, value, low, high):
+    node = tree.nodes.new("ShaderNodeMapRange")
+    node.interpolation_type = "SMOOTHSTEP"
+    node.clamp = True
+    tree.links.new(value, node.inputs["Value"])
+    node.inputs["From Min"].default_value = low
+    node.inputs["From Max"].default_value = high
+    return node.outputs["Result"]
+
+
+def patch_factor(tree, coordinate, wear):
+    """A slow contrast stretched noise that keeps the blobs below the threshold in the clean regions."""
+    patch_noise = noise_4d(tree, coordinate, wear["occurrence_scale"], 1)
+    patch = smoothstep(tree, patch_noise, wear["occurrence_low"], wear["occurrence_high"])
+    amount = wear["occurrence_amount"]
+    return math_node(tree, "ADD", math_node(tree, "MULTIPLY", patch, amount), 1.0 - amount)
+
+
 def wear_field_channel(tree, coordinate, parameters):
     wear = parameters["wear_field"]
-    distance = voronoi_4d(tree, coordinate, wear["voronoi_scale"])
-    cell_centres = math_node(tree, "SUBTRACT", 1.0, distance)
+    small = flake_family(tree, coordinate, wear["flake_scale"], wear["flake_radius"])
+    large = flake_family(tree, coordinate, wear["large_flake_scale"], wear["large_flake_radius"])
+    blobs = math_node(tree, "MAXIMUM", small, large)
+    gathered = math_node(tree, "MULTIPLY", blobs, patch_factor(tree, coordinate, wear))
     noise = noise_4d(tree, coordinate, wear["noise_scale"], 2)
-    return mix_float(tree, cell_centres, noise, wear["blend"])
+    return mix_float(tree, gathered, noise, wear["blend"])
 
 
 # Bake

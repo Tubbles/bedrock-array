@@ -15,7 +15,14 @@ steel = {
 	scale = 8
 }
 wear_field = {
-	voronoi_scale = 4
+	flake_scale = 4
+	flake_radius = 1.0
+	large_flake_scale = 1.2
+	large_flake_radius = 1.2
+	occurrence_scale = 1.1
+	occurrence_low = 0.4
+	occurrence_high = 0.7
+	occurrence_amount = 0.7
 	noise_scale = 7
-	blend = 0.5
+	blend = 0.35
 }
