@@ -1,6 +1,6 @@
 # 0030: The material bake script
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, ec998bf)
 
 Goal: step 2 of `doc/workflows/materials.md`: `tools/materials/bake.py` turns a bake parameter file into the three tileable maps, and the first parameter file, worn painted steel, with its baked set committed through Git LFS. Refers to items 0028 and 0029.
 
