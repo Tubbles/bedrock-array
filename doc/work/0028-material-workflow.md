@@ -1,9 +1,12 @@
 # 0028: The material workflow
 
-Status: designing (2026-10-18)
+Status: verified (2026-10-18)
 
-Goal: D1's decisive step. The workflow for textures and materials, lesson 3 of the definition, chosen and written down as the first asset workflow, and proven by its first finished material: worn painted steel, a physically based set (albedo, normal, roughness, metallic) with a wear mask, tileable and isotropic, on the machine block of the surface page. The user judges the look on the page (DESIGN.md, The target: stylised realism). The renderer work the chosen workflow needs (texture sets in the material library, triplanar sampling at two scales, the wear rule on primitives) follows as items of their own.
+Goal: D1's decisive step, the decision. The workflow for textures and materials, lesson 3 of the definition, chosen and written down as the first asset workflow: `doc/workflows/materials.md`. Its proof, worn painted steel on the surface page's machine block, is the items that follow it (0029 to 0035), and the user's judgement of that page closes D1.
 
 Verify:
-- `doc/workflows/materials.md` exists: the chosen pipeline, the exact steps and commands that produce a material from its inputs, the review step before a material lands, the rejected alternatives in a few lines.
-- The first material set is produced by those steps, committed through Git LFS, and shows on the surface page's machine block.
+- `doc/workflows/materials.md` holds the pipeline, the files, the steps and commands, the review step and the rejected alternatives.
+
+## Design (Opus design agent, 2026-10-18)
+
+Six candidates weighed, the report's facts in the log. Chosen: Blender procedural nodes baked headless by a script, the chipping as a shader rule against the edge distance, the preset tinting a near white albedo. The three open questions of the report: the tint by the preset (decided, one set per surface family), live rerolls in the editor and target images from an image API for the review sheet (both SUGGESTIONS.md).
