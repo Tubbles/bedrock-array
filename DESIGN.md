@@ -178,12 +178,11 @@ Decided 2026-10-18 (user): two tiers, because the two kinds of files behave diff
 
 ### Shipped assets: Git LFS on GitHub
 
-What the game loads from `data/` lives in the repository, binaries as Git LFS objects, on GitHub where heimdall and Mine oh Belowed already live. `.gitattributes` routes images (png, jpg, exr), audio (wav, ogg, flac), models (glb, gltf, fbx, vox, blend) and fonts (ttf, otf) to LFS. Text formats (sjson, GLSL, obj, mtl) stay plain so diffs and agents keep reading them.
+What the game loads from `data/` lives in the repository, binaries as Git LFS objects, on GitHub where heimdall and Mine oh Belowed already live. `.gitattributes` routes images, audio, models and fonts to LFS, by extension, and is the one place the routing lives. Text formats (sjson, GLSL, obj, mtl) stay plain so diffs and agents keep reading them.
 
 - Scale: the only measured point is Mine oh Belowed, whose `data/` is 13 MB after ten days and 606 commits (2026-09-26 to 2026-10-05), its repository 33 MiB packed, with parametric textures and small voxel models. Bedrock Array runs longer and ships physically based texture sets, music and voice, so it will weigh far more. The user's estimate is at least 1 GB shipped. GitHub's free plan includes 10 GiB of LFS storage and 10 GiB of bandwidth a month, overage at $0.07 per GiB stored and $0.0875 per GiB downloaded (GitHub's billing docs, read 2026-10-18). Bandwidth is the one to watch: every fresh clone, CI run or Deck install downloads the objects, so at 1 GB of assets the included bandwidth is about ten full fetches a month. CI caches its LFS objects between runs and the Deck gets copies of the built tree, not clones. The spending limit is set knowingly, not left at its default.
 - The move to the self hosted server is cheap because LFS pointers never change: the objects are copied over and the LFS URL in the repository changes, with no rewrite of history. Which server, and where it runs, is decided when the move comes.
 - The couch and Deck installs copy the built `data/` tree as plain files, so the players' machines never need LFS.
-- git-lfs is not installed on this machine. Homebrew has 3.8.0.
 
 ### Working files: Dropbox, plain
 

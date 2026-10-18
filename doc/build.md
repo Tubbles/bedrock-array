@@ -37,3 +37,11 @@ A demo is one package under `src/demos/<name>/`. `odin.js` runs its `main` once 
 ## The web host
 
 `tools/bedrock-array-web.service` is a systemd user unit that serves `bin/web/current` with `python3 -m http.server` on port 8080, bound to every address. Enable it once, from the repository root: `ln -sfn "$PWD/tools/bedrock-array-web.service" ~/.config/systemd/user/`, then `systemctl --user daemon-reload`, then `systemctl --user enable --now bedrock-array-web.service`. The pages are at `http://192.168.1.7:8080/`, or `http://bazzite:8080/` where the name resolves. The firewalld zone (FedoraWorkstation) already opens TCP 1025 to 65535, so the port needs no firewall change. A user service runs while the user is logged in. `loginctl enable-linger` would keep it up without a login.
+
+## Large files
+
+Binaries under the extensions `.gitattributes` lists (images, audio, models, fonts) are Git LFS objects on GitHub, text formats stay plain (DESIGN.md, Asset storage). `.gitattributes` is the one place the routing lives.
+
+A fresh clone needs `git lfs install` once per machine (git-lfs from Homebrew here), then checkout fetches the objects.
+
+Every fetch counts against the LFS bandwidth quota, so CI caches its LFS objects between runs and the Deck receives copies of the built tree, never a clone.
