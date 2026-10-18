@@ -1,6 +1,6 @@
 # 0022: WASD movement
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, 944e969)
 
 Goal: on the laptop the keys walk the orbit target: W and S along the camera's horizontal forward, A and D along its right, E and Q up and down, the arrow keys as WASD, at a speed that scales with the orbit distance so the walk feels the same zoomed in and out (user, 2026-10-18: "Let's do wasd for movement as well"). Builds on 0021.
 
