@@ -89,8 +89,10 @@ def hero_prompt(style, brief, figure):
 
 
 def turnaround_prompt(style, view, figure):
-    return (f"{style} The same machine as the second image, redrawn in the exact orthographic {view} view of the first image, "
-            f"keeping its silhouette and proportions; finished concept art, no text. {figure_sentence(figure)}")
+    return (f"{style} Repaint the first image, a flat orthographic {view} elevation of the machine's blockout, as finished "
+            f"concept art in exactly that view: no perspective, the camera, silhouette and proportions of the first image. "
+            f"The second image is the finished hero view of the same machine: take its materials, colours and details from it. "
+            f"{figure_sentence(figure)} Where the first image shows no capsule, there is no astronaut. No text.")
 
 
 def number_text(value):
