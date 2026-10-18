@@ -1,6 +1,6 @@
 # 0008: The light demo page
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, e4b4486)
 
 Goal: the light demo of 0007 gains its interaction: the orbit camera driven by pointer drag (touch and mouse), the wheel and a two finger pinch, with the orbit arithmetic in the engine where it is tested. The demo never reaches into the renderer. The first page of D1 that the user judges.
 
