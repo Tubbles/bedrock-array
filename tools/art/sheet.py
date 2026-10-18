@@ -136,7 +136,7 @@ def palette_share(image, mask, palette):
 def stack_window(mask):
     """The grown box's rows, over the columns the mask sets in its top STACK_SHARE grown by BOX_GROWTH each side.
 
-    Narrowing to the stack's columns keeps the figure and stray sky edges out."""
+    Narrowing to the stack's columns keeps stray sky edges out."""
     _, top, _, bottom = mask.getbbox()
     stack_rows = mask.crop((0, top, mask.width, top + max(1, round(STACK_SHARE * (bottom - top)))))
     left, _, right, _ = stack_rows.getbbox()

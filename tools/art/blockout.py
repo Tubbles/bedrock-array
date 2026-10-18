@@ -24,10 +24,8 @@ sys.path.insert(0, os.path.join(REPOSITORY_ROOT, "tools", "materials"))
 import images  # noqa: E402
 import review  # noqa: E402
 
-FIGURE_RADIUS = 0.2
 # Edges flatter than this shade smooth: a 48 sided cylinder's 7.5 degree facets do, a chamfer's edges (14 degrees and up) do not.
 AUTO_SMOOTH_DEGREES = 10
-FIGURE_GAP_METRES = 1.4
 HERO_ELEVATION_DEGREES = 15
 HERO_MARGIN = 0.1
 ORTHOGRAPHIC_SCALE_FACTOR = 1.2
@@ -68,14 +66,6 @@ def preset_material(name, preset):
     if "emissive" in preset:
         shader.inputs["Emission Color"].default_value = (*preset["emissive"], 1)
         shader.inputs["Emission Strength"].default_value = 1.0
-    return material
-
-
-def grey_material():
-    material = bpy.data.materials.new("figure")
-    shader = material.node_tree.nodes["Principled BSDF"]
-    shader.inputs["Base Color"].default_value = (0.18, 0.18, 0.18, 1)
-    shader.inputs["Roughness"].default_value = 0.8
     return material
 
 
@@ -188,51 +178,22 @@ def add_part(part, library):
     return part_objects
 
 
-# Figure
-
-
-def figure_location(brief):
-    """On the ground at FIGURE_GAP_METRES to the machine's right (+x), level with its front."""
-    half_depth = brief["footprint"]["cells"][1] * brief["footprint"]["cell_metres"] / 2
-    return to_blender([FIGURE_GAP_METRES, 0, half_depth])
-
-
-def add_figure(brief):
-    """A capsule of the figure's height: a cylinder of FIGURE_RADIUS and a sphere head on top."""
-    base = figure_location(brief)
-    height = brief["figure_metres"]
-    body_height = height - 2 * FIGURE_RADIUS
-    material = grey_material()
-    bpy.ops.mesh.primitive_cylinder_add(vertices=32, radius=FIGURE_RADIUS, depth=body_height, location=base + Vector((0, 0, body_height / 2)))
-    body = bpy.context.active_object
-    bpy.ops.mesh.primitive_uv_sphere_add(radius=FIGURE_RADIUS, location=base + Vector((0, 0, height - FIGURE_RADIUS)))
-    head = bpy.context.active_object
-    for figure_object in (body, head):
-        bpy.ops.object.select_all(action="DESELECT")
-        figure_object.select_set(True)
-        bpy.context.view_layer.objects.active = figure_object
-        bpy.ops.object.shade_smooth()
-        figure_object.data.materials.append(material)
-    return [body, head]
-
-
 # Scene
 
 
 def build_scene(brief, library):
-    """The sheet's render settings, ground, sun and sky, square; the parts and the figure."""
+    """The sheet's render settings, ground, sun and sky, square; the parts."""
     scene = review.reset_scene()
     scene.render.resolution_y = 1024
     scene.render.image_settings.color_mode = "RGB"
     parts = [part_object for part in brief["parts"] for part_object in add_part(part, library)]
-    figure = add_figure(brief)
     review.add_ground()
     ground = bpy.context.active_object
     # The sheet's ground sits under its two metre boxes at z = -1; the brief's footprint stands on z = 0.
     ground.location.z = 0
     review.add_light_camera_world(scene)
     bpy.data.objects.remove(scene.camera)
-    return scene, parts, figure, ground
+    return scene, parts, ground
 
 
 # Cameras
@@ -286,8 +247,8 @@ def add_orthographic_camera(name, side, brief):
     return camera
 
 
-def add_cameras(scene, brief, parts, figure):
-    cameras = {"hero": add_hero_camera(parts + figure)}
+def add_cameras(scene, brief, parts):
+    cameras = {"hero": add_hero_camera(parts)}
     for name, side in ORTHOGRAPHIC_VIEWS.items():
         cameras[name] = add_orthographic_camera(name, side, brief)
     return cameras
@@ -319,13 +280,10 @@ def prepare_mask(scene, hidden_objects):
     scene.render.dither_intensity = 0
 
 
-def render_all(scene, cameras, figure, ground, directory):
-    """The figure only in the hero, for the repaint's scale. The orthographic views and the masks go without it."""
-    render_view(scene, cameras["hero"], os.path.join(directory, "hero.png"))
-    for figure_object in figure:
-        figure_object.hide_render = True
-    for name in ORTHOGRAPHIC_VIEWS:
-        render_view(scene, cameras[name], os.path.join(directory, name + ".png"))
+def render_all(scene, cameras, ground, directory):
+    """Every view of the machine alone, then its mask."""
+    for name, camera in cameras.items():
+        render_view(scene, camera, os.path.join(directory, name + ".png"))
     prepare_mask(scene, [ground])
     for name, camera in cameras.items():
         path = os.path.join(directory, name + "_mask.png")
@@ -347,11 +305,11 @@ def threshold_mask(path):
 def main():
     machine_id = sys.argv[sys.argv.index("--") + 1]
     brief = read_brief(machine_id)
-    scene, parts, figure, ground = build_scene(brief, read_library())
-    cameras = add_cameras(scene, brief, parts, figure)
+    scene, parts, ground = build_scene(brief, read_library())
+    cameras = add_cameras(scene, brief, parts)
     directory = os.path.join(REPOSITORY_ROOT, "work", "art", machine_id, "blockout")
     os.makedirs(directory, exist_ok=True)
-    render_all(scene, cameras, figure, ground, directory)
+    render_all(scene, cameras, ground, directory)
 
 
 if __name__ == "__main__":

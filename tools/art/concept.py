@@ -72,17 +72,11 @@ def as_sentence(text):
     return text[0].upper() + text[1:] + ("" if text.endswith(".") else ".")
 
 
-def figure_sentence(figure):
-    """The grey capsule of the blockout is a stand-in: painted as the book's astronaut, at its height and place."""
-    return f"The grey capsule beside the machine is a stand-in for {figure}: paint it as that astronaut, at the same height and place."
-
-
-def hero_prompt(style, brief, figure):
+def hero_prompt(style, brief):
     return " ".join([
         style,
         "Repaint this blockout as finished concept art, keeping its silhouette, proportions and camera exactly as they are.",
         "Painterly, soft brushed edges, forms set apart by value and colour, never by lines: no ink lines, no outlines, not a 3D render.",
-        figure_sentence(figure),
         as_sentence(brief["silhouette"]),
         as_sentence(brief["feature"]),
         "No text, no logos.",
@@ -159,7 +153,7 @@ def write_view(out, view, model, prompt, images, cost, seed):
 
 def hero_round(machine, round_number, model, seeds, dry_run):
     brief = read_brief(machine)
-    prompt = hero_prompt(read_style(brief["family"]), brief, read_book()["figure"])
+    prompt = hero_prompt(read_style(brief["family"]), brief)
     print(prompt)
     out = os.path.join(art_directory(machine), f"round-{round_number}")
     references = [os.path.join(art_directory(machine), "blockout", "hero.png")]
