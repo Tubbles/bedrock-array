@@ -1,6 +1,6 @@
 # 0015: The light demo from its scene file
 
-Status: todo (2026-10-18)
+Status: verified (2026-10-18)
 
 Goal: the light demo's scene moves out of the Odin into `data/demos/light/scene.sjson`, read through 0014's parser, so the cave and surface scenes that follow are written as data on a demo that already works that way. The page looks exactly as before. Builds on 0014.
 

@@ -94,6 +94,17 @@ scene_destroy :: proc(scene: ^Scene, allocator := context.allocator) {
 	scene.lights = nil
 }
 
+// The item's mesh by its shape, for the caller to upload and destroy.
+scene_item_mesh :: proc(item: Scene_Item) -> Mesh_Data {
+	switch item.shape {
+	case .Box:
+		return box_mesh(item.size)
+	case .Cylinder:
+		return cylinder_mesh(item.radius, item.height, item.segments)
+	}
+	return {}
+}
+
 @(private = "file")
 parse_scene_camera :: proc(fields: json.Object) -> (camera: Orbit, problem: string) {
 	camera_fields: json.Object

@@ -78,3 +78,13 @@ lights = []
 	testing.expectf(t, strings.contains(problem, "item 0: unknown key colour"), "problem: %q", problem)
 	testing.expect_value(t, len(scene.items), 0)
 }
+
+@(test)
+test_scene_item_mesh_by_shape :: proc(t: ^testing.T) {
+	box := scene_item_mesh(Scene_Item{shape = .Box, size = {1, 1, 1}})
+	defer mesh_data_destroy(&box)
+	testing.expect_value(t, len(box.vertices), 24)
+	cylinder := scene_item_mesh(Scene_Item{shape = .Cylinder, radius = 0.5, height = 1, segments = 8})
+	defer mesh_data_destroy(&cylinder)
+	testing.expect_value(t, len(cylinder.vertices), 36)
+}
