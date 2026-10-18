@@ -16,9 +16,11 @@ Draw_Item :: struct {
 
 // What a demo or module fills each frame and the renderer only reads.
 Draw_List :: struct {
-	camera: Camera,
-	sun:    Directional_Light,
-	items:  [dynamic]Draw_Item,
+	camera:   Camera,
+	sun:      Directional_Light,
+	// Scales the linear scene colour before the tone map, 1 keeps it as is.
+	exposure: f32,
+	items:    [dynamic]Draw_Item,
 }
 
 draw_list_add :: proc(list: ^Draw_List, mesh: Mesh_Id, material: Material_Id, transform: matrix[4, 4]f32) {

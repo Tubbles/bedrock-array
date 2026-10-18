@@ -154,6 +154,7 @@ step :: proc(delta_time: f64) -> bool {
 	engine.draw_list_clear(&draw_list)
 	draw_list.camera = engine.orbit_camera(orbit, math.PI / 3, 0.1, 100)
 	draw_list.sun = {direction = linalg.normalize([3]f32{0.4, -1, -0.3}), colour = {1, 0.96, 0.9}, intensity = 1}
+	draw_list.exposure = 1
 	engine.draw_list_add(&draw_list, box_mesh_id, painted_steel_id, linalg.matrix4_translate_f32({0, 0.5, 0}))
 	engine.draw_list_add(&draw_list, cylinder_mesh_id, copper_id, linalg.matrix4_translate_f32({1.5, 0.5, 0}))
 	engine.draw_list_add(&draw_list, slab_mesh_id, concrete_id, linalg.matrix4_translate_f32({0, -0.05, 0}))

@@ -50,5 +50,5 @@ void main() {
 	vec3 diffuse = (1.0 - f) * (1.0 - metallic) * albedo / PI;
 	vec3 radiance = sun_colour * PI;
 	vec3 linear = (diffuse + specular) * radiance * n_dot_l + ambient * albedo + emissive;
-	colour = vec4(pow(linear, vec3(1.0 / 2.2)), 1.0);
+	colour = vec4(linear, 1.0);
 }
