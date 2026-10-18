@@ -11,10 +11,11 @@ Webgl_Mesh :: struct {
 }
 
 Webgl_Uniforms :: struct {
-	model, view, projection, sun_direction, sun_colour, ambient, albedo: i32,
-	camera_position, roughness, metallic, emissive:                      i32,
-	point_light_count, point_light_position, point_light_colour:         i32,
-	point_light_range:                                                   i32,
+	model, view, projection, sun_direction, sun_colour, albedo:  i32,
+	sky_colour, ground_colour, camera_position:                  i32,
+	roughness, metallic, emissive:                               i32,
+	point_light_count, point_light_position, point_light_colour: i32,
+	point_light_range:                                           i32,
 }
 
 Webgl_Tonemap_Uniforms :: struct {
@@ -78,7 +79,8 @@ webgl_renderer_init :: proc(renderer: ^Webgl_Renderer) -> bool {
 		projection           = gl.GetUniformLocation(program, "projection"),
 		sun_direction        = gl.GetUniformLocation(program, "sun_direction"),
 		sun_colour           = gl.GetUniformLocation(program, "sun_colour"),
-		ambient              = gl.GetUniformLocation(program, "ambient"),
+		sky_colour           = gl.GetUniformLocation(program, "sky_colour"),
+		ground_colour        = gl.GetUniformLocation(program, "ground_colour"),
 		albedo               = gl.GetUniformLocation(program, "albedo"),
 		camera_position      = gl.GetUniformLocation(program, "camera_position"),
 		roughness            = gl.GetUniformLocation(program, "roughness"),
@@ -285,7 +287,8 @@ webgl_renderer_draw :: proc(renderer: ^Webgl_Renderer, list: Draw_List, library:
 	sun_colour := list.sun.colour * list.sun.intensity
 	gl.Uniform3f(uniforms.sun_direction, sun_direction.x, sun_direction.y, sun_direction.z)
 	gl.Uniform3f(uniforms.sun_colour, sun_colour.r, sun_colour.g, sun_colour.b)
-	gl.Uniform1f(uniforms.ambient, list.ambient)
+	gl.Uniform3f(uniforms.sky_colour, list.sky_colour.r, list.sky_colour.g, list.sky_colour.b)
+	gl.Uniform3f(uniforms.ground_colour, list.ground_colour.r, list.ground_colour.g, list.ground_colour.b)
 	camera_position := list.camera.position
 	gl.Uniform3f(uniforms.camera_position, camera_position.x, camera_position.y, camera_position.z)
 	webgl_upload_point_lights(uniforms, list.lights[:])

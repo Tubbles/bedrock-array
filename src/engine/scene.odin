@@ -19,12 +19,13 @@ Scene_Item :: struct {
 }
 
 Scene :: struct {
-	camera:   Orbit,
-	sun:      Directional_Light,
-	exposure: f32,
-	ambient:  f32,
-	items:    []Scene_Item,
-	lights:   []Point_Light,
+	camera:                    Orbit,
+	sun:                       Directional_Light,
+	exposure:                  f32,
+	ambient:                   f32,
+	sky_colour, ground_colour: [3]f32,
+	items:                     []Scene_Item,
+	lights:                    []Point_Light,
 }
 
 // Parses data/demos/<name>/scene.sjson against the material library. The
@@ -43,7 +44,7 @@ parse_scene :: proc(data: []byte, library: Material_Library, allocator := contex
 	}
 	for key in fields {
 		switch key {
-		case "camera", "sun", "exposure", "ambient", "items", "lights":
+		case "camera", "sun", "exposure", "ambient", "sky_colour", "ground_colour", "items", "lights":
 		case:
 			return {}, fmt.tprintf("scene: unknown key %s", key)
 		}
@@ -62,6 +63,12 @@ parse_scene :: proc(data: []byte, library: Material_Library, allocator := contex
 		if scene.ambient, problem = scene_non_negative_field("scene", "ambient", fields); problem != "" {
 			return {}, problem
 		}
+	}
+	if scene.sky_colour, problem = scene_hemisphere_colour("sky_colour", scene.ambient, fields); problem != "" {
+		return {}, problem
+	}
+	if scene.ground_colour, problem = scene_hemisphere_colour("ground_colour", scene.ambient, fields); problem != "" {
+		return {}, problem
 	}
 	items_array, items_problem := scene_array_field("scene", "items", fields)
 	if items_problem != "" {
@@ -296,6 +303,22 @@ scene_vector_field :: proc(owner, key: string, fields: json.Object) -> (vector: 
 		return {}, fmt.tprintf("%s: %s must be three numbers", owner, key)
 	}
 	return vector, ""
+}
+
+// The colour under the key, each component 0 or more, or the ambient level
+// times white when the key is absent.
+@(private = "file")
+scene_hemisphere_colour :: proc(key: string, ambient: f32, fields: json.Object) -> (colour: [3]f32, problem: string) {
+	if key not_in fields {
+		return {ambient, ambient, ambient}, ""
+	}
+	if colour, problem = scene_vector_field("scene", key, fields); problem != "" {
+		return {}, problem
+	}
+	if colour.x < 0 || colour.y < 0 || colour.z < 0 {
+		return {}, fmt.tprintf("scene: %s %v must be 0 or more in each component", key, colour)
+	}
+	return colour, ""
 }
 
 @(private = "file")

@@ -4,7 +4,8 @@ const float PI = 3.14159265;
 const int MAX_POINT_LIGHTS = 8;
 uniform vec3 sun_direction;
 uniform vec3 sun_colour;
-uniform float ambient;
+uniform vec3 sky_colour;
+uniform vec3 ground_colour;
 uniform vec3 albedo;
 uniform vec3 camera_position;
 uniform float roughness;
@@ -67,6 +68,6 @@ void main() {
 		float attenuation = window * window / max(light_distance * light_distance, 0.01);
 		linear += shade(n, v, l, point_light_colour[index] * PI * attenuation);
 	}
-	linear += ambient * albedo + emissive;
+	linear += mix(ground_colour, sky_colour, n.y * 0.5 + 0.5) * albedo + emissive;
 	colour = vec4(linear, 1.0);
 }

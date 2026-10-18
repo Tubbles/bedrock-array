@@ -119,3 +119,37 @@ items = [
 	testing.expect_value(t, dark_problem, "")
 	testing.expect_value(t, dark_scene.ambient, 0.02)
 }
+
+@(test)
+test_parse_scene_hemisphere_defaults_to_ambient :: proc(t: ^testing.T) {
+	library, _ := parse_material_library(transmute([]byte)string(TEST_LIBRARY_TEXT))
+	defer material_library_destroy(&library)
+	without_hemisphere := `
+camera = { target = [0, 0.5, 0], yaw = 0.6, pitch = 0.5, distance = 5 }
+sun = { direction = [0.4, -1, -0.3], colour = [1, 0.96, 0.9], intensity = 1 }
+exposure = 1
+items = [
+	{ shape = "box", size = [1, 1, 1], position = [0, 0.5, 0], material = "painted_steel" }
+]
+`
+	default_scene, default_problem := parse_scene(transmute([]byte)without_hemisphere, library)
+	defer scene_destroy(&default_scene)
+	testing.expect_value(t, default_problem, "")
+	testing.expect_value(t, default_scene.sky_colour, [3]f32{0.15, 0.15, 0.15})
+	testing.expect_value(t, default_scene.ground_colour, [3]f32{0.15, 0.15, 0.15})
+	with_hemisphere := `
+camera = { target = [0, 0.5, 0], yaw = 0.6, pitch = 0.5, distance = 5 }
+sun = { direction = [0.4, -1, -0.3], colour = [1, 0.96, 0.9], intensity = 1 }
+exposure = 1
+sky_colour = [0.2, 0.3, 0.5]
+ground_colour = [0.1, 0.1, 0.1]
+items = [
+	{ shape = "box", size = [1, 1, 1], position = [0, 0.5, 0], material = "painted_steel" }
+]
+`
+	sky_scene, sky_problem := parse_scene(transmute([]byte)with_hemisphere, library)
+	defer scene_destroy(&sky_scene)
+	testing.expect_value(t, sky_problem, "")
+	testing.expect_value(t, sky_scene.sky_colour, [3]f32{0.2, 0.3, 0.5})
+	testing.expect_value(t, sky_scene.ground_colour, [3]f32{0.1, 0.1, 0.1})
+}

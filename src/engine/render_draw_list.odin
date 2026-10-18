@@ -23,14 +23,14 @@ Draw_Item :: struct {
 
 // What a demo or module fills each frame and the renderer only reads.
 Draw_List :: struct {
-	camera:   Camera,
-	sun:      Directional_Light,
+	camera:                    Camera,
+	sun:                       Directional_Light,
 	// Scales the linear scene colour before the tone map, 1 keeps it as is.
-	exposure: f32,
-	// The fraction of the albedo lit from everywhere, until the sky ambient.
-	ambient:  f32,
-	items:    [dynamic]Draw_Item,
-	lights:   [dynamic]Point_Light,
+	exposure:                  f32,
+	// The hemisphere the ambient term blends by the normal's height.
+	sky_colour, ground_colour: [3]f32,
+	items:                     [dynamic]Draw_Item,
+	lights:                    [dynamic]Point_Light,
 }
 
 draw_list_add :: proc(list: ^Draw_List, mesh: Mesh_Id, material: Material_Id, transform: matrix[4, 4]f32) {
