@@ -12,3 +12,16 @@ canvas {
 	height: 100dvh;
 	touch-action: none;
 }
+
+.back {
+	position: fixed;
+	top: 12px;
+	left: 12px;
+	padding: 6px 10px;
+	background: rgba(0, 0, 0, 0.5);
+	color: #9cf;
+	font-family: sans-serif;
+	font-size: 1rem;
+	text-decoration: none;
+	border-radius: 6px;
+}

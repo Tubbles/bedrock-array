@@ -1,0 +1,1 @@
+Three primitives in library materials under a sun and two coloured lamps, the test bench of the renderer stages. Drag to orbit, pinch or wheel to zoom.

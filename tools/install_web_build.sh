@@ -59,9 +59,13 @@ remove_old_builds() {
 write_index() {
 	local index_file="$1"
 	shift
-	local links="" demo
+	local links="" demo description
 	for demo in "$@"; do
-		links+="<a href=\"$demo/\">$demo</a>"$'\n'
+		description=""
+		if [ -f "$staging/src/demos/$demo/description.txt" ]; then
+			description="$(cat "$staging/src/demos/$demo/description.txt")"
+		fi
+		links+="<a class=\"demo\" href=\"$demo/\"><h2>$demo</h2><p>$description</p></a>"$'\n'
 	done
 	cat > "$index_file" <<INDEX
 <!doctype html>
@@ -73,12 +77,15 @@ write_index() {
 <style>
 body { margin: 0; padding: 24px 16px; background: #111; color: #ddd; font-family: sans-serif; }
 h1 { font-size: 1.6rem; font-weight: normal; }
-a { display: block; padding: 12px 0; font-size: 2rem; color: #9cf; text-decoration: none; }
+.demo { display: block; margin: 12px 0; padding: 16px; background: #1c1c1c; border-radius: 8px; color: #ddd; text-decoration: none; }
+.demo h2 { margin: 0 0 6px; font-size: 1.6rem; font-weight: normal; color: #9cf; }
+.demo p { margin: 0; font-size: 1rem; line-height: 1.4; }
 footer { margin-top: 32px; font-size: 0.9rem; color: #888; }
 </style>
 </head>
 <body>
 <h1>Bedrock Array demos</h1>
+<p>The tech demos of phase A, one page each, for the phone and the laptop. Each demo page has a link back here in its top left corner.</p>
 ${links}<footer>commit $commit, built $(date -u +%Y-%m-%dT%H:%MZ)</footer>
 </body>
 </html>
