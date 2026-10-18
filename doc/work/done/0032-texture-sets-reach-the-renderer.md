@@ -1,6 +1,6 @@
 # 0032: Texture sets reach the renderer
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, 560c7bd)
 
 Goal: a page embeds `data/materials/textures/`, decodes the sets the library names and uploads them as WebGL textures, one set per material, so the sampling item (0033) has them bound. Nothing samples them yet. Refers to items 0028, 0030 and 0031.
 
