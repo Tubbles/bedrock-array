@@ -28,6 +28,7 @@ Scene_Page :: struct {
 	draw_list:                   Draw_List,
 	orbit:                       Orbit,
 	canvas_width, canvas_height: i32,
+	client_height:               f32,
 	active_pointers:             [2]Scene_Page_Pointer,
 	active_pointer_count:        int,
 	ready:                       bool,
@@ -74,6 +75,7 @@ scene_page_listen :: proc(page: ^Scene_Page) {
 	js.add_event_listener(page.canvas_id, .Pointer_Up, page, on_scene_page_pointer_up)
 	js.add_event_listener(page.canvas_id, .Pointer_Cancel, page, on_scene_page_pointer_up)
 	js.add_event_listener(page.canvas_id, .Wheel, page, on_scene_page_wheel)
+	js.add_event_listener(page.canvas_id, .Context_Menu, page, on_scene_page_context_menu)
 }
 
 @(private = "file")
@@ -89,8 +91,10 @@ scene_page_upload_meshes :: proc(page: ^Scene_Page) {
 @(private = "file")
 scene_page_resize :: proc(page: ^Scene_Page) {
 	pixel_ratio := js.device_pixel_ratio()
+	client_height := js.get_element_key_f64(page.canvas_id, "clientHeight")
+	page.client_height = f32(client_height)
 	width := js.get_element_key_f64(page.canvas_id, "clientWidth") * pixel_ratio
-	height := js.get_element_key_f64(page.canvas_id, "clientHeight") * pixel_ratio
+	height := client_height * pixel_ratio
 	js.set_element_key_f64(page.canvas_id, "width", width)
 	js.set_element_key_f64(page.canvas_id, "height", height)
 	page.canvas_width = i32(width)
@@ -138,6 +142,17 @@ scene_page_pointer_spread :: proc(page: ^Scene_Page) -> f32 {
 }
 
 @(private = "file")
+scene_page_pointer_midpoint :: proc(page: ^Scene_Page) -> [2]f32 {
+	return (page.active_pointers[0].client + page.active_pointers[1].client) / 2
+}
+
+// The orbit panned by a drag in CSS pixels, a pixel moving the target a pixel at its depth.
+@(private = "file")
+scene_page_pan :: proc(page: ^Scene_Page, delta_pixels: [2]f32) -> Orbit {
+	return orbit_pan(page.orbit, delta_pixels, orbit_metres_per_pixel(page.orbit, math.PI / 3, max(page.client_height, 1)))
+}
+
+@(private = "file")
 on_scene_page_pointer_down :: proc(event: js.Event) {
 	page := (^Scene_Page)(event.user_data)
 	scene_page_add_pointer(page, event.data.mouse.pointer.pointer_id, scene_page_pointer_client(event))
@@ -154,12 +169,18 @@ on_scene_page_pointer_move :: proc(event: js.Event) {
 		client := scene_page_pointer_client(event)
 		movement := client - page.active_pointers[slot].client
 		page.active_pointers[slot].client = client
+		if 1 in event.data.mouse.buttons {
+			page.orbit = scene_page_pan(page, movement)
+			return
+		}
 		page.orbit = orbit_drag(page.orbit, movement, SCENE_PAGE_DRAG_RADIANS_PER_PIXEL)
 		return
 	}
 	spread_before := scene_page_pointer_spread(page)
+	midpoint_before := scene_page_pointer_midpoint(page)
 	page.active_pointers[slot].client = scene_page_pointer_client(event)
 	spread_after := scene_page_pointer_spread(page)
+	page.orbit = scene_page_pan(page, scene_page_pointer_midpoint(page) - midpoint_before)
 	if spread_before == 0 || spread_after == 0 do return
 	page.orbit = orbit_zoom(page.orbit, spread_before / spread_after, SCENE_PAGE_DISTANCE_MINIMUM, SCENE_PAGE_DISTANCE_MAXIMUM)
 }
@@ -178,4 +199,10 @@ on_scene_page_wheel :: proc(event: js.Event) {
 	if delta == 0 do return
 	factor := delta > 0 ? SCENE_PAGE_WHEEL_ZOOM_STEP : 1 / SCENE_PAGE_WHEEL_ZOOM_STEP
 	page.orbit = orbit_zoom(page.orbit, factor, SCENE_PAGE_DISTANCE_MINIMUM, SCENE_PAGE_DISTANCE_MAXIMUM)
+}
+
+// The right button pans, so the browser's menu stays shut over the canvas.
+@(private = "file")
+on_scene_page_context_menu :: proc(event: js.Event) {
+	js.event_prevent_default()
 }

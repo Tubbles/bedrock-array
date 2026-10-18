@@ -74,6 +74,25 @@ test_orbit_zoom_scales_and_clamps :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_orbit_pan_moves_the_target_in_the_view_plane :: proc(t: ^testing.T) {
+	orbit := Orbit{distance = 5}
+	sideways := orbit_pan(orbit, {10, 0}, 0.1).target
+	testing.expect(t, math.abs(sideways.x - -1) < 1e-5)
+	testing.expect(t, math.abs(sideways.y) < 1e-5)
+	testing.expect(t, math.abs(sideways.z) < 1e-5)
+	upwards := orbit_pan(orbit, {0, 10}, 0.1).target
+	testing.expect(t, math.abs(upwards.x) < 1e-5)
+	testing.expect(t, math.abs(upwards.y - 1) < 1e-5)
+	testing.expect(t, math.abs(upwards.z) < 1e-5)
+}
+
+@(test)
+test_orbit_metres_per_pixel :: proc(t: ^testing.T) {
+	metres_per_pixel := orbit_metres_per_pixel(Orbit{distance = 5}, math.PI / 2, 1000)
+	testing.expect(t, math.abs(metres_per_pixel - 0.01) < 1e-5)
+}
+
+@(test)
 test_box_mesh_has_six_faces :: proc(t: ^testing.T) {
 	mesh := box_mesh({2, 2, 2})
 	defer mesh_data_destroy(&mesh)

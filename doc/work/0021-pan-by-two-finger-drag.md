@@ -1,6 +1,6 @@
 # 0021: Pan by two finger drag
 
-Status: todo (2026-10-18)
+Status: verified (2026-10-18)
 
 Goal: two fingers moving together pan the orbit target across the view plane while their spread still zooms, and on the laptop the right mouse button drags the pan, so the camera reaches every corner of a scene instead of circling one point (user, 2026-10-18: "Can we get two finger drag to pan the camera around?"). Builds on 0016.
 

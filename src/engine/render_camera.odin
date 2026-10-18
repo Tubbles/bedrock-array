@@ -50,6 +50,28 @@ orbit_zoom :: proc(orbit: Orbit, factor: f32, minimum, maximum: f32) -> Orbit {
 	return result
 }
 
+// A pan moves the target in the view plane so the world follows the drag.
+orbit_pan :: proc(orbit: Orbit, delta_pixels: [2]f32, metres_per_pixel: f32) -> Orbit {
+	right, up := orbit_right_and_up(orbit)
+	result := orbit
+	result.target += (-delta_pixels.x * right + delta_pixels.y * up) * metres_per_pixel
+	return result
+}
+
+// The width of one pixel at the target's depth.
+orbit_metres_per_pixel :: proc(orbit: Orbit, vertical_fov_radians: f32, canvas_height_pixels: f32) -> f32 {
+	return 2 * orbit.distance * math.tan(vertical_fov_radians / 2) / canvas_height_pixels
+}
+
+@(private = "file")
+orbit_right_and_up :: proc(orbit: Orbit) -> (right, up: [3]f32) {
+	camera := orbit_camera(orbit, 0, 0, 0)
+	forward := linalg.normalize(camera.target - camera.position)
+	right = linalg.normalize(linalg.cross(forward, [3]f32{0, 1, 0}))
+	up = linalg.cross(right, forward)
+	return right, up
+}
+
 view_matrix :: proc(camera: Camera) -> matrix[4, 4]f32 {
 	return linalg.matrix4_look_at_f32(camera.position, camera.target, camera.up)
 }
