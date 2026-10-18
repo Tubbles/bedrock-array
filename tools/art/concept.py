@@ -26,8 +26,7 @@ import sjson  # noqa: E402
 
 VIEWS = ["front", "left", "back", "right"]
 RATIO = "1:1"  # the blockout renders are square; a repaint keeps the reference's camera
-ENTRY_RATIO = "4:3"  # an art book page
-PAGE_TEMPLATE = os.path.join(ROOT, "data", "art", "page.png")  # the empty page every entry is painted into
+ENTRY_RATIO = "4:3"  # the entry illustration
 
 
 def read_sjson(path):
@@ -93,20 +92,26 @@ def number_text(value):
     return f"{value:g}"
 
 
-def metres_text(value):
-    """A length with its unit, singular at one: 1 metre, 1.8 metres."""
-    return f"{number_text(value)} metre" + ("" if value == 1 else "s")
-
-
 def entry_prompt(book, brief):
     if "entry" not in brief:
         fail(f"no entry in the brief of {brief['id']}")
     footprint = brief["footprint"]
     width, depth = (number_text(cells * footprint["cell_metres"]) for cells in footprint["cells"])
-    machine = (f"The entry shows the {brief['id']}, a machine filling a {width} by {depth} metre footprint "
-               f"and {metres_text(brief['height_metres'])} tall, {brief['entry']}, beside a futuristic "
-               f"EVA suited astronaut {metres_text(brief['figure_metres'])} tall for scale.")
-    return " ".join([book["pitch"], machine, book["page"]])
+    envelope = f"{width}x{depth}x{number_text(brief['height_metres'])} m"
+    machine = (f"The entry shows the {brief['id']}, a machine filling {envelope}, {brief['entry']}, "
+               f"beside {book['figure']} for scale. The machine reaches up to "
+               f"{reach_text(brief['height_metres'], brief['figure_metres'])} of the astronaut.")
+    return " ".join([book["pitch"], machine, book["presentation"]])
+
+
+def reach_text(height, figure):
+    """The machine's height against the figure, in words: the one size the models draw (user, 2026-10-18)."""
+    ratio = height / figure
+    for limit, words in ((0.3, "knee height"), (0.45, "hip height"), (0.65, "torso height"),
+                         (0.8, "shoulder height"), (1.05, "head height")):
+        if ratio < limit:
+            return words
+    return "above the head"
 
 
 def art_directory(machine):
@@ -161,8 +166,7 @@ def hero_round(machine, round_number, model, seeds, dry_run):
 def entry_round(machine, round_number, model, seeds, dry_run):
     prompt = entry_prompt(read_book(), read_brief(machine))
     out = os.path.join(art_directory(machine), f"entry-{round_number}")
-    references = [PAGE_TEMPLATE]
-    require_files(references)
+    references = []
     print(prompt)
     for seed in seeds:
         describe(model, seed, references, out, ENTRY_RATIO)
