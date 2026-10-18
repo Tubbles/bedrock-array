@@ -1,6 +1,6 @@
 # 0004: The draw list, the camera and the primitive meshes
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, e862b2d)
 
 Goal: the render files of the `engine` package, native and pure: `Draw_List` (a camera, a sun, draw items of mesh id, material id and transform), `Camera` with its view and projection matrices and an orbit constructor (target, yaw, pitch, distance), and the primitive meshes `box_mesh` and `cylinder_mesh` (positions, normals, indices). No WebGL here: the package is what the demos and later the modules fill, and what the WebGL side reads. The first step of D1, split from the renderer skeleton.
 
