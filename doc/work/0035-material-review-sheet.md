@@ -1,6 +1,6 @@
 # 0035: The material review sheet
 
-Status: designed (2026-10-18)
+Status: verified (2026-10-18)
 
 Goal: step 3 of `doc/workflows/materials.md`: `tools/materials/review.py` renders a baked set on a bevelled box with the wear rule, lays the maps out tiled so seams and repetition show, and prints the mechanical checks, so a set is judged before it lands and after every rebake. Refers to items 0028 and 0030.
 
@@ -18,3 +18,7 @@ Binding facts: the bake script of 0030 (reuse its SJSON reading and its OpenImag
 - Short procedures: reading, the scene, the material nodes (one procedure per group: the coordinates, the maps, the wear rule, the shader), the render, the panels, the sheet, each check, `main`.
 
 Verify: the command above; the printed lines; `work/materials/painted_steel_review.png` read with the Read tool.
+
+At the first run, 2026-10-18: the wear coverage check read 0.000 at `chip_threshold = 0.85`, since the averaged field's 99.9th percentile is 0.82, so the threshold went to 0.7 (coverage about 0.02) in the library; the flat world hid the metal chips, so the sheet lights with a Nishita sky and AgX; the near white albedo panels are contrast stretched; the general image code moved to `tools/materials/images.py`, shared with the bake.
+
+Review, 2026-10-18: the far scale lost its swizzle (Blender's box projection picks the face from the normal, so the swizzled coordinate was a streak); the coverage check counts the averaged field, and with it the threshold went to 0.66 (about 0.6 percent on the faces, chips mostly at the edges, 0.6 looked pitted); the far box stands on a ground plane that the sheet gained so the metal reflects something.

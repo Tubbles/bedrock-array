@@ -10,7 +10,6 @@ import sys
 
 import bpy
 import numpy
-import OpenImageIO
 
 SCRIPT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 REPOSITORY_ROOT = os.path.dirname(os.path.dirname(SCRIPT_DIRECTORY))
@@ -18,6 +17,7 @@ TORUS_RADIUS = 1.2
 sys.path.insert(0, SCRIPT_DIRECTORY)
 
 import sjson  # noqa: E402
+from images import encode_srgb, print_seam_check, write_png  # noqa: E402
 
 
 # Parameters
@@ -201,43 +201,6 @@ def surface_map(channels, parameters):
     green = steel["roughness"] + steel["roughness_variation"] * (channels["steel_noise"] - 0.5) * 2
     blue = stretch(channels["wear_field"])
     return numpy.clip(numpy.stack([red, green, blue], axis=-1), 0, 1)
-
-
-# Writing
-
-
-def encode_srgb(linear):
-    linear = numpy.clip(linear, 0, 1)
-    curve = 1.055 * numpy.power(linear, 1 / 2.4) - 0.055
-    return numpy.where(linear > 0.0031308, curve, 12.92 * linear)
-
-
-def to_bytes(values):
-    top_row_first = values[::-1]
-    return numpy.round(numpy.clip(top_row_first, 0, 1) * 255).astype(numpy.uint8)
-
-
-def write_png(path, values, colour_space):
-    pixels = numpy.ascontiguousarray(to_bytes(values))
-    spec = OpenImageIO.ImageSpec(pixels.shape[1], pixels.shape[0], 3, "uint8")
-    spec.attribute("oiio:ColorSpace", colour_space)
-    output = OpenImageIO.ImageOutput.create(path)
-    output.open(path, spec)
-    output.write_image(pixels)
-    output.close()
-
-
-def print_seam_check(map_name, values):
-    """Compare each wrap seam with the image's mean step between adjacent columns or rows."""
-    left_right = numpy.abs(values[:, 0] - values[:, -1]).mean()
-    top_bottom = numpy.abs(values[0] - values[-1]).mean()
-    column_step = numpy.abs(numpy.diff(values, axis=1)).mean()
-    row_step = numpy.abs(numpy.diff(values, axis=0)).mean()
-    verdict = "ok" if left_right <= 1.5 * column_step and top_bottom <= 1.5 * row_step else "check"
-    print(
-        "SEAM %s left_right=%.4f top_bottom=%.4f column_step=%.4f row_step=%.4f %s"
-        % (map_name, left_right, top_bottom, column_step, row_step, verdict)
-    )
 
 
 # Main
