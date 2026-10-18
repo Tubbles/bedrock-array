@@ -12,7 +12,7 @@ footprint = {
 height_metres = 1.0
 figure_metres = 1.8
 silhouette = "a cube on a low skirt, a flat raised lid plate, nothing rising above the box"
-feature = "a copper framed hearth mouth glowing on the front over a copper sill"
+feature = "a copper framed hearth mouth on the front over a copper sill, a fire burning inside it, the mouth glowing orange with flames and embers"
 entry = "without chutes, in a cave lit by its own hearth and the glowing flora, shown working, in slate blue painted panels with copper fittings"
 parts = [
 	{ name = "skirt" material = "painted_steel" role = "base" blockout = { shape = "box" size = [1.0, 0.35, 1.0] position = [0, 0.175, 0] taper = 0.97 bevel = { width = 0.03 segments = 1 } } }
