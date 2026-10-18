@@ -19,18 +19,18 @@ Webgl_Uniforms :: struct {
 }
 
 Webgl_Tonemap_Uniforms :: struct {
-	scene, exposure, bloom, bloom_strength: i32,
+	scene, exposure, bloom, bloom_strength, bloom_levels: i32,
 }
 
-Webgl_Bright_Uniforms :: struct {
-	scene, threshold: i32,
+Webgl_Downsample_Uniforms :: struct {
+	source, texel, karis: i32,
 }
 
-Webgl_Blur_Uniforms :: struct {
-	source, texel_step: i32,
+Webgl_Upsample_Uniforms :: struct {
+	source, texel: i32,
 }
 
-// A half float colour target: the forward pass renders into one with depth, the bloom passes into two without.
+// A half float colour target: the forward pass renders into one with depth, the bloom passes into a chain without.
 Webgl_Target :: struct {
 	framebuffer:   gl.Framebuffer,
 	colour:        gl.Texture,
@@ -43,29 +43,29 @@ Webgl_Renderer :: struct {
 	uniforms:         Webgl_Uniforms,
 	tonemap_program:  gl.Program,
 	tonemap_uniforms: Webgl_Tonemap_Uniforms,
-	bright_program:   gl.Program,
-	bright_uniforms:  Webgl_Bright_Uniforms,
-	blur_program:     gl.Program,
-	blur_uniforms:    Webgl_Blur_Uniforms,
-	target:           Webgl_Target,
-	// Half the canvas size: the bright pass and the vertical blur write 0, the horizontal blur writes 1.
-	bloom_targets:    [2]Webgl_Target,
-	meshes:           [dynamic]Webgl_Mesh,
+	downsample_program:  gl.Program,
+	downsample_uniforms: Webgl_Downsample_Uniforms,
+	upsample_program:    gl.Program,
+	upsample_uniforms:   Webgl_Upsample_Uniforms,
+	target:              Webgl_Target,
+	// Level 0 is half the canvas, each next level half the previous; after the passes level 0 holds the bloom.
+	bloom_targets:       [WEBGL_BLOOM_LEVELS]Webgl_Target,
+	meshes:              [dynamic]Webgl_Mesh,
 }
 
 // Matches MAX_POINT_LIGHTS in forward.frag; lights beyond it are not drawn.
 WEBGL_MAX_POINT_LIGHTS :: 8
 
-// Linear colour above the threshold blooms; the blurred light is scaled by the strength before the tone map.
-WEBGL_BLOOM_THRESHOLD :: f32(1)
-WEBGL_BLOOM_STRENGTH :: f32(0.08)
+// The bloom chain's length, and the share of the bloom mixed into the scene before the tone map.
+WEBGL_BLOOM_LEVELS :: 5
+WEBGL_BLOOM_STRENGTH :: f32(0.05)
 
 WEBGL_VERTEX_SHADER :: #load("shaders/forward.vert", string)
 WEBGL_FRAGMENT_SHADER :: #load("shaders/forward.frag", string)
 WEBGL_TONEMAP_VERTEX_SHADER :: #load("shaders/tonemap.vert", string)
 WEBGL_TONEMAP_FRAGMENT_SHADER :: #load("shaders/tonemap.frag", string)
-WEBGL_BRIGHT_FRAGMENT_SHADER :: #load("shaders/bright.frag", string)
-WEBGL_BLUR_FRAGMENT_SHADER :: #load("shaders/blur.frag", string)
+WEBGL_DOWNSAMPLE_FRAGMENT_SHADER :: #load("shaders/downsample.frag", string)
+WEBGL_UPSAMPLE_FRAGMENT_SHADER :: #load("shaders/upsample.frag", string)
 
 webgl_renderer_init :: proc(renderer: ^Webgl_Renderer) -> bool {
 	program, compiled := gl.CreateProgramFromStrings({WEBGL_VERTEX_SHADER}, {WEBGL_FRAGMENT_SHADER})
@@ -104,27 +104,32 @@ webgl_renderer_init :: proc(renderer: ^Webgl_Renderer) -> bool {
 		exposure       = gl.GetUniformLocation(tonemap_program, "exposure"),
 		bloom          = gl.GetUniformLocation(tonemap_program, "bloom"),
 		bloom_strength = gl.GetUniformLocation(tonemap_program, "bloom_strength"),
+		bloom_levels   = gl.GetUniformLocation(tonemap_program, "bloom_levels"),
 	}
-	bright_program, bright_compiled := gl.CreateProgramFromStrings(
+	downsample_program, downsample_compiled := gl.CreateProgramFromStrings(
 		{WEBGL_TONEMAP_VERTEX_SHADER},
-		{WEBGL_BRIGHT_FRAGMENT_SHADER},
+		{WEBGL_DOWNSAMPLE_FRAGMENT_SHADER},
 	)
-	if !bright_compiled {
+	if !downsample_compiled {
 		return false
 	}
-	renderer.bright_program = bright_program
-	renderer.bright_uniforms = Webgl_Bright_Uniforms {
-		scene     = gl.GetUniformLocation(bright_program, "scene"),
-		threshold = gl.GetUniformLocation(bright_program, "threshold"),
+	renderer.downsample_program = downsample_program
+	renderer.downsample_uniforms = Webgl_Downsample_Uniforms {
+		source = gl.GetUniformLocation(downsample_program, "source"),
+		texel  = gl.GetUniformLocation(downsample_program, "texel"),
+		karis  = gl.GetUniformLocation(downsample_program, "karis"),
 	}
-	blur_program, blur_compiled := gl.CreateProgramFromStrings({WEBGL_TONEMAP_VERTEX_SHADER}, {WEBGL_BLUR_FRAGMENT_SHADER})
-	if !blur_compiled {
+	upsample_program, upsample_compiled := gl.CreateProgramFromStrings(
+		{WEBGL_TONEMAP_VERTEX_SHADER},
+		{WEBGL_UPSAMPLE_FRAGMENT_SHADER},
+	)
+	if !upsample_compiled {
 		return false
 	}
-	renderer.blur_program = blur_program
-	renderer.blur_uniforms = Webgl_Blur_Uniforms {
-		source     = gl.GetUniformLocation(blur_program, "source"),
-		texel_step = gl.GetUniformLocation(blur_program, "texel_step"),
+	renderer.upsample_program = upsample_program
+	renderer.upsample_uniforms = Webgl_Upsample_Uniforms {
+		source = gl.GetUniformLocation(upsample_program, "source"),
+		texel  = gl.GetUniformLocation(upsample_program, "texel"),
 	}
 	// Needed once before an RGBA16F colour attachment renders.
 	gl.GetExtension("EXT_color_buffer_float")
@@ -200,28 +205,45 @@ webgl_draw_fullscreen :: proc(framebuffer: gl.Framebuffer, width, height: i32) {
 	gl.DrawArrays(gl.TRIANGLES, 0, 3)
 }
 
-// Writes the scene colour above the threshold into the first bloom target.
-webgl_bright_pass :: proc(renderer: ^Webgl_Renderer) {
-	destination := renderer.bloom_targets[0]
-	gl.UseProgram(renderer.bright_program)
-	gl.ActiveTexture(gl.TEXTURE0)
-	gl.BindTexture(gl.TEXTURE_2D, renderer.target.colour)
-	gl.Uniform1i(renderer.bright_uniforms.scene, 0)
-	gl.Uniform1f(renderer.bright_uniforms.threshold, WEBGL_BLOOM_THRESHOLD)
-	webgl_draw_fullscreen(destination.framebuffer, destination.width, destination.height)
-}
-
-// One blur direction from source into destination; texel_step is one texel along the axis.
-webgl_blur_pass :: proc(renderer: ^Webgl_Renderer, source, destination: Webgl_Target, texel_step: [2]f32) {
-	gl.UseProgram(renderer.blur_program)
+// The 13 tap downsample of source into destination; karis on the first level only.
+webgl_downsample_pass :: proc(renderer: ^Webgl_Renderer, source, destination: Webgl_Target, karis: bool) {
+	uniforms := renderer.downsample_uniforms
+	gl.UseProgram(renderer.downsample_program)
 	gl.ActiveTexture(gl.TEXTURE0)
 	gl.BindTexture(gl.TEXTURE_2D, source.colour)
-	gl.Uniform1i(renderer.blur_uniforms.source, 0)
-	gl.Uniform2f(renderer.blur_uniforms.texel_step, texel_step.x, texel_step.y)
+	gl.Uniform1i(uniforms.source, 0)
+	gl.Uniform2f(uniforms.texel, 1 / f32(source.width), 1 / f32(source.height))
+	gl.Uniform1i(uniforms.karis, 1 if karis else 0)
 	webgl_draw_fullscreen(destination.framebuffer, destination.width, destination.height)
 }
 
-// Tone maps the scene colour plus the blurred bloom to the canvas.
+// The tent upsample of source drawn into destination; the caller sets additive blending.
+webgl_upsample_pass :: proc(renderer: ^Webgl_Renderer, source, destination: Webgl_Target) {
+	uniforms := renderer.upsample_uniforms
+	gl.UseProgram(renderer.upsample_program)
+	gl.ActiveTexture(gl.TEXTURE0)
+	gl.BindTexture(gl.TEXTURE_2D, source.colour)
+	gl.Uniform1i(uniforms.source, 0)
+	gl.Uniform2f(uniforms.texel, 1 / f32(source.width), 1 / f32(source.height))
+	webgl_draw_fullscreen(destination.framebuffer, destination.width, destination.height)
+}
+
+// Downsamples the scene down the chain, then adds each level into the next larger one, leaving the bloom in level 0.
+webgl_bloom_passes :: proc(renderer: ^Webgl_Renderer) {
+	levels := renderer.bloom_targets
+	webgl_downsample_pass(renderer, renderer.target, levels[0], true)
+	for level in 1 ..< WEBGL_BLOOM_LEVELS {
+		webgl_downsample_pass(renderer, levels[level - 1], levels[level], false)
+	}
+	gl.Enable(gl.BLEND)
+	gl.BlendFunc(gl.ONE, gl.ONE)
+	for level := WEBGL_BLOOM_LEVELS - 1; level >= 1; level -= 1 {
+		webgl_upsample_pass(renderer, levels[level], levels[level - 1])
+	}
+	gl.Disable(gl.BLEND)
+}
+
+// Tone maps the scene colour mixed with the bloom to the canvas.
 webgl_tonemap_pass :: proc(renderer: ^Webgl_Renderer, exposure: f32, width, height: i32) {
 	uniforms := renderer.tonemap_uniforms
 	gl.UseProgram(renderer.tonemap_program)
@@ -233,6 +255,7 @@ webgl_tonemap_pass :: proc(renderer: ^Webgl_Renderer, exposure: f32, width, heig
 	gl.Uniform1i(uniforms.bloom, 1)
 	gl.Uniform1f(uniforms.exposure, exposure)
 	gl.Uniform1f(uniforms.bloom_strength, WEBGL_BLOOM_STRENGTH)
+	gl.Uniform1f(uniforms.bloom_levels, f32(WEBGL_BLOOM_LEVELS))
 	webgl_draw_fullscreen(gl.Framebuffer(0), width, height)
 	// Unbound so the next forward pass never samples its own target.
 	gl.BindTexture(gl.TEXTURE_2D, 0)
@@ -264,10 +287,13 @@ webgl_renderer_draw :: proc(renderer: ^Webgl_Renderer, list: Draw_List, library:
 	if width <= 0 || height <= 0 {
 		return
 	}
-	half_width, half_height := max(width / 2, 1), max(height / 2, 1)
-	webgl_target_ensure(&renderer.target, width, height, true, false)
-	webgl_target_ensure(&renderer.bloom_targets[0], half_width, half_height, false, true)
-	webgl_target_ensure(&renderer.bloom_targets[1], half_width, half_height, false, true)
+	// Linear, so the first downsample's taps average two by two scene texels.
+	webgl_target_ensure(&renderer.target, width, height, true, true)
+	level_width, level_height := width, height
+	for &level in renderer.bloom_targets {
+		level_width, level_height = max(level_width / 2, 1), max(level_height / 2, 1)
+		webgl_target_ensure(&level, level_width, level_height, false, true)
+	}
 	gl.BindFramebuffer(gl.FRAMEBUFFER, renderer.target.framebuffer)
 	gl.Viewport(0, 0, width, height)
 	// Linear, so it passes the tone map: it displays close to (0.05, 0.06, 0.08).
@@ -309,10 +335,7 @@ webgl_renderer_draw :: proc(renderer: ^Webgl_Renderer, list: Draw_List, library:
 		gl.DrawElements(gl.TRIANGLES, mesh.index_count, gl.UNSIGNED_INT, nil)
 	}
 	gl.Disable(gl.DEPTH_TEST)
-	bloom := renderer.bloom_targets
-	webgl_bright_pass(renderer)
-	webgl_blur_pass(renderer, bloom[0], bloom[1], {1 / f32(half_width), 0})
-	webgl_blur_pass(renderer, bloom[1], bloom[0], {0, 1 / f32(half_height)})
+	webgl_bloom_passes(renderer)
 	webgl_tonemap_pass(renderer, list.exposure, width, height)
 	gl.Enable(gl.DEPTH_TEST)
 }

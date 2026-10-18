@@ -4,6 +4,8 @@ uniform mediump sampler2D scene;
 uniform mediump sampler2D bloom;
 uniform float exposure;
 uniform float bloom_strength;
+// The chain accumulates every level into level 0, so a flat scene arrives bloom_levels times over.
+uniform float bloom_levels;
 in vec2 uv;
 out vec4 colour;
 
@@ -13,7 +15,7 @@ vec3 aces_fit(vec3 x) {
 }
 
 void main() {
-	vec3 scene_colour = texture(scene, uv).rgb + texture(bloom, uv).rgb * bloom_strength;
+	vec3 scene_colour = mix(texture(scene, uv).rgb, texture(bloom, uv).rgb / bloom_levels, bloom_strength);
 	vec3 linear = scene_colour * exposure;
 	colour = vec4(pow(aces_fit(linear), vec3(1.0 / 2.2)), 1.0);
 }
