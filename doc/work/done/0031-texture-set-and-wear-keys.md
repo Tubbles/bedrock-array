@@ -1,6 +1,6 @@
 # 0031: The texture set and wear keys of the library
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, 632a3ed)
 
 Goal: a preset of `data/materials/library.sjson` can name its texture set and its wear rule (`doc/workflows/materials.md`, Files), read by the Odin parser with the library's strictness, so the renderer items that follow (upload, triplanar sampling, the wear rule) have the data. Refers to item 0028.
 
