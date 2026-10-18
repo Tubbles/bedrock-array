@@ -114,7 +114,7 @@ material_unit_field :: proc(name, key: string, fields: json.Object) -> (number: 
 		return 0, fmt.tprintf("material %s: %s missing", name, key)
 	}
 	is_number: bool
-	if number, is_number = material_number(value); !is_number {
+	if number, is_number = json_number(value); !is_number {
 		return 0, fmt.tprintf("material %s: %s must be a number", name, key)
 	}
 	if number < 0 || number > 1 {
@@ -131,7 +131,7 @@ material_colour_field :: proc(name, key: string, fields: json.Object, at_most_on
 		return {}, fmt.tprintf("material %s: %s missing", name, key)
 	}
 	is_colour: bool
-	if colour, is_colour = material_colour(value); !is_colour {
+	if colour, is_colour = json_vector(value); !is_colour {
 		return {}, fmt.tprintf("material %s: %s must be three numbers", name, key)
 	}
 	for component in colour {
@@ -142,7 +142,7 @@ material_colour_field :: proc(name, key: string, fields: json.Object, at_most_on
 	return colour, ""
 }
 
-material_number :: proc(value: json.Value) -> (f32, bool) {
+json_number :: proc(value: json.Value) -> (f32, bool) {
 	#partial switch number in value {
 	case json.Float:
 		if math.is_nan(number) || math.is_inf(number) {
@@ -155,13 +155,13 @@ material_number :: proc(value: json.Value) -> (f32, bool) {
 	return 0, false
 }
 
-material_colour :: proc(value: json.Value) -> (colour: [3]f32, is_colour: bool) {
+json_vector :: proc(value: json.Value) -> (colour: [3]f32, is_colour: bool) {
 	array, is_array := value.(json.Array)
 	if !is_array || len(array) != 3 {
 		return {}, false
 	}
 	for element, index in array {
-		colour[index] = material_number(element) or_return
+		colour[index] = json_number(element) or_return
 	}
 	return colour, true
 }
