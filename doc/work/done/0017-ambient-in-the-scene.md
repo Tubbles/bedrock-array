@@ -1,6 +1,6 @@
 # 0017: Ambient in the scene file
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, 141a175)
 
 Goal: the ambient term leaves the renderer constant and comes from the scene, so a cave can be dark and a surface scene bright before the sky ambient of stage 1 replaces the number with a model. Builds on 0016.
 
