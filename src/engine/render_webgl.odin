@@ -13,6 +13,8 @@ Webgl_Mesh :: struct {
 Webgl_Uniforms :: struct {
 	model, view, projection, sun_direction, sun_colour, ambient, albedo: i32,
 	camera_position, roughness, metallic, emissive:                      i32,
+	point_light_count, point_light_position, point_light_colour:         i32,
+	point_light_range:                                                   i32,
 }
 
 Webgl_Tonemap_Uniforms :: struct {
@@ -39,6 +41,9 @@ Webgl_Renderer :: struct {
 // A constant ambient term until the sky ambient of stage 1 replaces it.
 WEBGL_AMBIENT :: 0.15
 
+// Matches MAX_POINT_LIGHTS in forward.frag; lights beyond it are not drawn.
+WEBGL_MAX_POINT_LIGHTS :: 8
+
 WEBGL_VERTEX_SHADER :: #load("shaders/forward.vert", string)
 WEBGL_FRAGMENT_SHADER :: #load("shaders/forward.frag", string)
 WEBGL_TONEMAP_VERTEX_SHADER :: #load("shaders/tonemap.vert", string)
@@ -51,17 +56,21 @@ webgl_renderer_init :: proc(renderer: ^Webgl_Renderer) -> bool {
 	}
 	renderer.program = program
 	renderer.uniforms = Webgl_Uniforms {
-		model           = gl.GetUniformLocation(program, "model"),
-		view            = gl.GetUniformLocation(program, "view"),
-		projection      = gl.GetUniformLocation(program, "projection"),
-		sun_direction   = gl.GetUniformLocation(program, "sun_direction"),
-		sun_colour      = gl.GetUniformLocation(program, "sun_colour"),
-		ambient         = gl.GetUniformLocation(program, "ambient"),
-		albedo          = gl.GetUniformLocation(program, "albedo"),
-		camera_position = gl.GetUniformLocation(program, "camera_position"),
-		roughness       = gl.GetUniformLocation(program, "roughness"),
-		metallic        = gl.GetUniformLocation(program, "metallic"),
-		emissive        = gl.GetUniformLocation(program, "emissive"),
+		model                = gl.GetUniformLocation(program, "model"),
+		view                 = gl.GetUniformLocation(program, "view"),
+		projection           = gl.GetUniformLocation(program, "projection"),
+		sun_direction        = gl.GetUniformLocation(program, "sun_direction"),
+		sun_colour           = gl.GetUniformLocation(program, "sun_colour"),
+		ambient              = gl.GetUniformLocation(program, "ambient"),
+		albedo               = gl.GetUniformLocation(program, "albedo"),
+		camera_position      = gl.GetUniformLocation(program, "camera_position"),
+		roughness            = gl.GetUniformLocation(program, "roughness"),
+		metallic             = gl.GetUniformLocation(program, "metallic"),
+		emissive             = gl.GetUniformLocation(program, "emissive"),
+		point_light_count    = gl.GetUniformLocation(program, "point_light_count"),
+		point_light_position = gl.GetUniformLocation(program, "point_light_position"),
+		point_light_colour   = gl.GetUniformLocation(program, "point_light_colour"),
+		point_light_range    = gl.GetUniformLocation(program, "point_light_range"),
 	}
 	tonemap_program, tonemap_compiled := gl.CreateProgramFromStrings(
 		{WEBGL_TONEMAP_VERTEX_SHADER},
@@ -136,6 +145,26 @@ webgl_target_ensure :: proc(renderer: ^Webgl_Renderer, width, height: i32) {
 	gl.FramebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, target.depth)
 }
 
+// Uploads the first WEBGL_MAX_POINT_LIGHTS lights, colour times intensity.
+webgl_upload_point_lights :: proc(uniforms: Webgl_Uniforms, lights: []Point_Light) {
+	count := min(len(lights), WEBGL_MAX_POINT_LIGHTS)
+	gl.Uniform1i(uniforms.point_light_count, i32(count))
+	if count == 0 {
+		return
+	}
+	positions, colours: [WEBGL_MAX_POINT_LIGHTS][3]f32
+	ranges: [WEBGL_MAX_POINT_LIGHTS]f32
+	for light, index in lights[:count] {
+		positions[index] = light.position
+		colours[index] = light.colour * light.intensity
+		// A range at or below zero would divide by zero or raise a negative base in the shader.
+		ranges[index] = max(light.range, 0.001)
+	}
+	gl.Uniform3fv(uniforms.point_light_position, positions[:count])
+	gl.Uniform3fv(uniforms.point_light_colour, colours[:count])
+	gl.Uniform1fv(uniforms.point_light_range, ranges[:count])
+}
+
 webgl_renderer_draw :: proc(renderer: ^Webgl_Renderer, list: Draw_List, library: Material_Library, width, height: i32) {
 	if width <= 0 || height <= 0 {
 		return
@@ -163,6 +192,7 @@ webgl_renderer_draw :: proc(renderer: ^Webgl_Renderer, list: Draw_List, library:
 	gl.Uniform1f(uniforms.ambient, WEBGL_AMBIENT)
 	camera_position := list.camera.position
 	gl.Uniform3f(uniforms.camera_position, camera_position.x, camera_position.y, camera_position.z)
+	webgl_upload_point_lights(uniforms, list.lights[:])
 	for item in list.items {
 		if int(item.material) >= len(library.materials) || int(item.mesh) >= len(renderer.meshes) {
 			continue

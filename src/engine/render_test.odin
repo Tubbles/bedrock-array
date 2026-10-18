@@ -133,3 +133,16 @@ test_draw_list_add_and_clear :: proc(t: ^testing.T) {
 	draw_list_clear(&list)
 	testing.expect_value(t, len(list.items), 0)
 }
+
+@(test)
+test_draw_list_lights_add_and_clear :: proc(t: ^testing.T) {
+	list: Draw_List
+	defer draw_list_destroy(&list)
+	draw_list_add(&list, 1, 2, 1)
+	draw_list_add_light(&list, Point_Light{position = {1, 2, 3}, colour = {1, 0, 0}, intensity = 2, range = 4})
+	draw_list_add_light(&list, Point_Light{position = {-1, 0, 1}, colour = {0, 0, 1}, intensity = 1, range = 3})
+	testing.expect_value(t, len(list.lights), 2)
+	draw_list_clear(&list)
+	testing.expect_value(t, len(list.items), 0)
+	testing.expect_value(t, len(list.lights), 0)
+}
