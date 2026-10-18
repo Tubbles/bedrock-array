@@ -1,6 +1,6 @@
 # 0025: The surface page
 
-Status: verified (2026-10-18)
+Status: landed (2026-10-18, 40cedb7)
 
 Goal: D1's second scene, a surface under the sun: a ground of soil and grass, a few boulders and a painted steel machine block with copper pipes, lit by a low afternoon sun with a blue sky and a brown ground ambient, exposure 1. The page where the sun, the sky ambient and the materials are judged in daylight. Builds on 0024.
 
