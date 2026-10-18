@@ -2,13 +2,13 @@
 """Paint a machine's art book entry and repaint its blockout renders into concept art (doc/workflows/art_book.md, steps 0, 3 and 4).
 
     tools/art/concept.py <id> --round <n> [--model banana] [--seeds 7 11 19] [--dry-run]
-    tools/art/concept.py <id> --turnaround <hero image> --round <n> [--model banana] [--dry-run]
+    tools/art/concept.py <id> --turnaround --round <n> [--model banana] [--views front back] [--dry-run]
     tools/art/concept.py <id> --entry --round <n> [--model banana] [--seeds 7 11] [--dry-run]
 
 The prompt is composed from the brief (data/machines/<id>/brief.sjson) and its family's style
 (data/art/families.sjson), never written by hand. The hero round repaints work/art/<id>/blockout/hero.png
-once per seed into work/art/<id>/round-<n>/; the turnaround repaints each orthographic render with the
-chosen hero as the second reference into work/art/<id>/round-<n>/turnaround/<view>.png. The entry round
+once per seed into work/art/<id>/round-<n>/; the turnaround repaints each orthographic render, its one
+reference, with the hero's wording into work/art/<id>/round-<n>/turnaround/<view>.png. The entry round
 paints a page of the art book from data/art/book.sjson and the brief's entry into the kept template
 data/art/page.png, its one reference, once per seed into work/art/<id>/entry-<n>/.
 --dry-run prints the prompt and the calls without calling the API.
@@ -25,6 +25,7 @@ import generate  # noqa: E402
 import sjson  # noqa: E402
 
 VIEWS = ["front", "left", "back", "right"]
+FRONT_EDGE = {"left": "right", "right": "left"}  # where the front face sits in a side elevation's picture, read off the renders
 RATIO = "1:1"  # the blockout renders are square; a repaint keeps the reference's camera
 ENTRY_RATIO = "4:3"  # the entry illustration
 
@@ -72,22 +73,32 @@ def as_sentence(text):
     return text[0].upper() + text[1:] + ("" if text.endswith(".") else ".")
 
 
-def hero_prompt(style, brief):
+def repaint_sentence(view):
+    """The repaint instruction: the hero's (view None) or an orthographic elevation's."""
+    if view is None:
+        return "Repaint this blockout as finished concept art, keeping its silhouette, proportions and camera exactly as they are."
+    return (f"Repaint this blockout, a flat orthographic {view} elevation of the machine, as finished concept art in exactly "
+            f"that view: no perspective, keeping its silhouette, proportions and camera exactly as they are.")
+
+
+def feature_sentence(brief, view):
+    """The feature as the view shows it: whole on the hero and the front, edge on from the sides, absent from the back."""
+    if view is None or view == "front":
+        return as_sentence(brief["feature"])
+    if view == "back":
+        return "The front face is turned away from the camera, out of view."
+    return as_sentence(brief["feature_edge_on"]) + f" The front face is at the {FRONT_EDGE[view]} of the picture."
+
+
+def repaint_prompt(style, brief, view):
     return " ".join([
         style,
-        "Repaint this blockout as finished concept art, keeping its silhouette, proportions and camera exactly as they are.",
+        repaint_sentence(view),
         "Painterly, soft brushed edges, forms set apart by value and colour, never by lines: no ink lines, no outlines, not a 3D render.",
         as_sentence(brief["silhouette"]),
-        as_sentence(brief["feature"]),
+        feature_sentence(brief, view),
         "No text, no logos.",
     ])
-
-
-def turnaround_prompt(style, view):
-    return (f"{style} Repaint the first image, a flat orthographic {view} elevation of the machine's blockout, as finished "
-            f"concept art in exactly that view: no perspective, the camera, silhouette and proportions of the first image. "
-            f"The second image is the finished hero view of the same machine: take its materials, colours and details from it, "
-            f"not its camera. Add no astronaut. No text.")
 
 
 def number_text(value):
@@ -153,7 +164,7 @@ def write_view(out, view, model, prompt, images, cost, seed):
 
 def hero_round(machine, round_number, model, seeds, dry_run):
     brief = read_brief(machine)
-    prompt = hero_prompt(read_style(brief["family"]), brief)
+    prompt = repaint_prompt(read_style(brief["family"]), brief, None)
     print(prompt)
     out = os.path.join(art_directory(machine), f"round-{round_number}")
     references = [os.path.join(art_directory(machine), "blockout", "hero.png")]
@@ -179,15 +190,15 @@ def entry_round(machine, round_number, model, seeds, dry_run):
             print(cost_text, *written)
 
 
-def turnaround(machine, round_number, model, hero, views, dry_run):
-    style = read_style(read_brief(machine)["family"])
-    hero = os.path.abspath(hero)
-    require_files([view_render(machine, view) for view in views] + [hero])
+def turnaround(machine, round_number, model, views, dry_run):
+    brief = read_brief(machine)
+    style = read_style(brief["family"])
+    require_files([view_render(machine, view) for view in views])
     out_directory = os.path.join(art_directory(machine), f"round-{round_number}", "turnaround")
     for view in views:
-        prompt = turnaround_prompt(style, view)
+        prompt = repaint_prompt(style, brief, view)
         print(prompt)
-        references = [view_render(machine, view), hero]
+        references = [view_render(machine, view)]
         out = os.path.join(out_directory, f"{view}.png")
         describe(model, None, references, out)
         result = call(model, prompt, None, references, dry_run)
@@ -201,7 +212,7 @@ def main():
     parser.add_argument("--round", type=int, required=True, dest="round_number")
     parser.add_argument("--model", choices=generate.OPENROUTER_MODELS, help="default: the brief's art.model")
     parser.add_argument("--seeds", type=int, nargs="+", help="the hero round's seeds, default 7 11 19; the entry round's, default 7 11")
-    parser.add_argument("--turnaround", metavar="HERO", help="the chosen hero image; repaints the orthographic views")
+    parser.add_argument("--turnaround", action="store_true", help="repaint the orthographic views")
     parser.add_argument("--views", nargs="+", choices=VIEWS, default=VIEWS, help="the turnaround's views, default all four; a failed view is rerun on its own")
     parser.add_argument("--entry", action="store_true", help="paint art book entries from data/art/book.sjson and the brief's entry")
     parser.add_argument("--dry-run", action="store_true", help="print the prompt and the calls, call nothing")
@@ -214,7 +225,7 @@ def main():
     if arguments.entry:
         entry_round(arguments.machine, arguments.round_number, model, arguments.seeds or [7, 11], arguments.dry_run)
     elif arguments.turnaround:
-        turnaround(arguments.machine, arguments.round_number, model, arguments.turnaround, arguments.views, arguments.dry_run)
+        turnaround(arguments.machine, arguments.round_number, model, arguments.views, arguments.dry_run)
     else:
         hero_round(arguments.machine, arguments.round_number, model, arguments.seeds or [7, 11, 19], arguments.dry_run)
 
