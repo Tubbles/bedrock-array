@@ -3,21 +3,22 @@ camera = { target = [0.25, 0.5, -1], yaw = 0, pitch = 0.7, distance = 9, fit_wid
 sun = { direction = [0.4, -1, -0.3], colour = [1, 0.96, 0.9], intensity = 1 }
 exposure = 1
 ambient = 0.15
+configurations = ["none", "fill holes", "voxel remesh", "Poisson", "alpha wrap"]
 items = [
 	{ shape = "box", size = [17, 0.1, 10.5], position = [-0.75, -0.05, -1], material = "concrete" }
 	{ shape = "mesh", file = "full.mesh", scale = 1, position = [-8, 0, -5], material = "painted_steel" }
 	{ shape = "mesh", file = "faces700000.mesh", scale = 1, position = [-4.5, 0, -5], material = "painted_steel" }
-	{ shape = "mesh", file = "faces24000.mesh", scale = 1, position = [-1.25, 0, -5], material = "painted_steel" }
-	{ shape = "mesh", file = "faces12000.mesh", scale = 1, position = [-1.25, 0, 0], material = "painted_steel" }
-	{ shape = "mesh", file = "faces20000_smart.mesh", scale = 1, position = [1.25, 0, -5], material = "painted_steel" }
-	{ shape = "mesh", file = "smart.mesh", scale = 1, position = [1.25, 0, 0], material = "painted_steel" }
-	{ shape = "mesh", file = "faces12000_smart.mesh", scale = 1, position = [1.25, 0, 3], material = "painted_steel" }
-	{ shape = "mesh", file = "blender_full_24000.mesh", scale = 1, position = [4, 0, 0], material = "painted_steel" }
-	{ shape = "mesh", file = "blender_full_10700.mesh", scale = 1, position = [4, 0, 3], material = "painted_steel" }
-	{ shape = "mesh", file = "blender_700000_24000.mesh", scale = 1, position = [6.5, 0, 0], material = "painted_steel" }
-	{ shape = "mesh", file = "blender_700000_10700.mesh", scale = 1, position = [6.5, 0, 3], material = "painted_steel" }
+	{ shape = "mesh", files = ["faces24000.mesh", "faces24000_fill.mesh", "faces24000_voxel.mesh", "faces24000_poisson.mesh", "faces24000_alphawrap.mesh"], scale = 1, position = [-1.25, 0, -5], material = "painted_steel" }
+	{ shape = "mesh", files = ["faces12000.mesh", "faces12000_fill.mesh", "faces12000_voxel.mesh", "faces12000_poisson.mesh", "faces12000_alphawrap.mesh"], scale = 1, position = [-1.25, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", files = ["faces20000_smart.mesh", "faces20000_smart_fill.mesh", "faces20000_smart_voxel.mesh", "faces20000_smart_poisson.mesh", "faces20000_smart_alphawrap.mesh"], scale = 1, position = [1.25, 0, -5], material = "painted_steel" }
+	{ shape = "mesh", files = ["smart.mesh", "smart_fill.mesh", "smart_voxel.mesh", "smart_poisson.mesh", "smart_alphawrap.mesh"], scale = 1, position = [1.25, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", files = ["faces12000_smart.mesh", "faces12000_smart_fill.mesh", "faces12000_smart_voxel.mesh", "faces12000_smart_poisson.mesh", "faces12000_smart_alphawrap.mesh"], scale = 1, position = [1.25, 0, 3], material = "painted_steel" }
+	{ shape = "mesh", files = ["blender_full_24000.mesh", "blender_full_24000_fill.mesh", "blender_full_24000_voxel.mesh", "blender_full_24000_poisson.mesh", "blender_full_24000_alphawrap.mesh"], scale = 1, position = [4, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", files = ["blender_full_10700.mesh", "blender_full_10700_fill.mesh", "blender_full_10700_voxel.mesh", "blender_full_10700_poisson.mesh", "blender_full_10700_alphawrap.mesh"], scale = 1, position = [4, 0, 3], material = "painted_steel" }
+	{ shape = "mesh", files = ["blender_700000_24000.mesh", "blender_700000_24000_fill.mesh", "blender_700000_24000_voxel.mesh", "blender_700000_24000_poisson.mesh", "blender_700000_24000_alphawrap.mesh"], scale = 1, position = [6.5, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", files = ["blender_700000_10700.mesh", "blender_700000_10700_fill.mesh", "blender_700000_10700_voxel.mesh", "blender_700000_10700_poisson.mesh", "blender_700000_10700_alphawrap.mesh"], scale = 1, position = [6.5, 0, 3], material = "painted_steel" }
 ]
-// "limit" is Tripo's face limit, "smart" its smart low poly mode (the smart column is limit 20000, no limit, limit 12000 from the back), "from" a Blender decimation of that base model.
+// "limit" is Tripo's face limit, "smart" its smart low poly mode (the smart column is limit 20000, no limit, limit 12000 from the back), "from" a Blender decimation of that base model. The counts are the plain configuration's, the closed configurations are decimated to the same count.
 labels = [
 	{ text = "full, 1.46 M triangles", position = [-8, 1.3, -5] }
 	{ text = "limit 700000, 654548 triangles", position = [-4.5, 1.3, -5] }
