@@ -1,11 +1,12 @@
 package app
 
-// The native app: a tech demo's scene through the engine's renderer, first
-// person from the keyboard, the mouse and the gamepad, the plaques and the
-// build stamp drawn by raylib. --demo <name> picks the demo (models, the
-// default), --frames <n> stops after n frames (0, the default, runs until
-// the window closes or Escape), --windowed keeps the window and the cursor
-// instead of going borderless over the monitor with the cursor captured.
+// The native app: a menu of the tech demos, and a demo's scene through the
+// engine's renderer, first person from the keyboard, the mouse and the
+// gamepad, the plaques and the build stamp drawn by raylib. --demo <name>
+// starts in that demo instead of the menu, --frames <n> stops after n frames
+// (0, the default, runs until the window closes or the menu is left),
+// --windowed keeps the window and the cursor instead of going borderless over
+// the monitor with the cursor captured in a demo.
 
 import "core:fmt"
 import "core:os"
@@ -38,7 +39,6 @@ Options :: struct {
 // Parses the arguments after the program name. ok is false on an unknown
 // argument or a missing or malformed value.
 parse_options :: proc(arguments: []string) -> (options: Options, ok: bool) {
-	options.demo = "models"
 	index := 0
 	for index < len(arguments) {
 		switch arguments[index] {
@@ -178,11 +178,47 @@ draw_frame :: proc(view: ^engine.Scene_View) {
 	rl.EndDrawing()
 }
 
+draw_menu_frame :: proc(menu: Menu_State) {
+	rl.BeginDrawing()
+	rl.ClearBackground(BACKGROUND_COLOR)
+	menu_draw(menu, DEMOS[:], BUILD_INFO)
+	rl.EndDrawing()
+}
+
 should_continue :: proc(options: Options, frames_drawn: int) -> bool {
-	if rl.WindowShouldClose() || rl.IsKeyPressed(.ESCAPE) {
+	if rl.WindowShouldClose() {
 		return false
 	}
 	return options.frames == 0 || frames_drawn < options.frames
+}
+
+keyboard_menu_input :: proc() -> Menu_Input {
+	return {up = rl.IsKeyPressed(.UP), down = rl.IsKeyPressed(.DOWN), select = rl.IsKeyPressed(.ENTER), back = rl.IsKeyPressed(.ESCAPE)}
+}
+
+// The view destroyed first, so a demo left earlier is freed. The cursor is
+// captured unless the window was asked for.
+enter_demo :: proc(view: ^engine.Scene_View, demo: Demo, options: Options) {
+	engine.scene_view_destroy(view)
+	size := render_size()
+	problem := engine.scene_view_init(view, MATERIAL_LIBRARY, demo.scene, material_textures, demo.meshes, f32(size.x) / f32(max(size.y, 1)))
+	if problem != "" {
+		fmt.eprintfln("bedrock-array: %s", problem)
+		os.exit(1)
+	}
+	// The texture row flips and the shader strings of the native GL api are temp copies.
+	free_all(context.temp_allocator)
+	if !options.windowed do rl.DisableCursor()
+}
+
+// The menu is driven by the pad, so the pointer stays hidden; EnableCursor
+// alone would show it warped to the window's centre.
+leave_demo :: proc(view: ^engine.Scene_View, options: Options) {
+	engine.scene_view_destroy(view)
+	if !options.windowed {
+		rl.EnableCursor()
+		rl.HideCursor()
+	}
 }
 
 // Read once after the first frame, so the smoke run fails on a GL error.
@@ -197,7 +233,7 @@ exit_on_gl_error :: proc() {
 main :: proc() {
 	options, ok := parse_options(os.args[1:])
 	demo, known := demo_by_name(options.demo)
-	if !ok || !known {
+	if !ok || (options.demo != "" && !known) {
 		fmt.eprintln("usage: bedrock-array [--demo light|surface|cave|models] [--frames <n>] [--windowed]")
 		os.exit(2)
 	}
@@ -211,34 +247,50 @@ main :: proc() {
 	load_gl()
 	if !options.windowed {
 		rl.ToggleBorderlessWindowed()
-		rl.DisableCursor()
+		rl.HideCursor()
 	}
 	rl.SetExitKey(.KEY_NULL)
 	print_gl_info()
 	gamepad_ready, gamepad_problem := gamepad_init()
 	if !gamepad_ready do fmt.eprintfln("bedrock-array: no gamepad input: %s", gamepad_problem)
 	gamepad_state: Gamepad_State
+	edge_state: Menu_Edge_State
+	menu: Menu_State
 	view: engine.Scene_View
-	size := render_size()
-	problem := engine.scene_view_init(&view, MATERIAL_LIBRARY, demo.scene, material_textures, demo.meshes, f32(size.x) / f32(max(size.y, 1)))
-	if problem != "" {
-		fmt.eprintfln("bedrock-array: %s", problem)
-		os.exit(1)
+	screen := App_Screen.Menu
+	if known {
+		enter_demo(&view, demo, options)
+		screen = .Demo
 	}
-	// The texture row flips and the shader strings of the native GL api are temp copies.
-	free_all(context.temp_allocator)
 	frames_drawn := 0
 	for should_continue(options, frames_drawn) {
 		delta_time := rl.GetFrameTime()
-		input := frame_input()
-		if gamepad_ready {
+		snapshot: Gamepad_Snapshot
+		if gamepad_ready do snapshot = gamepad_poll(&gamepad_state)
+		start_pressed := .Start in snapshot.buttons && .Start not_in edge_state.buttons
+		menu_input := menu_input_merge(keyboard_menu_input(), menu_edges(&edge_state, snapshot))
+		if screen == .Menu {
+			command := menu_step(&menu, len(DEMOS), menu_input)
+			if command == .Leave do break
+			if command == .Enter {
+				enter_demo(&view, DEMOS[menu.row], options)
+				screen = .Demo
+			}
+		} else if menu_input.back || start_pressed {
+			leave_demo(&view, options)
+			screen = .Menu
+		}
+		if screen == .Menu {
+			draw_menu_frame(menu)
+		} else {
+			input := frame_input()
 			// The turn is scaled here, so the step's limit on a long frame applies here too.
-			gamepad_input := gamepad_scene_input(gamepad_poll(&gamepad_state), min(delta_time, engine.SCENE_VIEW_STEP_LIMIT))
+			gamepad_input := gamepad_scene_input(snapshot, min(delta_time, engine.SCENE_VIEW_STEP_LIMIT))
 			input.walk += gamepad_input.walk
 			input.turn += gamepad_input.turn
+			engine.scene_view_step(&view, input, delta_time)
+			draw_frame(&view)
 		}
-		engine.scene_view_step(&view, input, delta_time)
-		draw_frame(&view)
 		if frames_drawn == 0 do exit_on_gl_error()
 		frames_drawn += 1
 		free_all(context.temp_allocator)

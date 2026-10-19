@@ -14,7 +14,8 @@
 #                        odin.js and the page shell from web/
 #   ./build.sh debug     builds src/app to build/bedrock-array with -debug
 #   ./build.sh release   builds src/app to build/bedrock-array with -o:speed
-#   ./build.sh smoke     debug build, then three frames under xvfb-run
+#   ./build.sh smoke     debug build, then three frames of the menu and three
+#                        of the models demo under xvfb-run
 set -euo pipefail
 
 odin="${ODIN:-$HOME/opt/odin/odin}"
@@ -123,14 +124,14 @@ build_app() {
 		-define:BUILD_INFO="$build_info" -extra-linker-flags:"-L$shim_directory" "$1"
 }
 
-# Three frames under a virtual X server, so a link or window problem
-# shows without opening a window. The debug build's GL binding drains
-# every error right after the call that raised it and prints it, so the
-# app's own check never sees one there: the run fails on the printed line.
-smoke_app() {
-	build_app -debug
+# One run of three frames under a virtual X server with the given
+# arguments, so a link or window problem shows without opening a window.
+# The debug build's GL binding drains every error right after the call
+# that raised it and prints it, so the app's own check never sees one
+# there: the run fails on the printed line as well as on a non zero exit.
+smoke_run() {
 	local output status=0
-	output="$(xvfb-run -a -s "-screen 0 1280x720x24" env XDG_SESSION_TYPE=x11 "$app_output" --frames 3 2>&1)" || status=$?
+	output="$(xvfb-run -a -s "-screen 0 1280x720x24" env XDG_SESSION_TYPE=x11 "$app_output" "$@" 2>&1)" || status=$?
 	printf '%s\n' "$output"
 	if [ "$status" -ne 0 ]; then
 		return "$status"
@@ -139,6 +140,12 @@ smoke_app() {
 		echo "smoke: the run raised GL errors" >&2
 		return 1
 	fi
+}
+
+smoke_app() {
+	build_app -debug
+	smoke_run --frames 3
+	smoke_run --demo models --frames 3
 }
 
 build_web() {
