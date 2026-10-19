@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Map a generated model's parts onto its brief's parts and write one mesh blob per brief part (doc/workflows/models.md, the finish step).
 
-    python3 -I tools/models/parts.py <machine>
+    python3 -I tools/models/parts.py <machine> [--ply-directory <dir>]
 
 Reads data/machines/<machine>/brief.sjson and generated.sjson, gathers each root node's mesh, moves the
 whole model's bounding box bottom centre to the origin, scales it to the brief's height and turns the
@@ -9,10 +9,13 @@ generated front to the brief's +z. Each generated part goes to its override, els
 the largest share of its vertices inside one of that part's blockout boxes grown by the margin (equal
 shares to the smaller blockout), else to the brief part with the box centre nearest its bounding box
 centre. Writes data/demos/parts/meshes/<brief part>.mesh in the brief's frame and prints one line per
-generated part.
+generated part. With --ply-directory each brief part's merged mesh is also written there as <brief part>.ply,
+for the closing by reconstruct.py.
 """
+import argparse
 import math
 import os
+import struct
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -134,10 +137,34 @@ def merge(parts):
     return vertices, indices
 
 
+def ply_header(vertex_count, face_count):
+    """Return the binary little endian PLY header for positions, normals and triangle faces."""
+    lines = ["ply", "format binary_little_endian 1.0", "element vertex {}".format(vertex_count)]
+    lines += ["property float {}".format(name) for name in ("x", "y", "z", "nx", "ny", "nz")]
+    lines += ["element face {}".format(face_count), "property list uchar int vertex_indices", "end_header"]
+    return ("\n".join(lines) + "\n").encode("ascii")
+
+
+def write_ply(path, vertices, indices):
+    """Write the vertices as (position, normal) and the triangle indices as a binary little endian PLY."""
+    floats = [value for position, normal in vertices for value in (*position, *normal)]
+    with open(path, "wb") as output:
+        output.write(ply_header(len(vertices), len(indices) // 3))
+        output.write(struct.pack("<{}f".format(len(floats)), *floats))
+        for start in range(0, len(indices), 3):
+            output.write(struct.pack("<B3i", 3, *indices[start:start + 3]))
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Map a generated model's parts onto its brief's parts.")
+    parser.add_argument("machine")
+    parser.add_argument("--ply-directory", help="also write each brief part's merged mesh here as <brief part>.ply")
+    return parser.parse_args()
+
+
 def main():
-    if len(sys.argv) != 2:
-        sys.exit("usage: tools/models/parts.py <machine>")
-    machine_directory = os.path.join(ROOT, "data", "machines", sys.argv[1])
+    arguments = parse_arguments()
+    machine_directory = os.path.join(ROOT, "data", "machines", arguments.machine)
     brief = read_sjson(os.path.join(machine_directory, "brief.sjson"))
     generated = read_sjson(os.path.join(machine_directory, "generated.sjson"))
     with open(os.path.join(ROOT, generated["source"]), "rb") as source:
@@ -161,12 +188,16 @@ def main():
         note = "" if how == "share" else "  " + how
         print("{:14} {:7} triangles  {:4.0%}  {}{}".format(name, len(indices) // 3, shares[brief_names.index(brief_name)], brief_name, note))
     os.makedirs(OUTPUT_DIRECTORY, exist_ok=True)
+    if arguments.ply_directory:
+        os.makedirs(arguments.ply_directory, exist_ok=True)
     for brief_name in brief_names:
         if not assigned[brief_name]:
             print("{}: no generated part, no blob".format(brief_name))
             continue
         vertices, indices = merge(assigned[brief_name])
         mesh_blob.write_blob(os.path.join(OUTPUT_DIRECTORY, brief_name + ".mesh"), vertices, indices)
+        if arguments.ply_directory:
+            write_ply(os.path.join(arguments.ply_directory, brief_name + ".ply"), vertices, indices)
         print("{}: {} parts, {} triangles".format(brief_name, len(assigned[brief_name]), len(indices) // 3))
 
 

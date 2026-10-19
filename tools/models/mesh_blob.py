@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Turn a GLB into the engine's flat mesh blob (doc/workflows/models.md).
 
-    tools/models/mesh_blob.py <glb> <out.mesh> [--height <metres>]
+    tools/models/mesh_blob.py <glb> <out.mesh> [--height <metres> | --keep-frame]
 
 Gathers every root node's mesh with its translation, rotation and scale applied, moves the bounding box's
-bottom centre to the origin and, with --height, scales the mesh to that height. The blob: the magic
+bottom centre to the origin and, with --height, scales the mesh to that height. --keep-frame writes the
+positions as they are, for a mesh already in the brief's frame. The blob: the magic
 BAMESH01, u32 vertex count, u32 index count, per vertex six little endian f32 (position then normal),
 then the indices as u32.
 """
@@ -155,12 +156,15 @@ def main():
     parser = argparse.ArgumentParser(description="Turn a GLB into the engine's flat mesh blob.")
     parser.add_argument("glb")
     parser.add_argument("out")
-    parser.add_argument("--height", type=float, help="scale the mesh to this height in metres")
+    placement = parser.add_mutually_exclusive_group()
+    placement.add_argument("--height", type=float, help="scale the mesh to this height in metres")
+    placement.add_argument("--keep-frame", action="store_true", help="write the positions as they are, without the grounding")
     arguments = parser.parse_args()
     with open(arguments.glb, "rb") as source:
         document, binary = read_glb(source.read())
     vertices, indices = gather_meshes(document, binary)
-    vertices = ground_and_scale(vertices, arguments.height)
+    if not arguments.keep_frame:
+        vertices = ground_and_scale(vertices, arguments.height)
     write_blob(arguments.out, vertices, indices)
     low, high = bounds(vertices)
     print("{}: {} vertices, {} indices, bounds [{:.4f} {:.4f} {:.4f}] to [{:.4f} {:.4f} {:.4f}]".format(arguments.out, len(vertices), len(indices), *low, *high))

@@ -1,5 +1,7 @@
 """Tests for the part mapping in parts.py."""
 
+import os
+import tempfile
 import unittest
 
 import parts
@@ -32,6 +34,21 @@ class PartsTest(unittest.TestCase):
         boxes = [[((0, 0, 0), (1, 1, 1))], [((4, 0, 0), (1, 1, 1)), ((9, 0, 0), (1, 1, 1))]]
         distances = [parts.nearest_box_distance(centre, part_boxes) for part_boxes in boxes]
         self.assertEqual(parts.assign("part_0", {}, ["body", "lid"], [0.0, 0.0], distances, [1.0, 1.0]), ("lid", "nearest"))
+
+    def test_write_ply_round_trips_the_header_and_counts(self):
+        vertices = [((0, 0, 0), (0, 1, 0)), ((1, 0, 0), (0, 1, 0)), ((0, 0, 1), (0, 1, 0)), ((1, 0, 1), (0, 1, 0))]
+        indices = [0, 1, 2, 1, 3, 2]
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "part.ply")
+            parts.write_ply(path, vertices, indices)
+            with open(path, "rb") as source:
+                data = source.read()
+        header_end = data.index(b"end_header\n") + len(b"end_header\n")
+        header = data[:header_end].decode("ascii").splitlines()
+        self.assertEqual(header[1], "format binary_little_endian 1.0")
+        self.assertIn("element vertex 4", header)
+        self.assertIn("element face 2", header)
+        self.assertEqual(len(data) - header_end, 4 * 6 * 4 + 2 * (1 + 3 * 4))
 
 
 if __name__ == "__main__":
