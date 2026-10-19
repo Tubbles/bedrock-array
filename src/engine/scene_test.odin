@@ -124,6 +124,33 @@ items = [
 }
 
 @(test)
+test_parse_scene_reads_fit_width :: proc(t: ^testing.T) {
+	library, _ := parse_material_library(transmute([]byte)string(TEST_LIBRARY_TEXT))
+	defer material_library_destroy(&library)
+	rest := `
+sun = { direction = [0.4, -1, -0.3], colour = [1, 0.96, 0.9], intensity = 1 }
+exposure = 1
+items = [
+	{ shape = "box", size = [1, 1, 1], position = [0, 0.5, 0], material = "painted_steel" }
+]
+`
+	with_width := strings.concatenate({"camera = { target = [0, 0.5, 0], yaw = 0.6, pitch = 0.5, distance = 5, fit_width = 10 }", rest}, context.temp_allocator)
+	wide_scene, wide_problem := parse_scene(transmute([]byte)with_width, library)
+	defer scene_destroy(&wide_scene)
+	testing.expect_value(t, wide_problem, "")
+	testing.expect_value(t, wide_scene.fit_width, 10)
+	without_width := strings.concatenate({"camera = { target = [0, 0.5, 0], yaw = 0.6, pitch = 0.5, distance = 5 }", rest}, context.temp_allocator)
+	default_scene, default_problem := parse_scene(transmute([]byte)without_width, library)
+	defer scene_destroy(&default_scene)
+	testing.expect_value(t, default_problem, "")
+	testing.expect_value(t, default_scene.fit_width, 0)
+	negative_width := strings.concatenate({"camera = { target = [0, 0.5, 0], yaw = 0.6, pitch = 0.5, distance = 5, fit_width = -1 }", rest}, context.temp_allocator)
+	negative_scene, negative_problem := parse_scene(transmute([]byte)negative_width, library)
+	defer scene_destroy(&negative_scene)
+	testing.expectf(t, strings.contains(negative_problem, "camera: fit_width -1 must be 0 or more"), "problem: %q", negative_problem)
+}
+
+@(test)
 test_parse_scene_hemisphere_defaults_to_ambient :: proc(t: ^testing.T) {
 	library, _ := parse_material_library(transmute([]byte)string(TEST_LIBRARY_TEXT))
 	defer material_library_destroy(&library)

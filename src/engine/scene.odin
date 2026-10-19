@@ -34,6 +34,7 @@ Scene_Label :: struct {
 
 Scene :: struct {
 	camera:                    Orbit,
+	fit_width:                 f32,
 	sun:                       Directional_Light,
 	exposure:                  f32,
 	ambient:                   f32,
@@ -64,7 +65,7 @@ parse_scene :: proc(data: []byte, library: Material_Library, allocator := contex
 			return {}, fmt.tprintf("scene: unknown key %s", key)
 		}
 	}
-	if scene.camera, problem = parse_scene_camera(fields); problem != "" {
+	if scene.camera, scene.fit_width, problem = parse_scene_camera(fields); problem != "" {
 		return {}, problem
 	}
 	if scene.sun, problem = parse_scene_sun(fields); problem != "" {
@@ -199,27 +200,32 @@ scene_mesh_file_find :: proc(files: []runtime.Load_Directory_File, file_name: st
 }
 
 @(private = "file")
-parse_scene_camera :: proc(fields: json.Object) -> (camera: Orbit, problem: string) {
+parse_scene_camera :: proc(fields: json.Object) -> (camera: Orbit, fit_width: f32, problem: string) {
 	camera_fields: json.Object
 	if camera_fields, problem = scene_object_field("scene", "camera", fields); problem != "" {
-		return {}, problem
+		return {}, 0, problem
 	}
-	if problem = scene_check_keys("camera", camera_fields, {"target", "yaw", "pitch", "distance"}); problem != "" {
-		return {}, problem
+	if problem = scene_check_keys("camera", camera_fields, {"target", "yaw", "pitch", "distance", "fit_width"}); problem != "" {
+		return {}, 0, problem
 	}
 	if camera.target, problem = scene_vector_field("camera", "target", camera_fields); problem != "" {
-		return {}, problem
+		return {}, 0, problem
 	}
 	if camera.yaw, problem = scene_number_field("camera", "yaw", camera_fields); problem != "" {
-		return {}, problem
+		return {}, 0, problem
 	}
 	if camera.pitch, problem = scene_number_field("camera", "pitch", camera_fields); problem != "" {
-		return {}, problem
+		return {}, 0, problem
 	}
 	if camera.distance, problem = scene_non_negative_field("camera", "distance", camera_fields); problem != "" {
-		return {}, problem
+		return {}, 0, problem
 	}
-	return camera, ""
+	if "fit_width" in camera_fields {
+		if fit_width, problem = scene_non_negative_field("camera", "fit_width", camera_fields); problem != "" {
+			return {}, 0, problem
+		}
+	}
+	return camera, fit_width, ""
 }
 
 @(private = "file")

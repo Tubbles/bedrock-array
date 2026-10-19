@@ -95,6 +95,15 @@ test_orbit_zoom_scales_and_clamps :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_orbit_fit_width :: proc(t: ^testing.T) {
+	orbit := Orbit{distance = 7.5}
+	expect_near(t, orbit_fit_width(orbit, 10, math.PI / 3, 0.5, 40).distance, 10 * math.sqrt(f32(3)), 1e-4)
+	testing.expect_value(t, orbit_fit_width(orbit, 10, math.PI / 3, 2, 40).distance, 7.5)
+	testing.expect_value(t, orbit_fit_width(orbit, 10, math.PI / 3, 0.5, 12).distance, 12)
+	testing.expect_value(t, orbit_fit_width(orbit, 0, math.PI / 3, 0.5, 40), orbit)
+}
+
+@(test)
 test_orbit_pan_moves_the_target_in_the_view_plane :: proc(t: ^testing.T) {
 	orbit := Orbit{distance = 5}
 	sideways := orbit_pan(orbit, {10, 0}, 0.1).target

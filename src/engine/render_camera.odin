@@ -50,6 +50,19 @@ orbit_zoom :: proc(orbit: Orbit, factor: f32, minimum, maximum: f32) -> Orbit {
 	return result
 }
 
+// A fit moves the camera back until fit_width metres span the canvas at the
+// target's depth, never closer than the orbit and never past the maximum.
+// A width of 0 leaves the orbit.
+orbit_fit_width :: proc(orbit: Orbit, fit_width, vertical_fov_radians, aspect, maximum_distance: f32) -> Orbit {
+	if fit_width <= 0 {
+		return orbit
+	}
+	needed := fit_width / (2 * math.tan(vertical_fov_radians / 2) * aspect)
+	result := orbit
+	result.distance = max(orbit.distance, min(needed, maximum_distance))
+	return result
+}
+
 // A pan moves the target in the view plane so the world follows the drag.
 orbit_pan :: proc(orbit: Orbit, delta_pixels: [2]f32, metres_per_pixel: f32) -> Orbit {
 	right, up := orbit_right_and_up(orbit)

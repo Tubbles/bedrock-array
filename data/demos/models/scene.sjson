@@ -1,5 +1,5 @@
 // The models demo: the smelter's four generated variants in a row on a slab.
-camera = { target = [0, 0.5, 0], yaw = 0, pitch = 0.35, distance = 7.5 }
+camera = { target = [0, 0.5, 0], yaw = 0, pitch = 0.35, distance = 7.5, fit_width = 10 }
 sun = { direction = [0.4, -1, -0.3], colour = [1, 0.96, 0.9], intensity = 1 }
 exposure = 1
 ambient = 0.15

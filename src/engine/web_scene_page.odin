@@ -12,6 +12,7 @@ SCENE_PAGE_DRAG_RADIANS_PER_PIXEL :: f32(0.005)
 SCENE_PAGE_WHEEL_ZOOM_STEP :: f32(1.1)
 SCENE_PAGE_DISTANCE_MINIMUM :: f32(2)
 SCENE_PAGE_DISTANCE_MAXIMUM :: f32(20)
+SCENE_PAGE_VERTICAL_FOV :: f32(math.PI / 3)
 // Orbit distances per second a held key walks the target.
 SCENE_PAGE_WALK_SPEED :: f32(0.6)
 SCENE_PAGE_STEP_LIMIT :: f32(0.1)
@@ -74,7 +75,7 @@ scene_page_init :: proc(page: ^Scene_Page, canvas_id: string, library_data, scen
 	if problem != "" do return fmt.tprintf("material library: %s", problem)
 	page.scene, problem = parse_scene(scene_data, page.library)
 	if problem != "" do return fmt.tprintf("scene: %s", problem)
-	page.orbit = page.scene.camera
+	page.orbit = orbit_fit_width(page.scene.camera, page.scene.fit_width, SCENE_PAGE_VERTICAL_FOV, page.aspect, SCENE_PAGE_DISTANCE_MAXIMUM)
 	if !webgl_renderer_init(&page.renderer) do return "the WebGL2 shaders did not compile"
 	problem = scene_page_upload_meshes(page, meshes)
 	if problem != "" do return fmt.tprintf("meshes: %s", problem)
@@ -109,7 +110,7 @@ scene_page_step :: proc(page: ^Scene_Page, delta_time: f32) {
 
 @(private = "file")
 scene_page_camera :: proc(page: ^Scene_Page) -> Camera {
-	return orbit_camera(page.orbit, math.PI / 3, 0.1, 100)
+	return orbit_camera(page.orbit, SCENE_PAGE_VERTICAL_FOV, 0.1, 100)
 }
 
 // The registered page's label at index, found false out of range.
@@ -364,7 +365,7 @@ scene_page_pointer_midpoint :: proc(page: ^Scene_Page) -> [2]f32 {
 // The orbit panned by a drag in CSS pixels, a pixel moving the target a pixel at its depth.
 @(private = "file")
 scene_page_pan :: proc(page: ^Scene_Page, delta_pixels: [2]f32) -> Orbit {
-	return orbit_pan(page.orbit, delta_pixels, orbit_metres_per_pixel(page.orbit, math.PI / 3, max(page.client_height, 1)))
+	return orbit_pan(page.orbit, delta_pixels, orbit_metres_per_pixel(page.orbit, SCENE_PAGE_VERTICAL_FOV, max(page.client_height, 1)))
 }
 
 @(private = "file")
