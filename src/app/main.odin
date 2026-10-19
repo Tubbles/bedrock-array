@@ -20,6 +20,7 @@ import rlgl "shared:raylib/rlgl"
 BUILD_INFO :: #config(BUILD_INFO, "dev")
 
 APP_MOUSE_RADIANS_PER_PIXEL :: f32(0.003)
+APP_WHEEL_ZOOM_PER_NOTCH :: f32(0.1)
 LABEL_FONT_SIZE :: 20
 LABEL_PADDING :: 6
 // Points, the page's 9rem at this font size.
@@ -119,13 +120,19 @@ keyboard_walk :: proc() -> [3]f32 {
 	return {key_axis(right, left), key_axis(up, down), key_axis(forward, back)}
 }
 
-frame_input :: proc() -> engine.Scene_Input {
+// In orbit mode the mouse turns only while its left button is down and the wheel zooms.
+frame_input :: proc(camera_mode: engine.Scene_Camera_Mode) -> engine.Scene_Input {
 	mouse := rl.GetMouseDelta()
-	return {
+	input := engine.Scene_Input {
 		walk = keyboard_walk(),
 		turn = {mouse.x, mouse.y} * APP_MOUSE_RADIANS_PER_PIXEL,
 		cycle_configuration = rl.IsKeyPressed(.C),
 	}
+	if camera_mode == .Orbit {
+		if !rl.IsMouseButtonDown(.LEFT) do input.turn = {}
+		input.zoom = rl.GetMouseWheelMove() * APP_WHEEL_ZOOM_PER_NOTCH
+	}
+	return input
 }
 
 // The renderer sets GL state behind rlgl's back. rlgl.SetBlendMode skips a
@@ -174,7 +181,7 @@ draw_labels :: proc(view: ^engine.Scene_View, size: [2]i32) {
 // Bottom right, at the stamp's margin, only for a scene with configurations to cycle.
 draw_configuration_name :: proc(view: ^engine.Scene_View, screen: [2]i32) {
 	if engine.scene_view_configuration_count(view) <= 1 do return
-	text := fmt.ctprintf("Y: %s", engine.scene_view_configuration_name(view))
+	text := fmt.ctprintf("Y LB RB: %s", engine.scene_view_configuration_name(view))
 	x := screen.x - 16 - rl.MeasureText(text, LABEL_FONT_SIZE)
 	rl.DrawText(text, x, screen.y - 16 - LABEL_FONT_SIZE, LABEL_FONT_SIZE, TEXT_COLOR)
 }
@@ -282,6 +289,8 @@ main :: proc() {
 		if gamepad_ready do snapshot = gamepad_poll(&gamepad_state)
 		start_pressed := .Start in snapshot.buttons && .Start not_in edge_state.buttons
 		north_pressed := .North in snapshot.buttons && .North not_in edge_state.buttons
+		left_shoulder_pressed := .Left_Shoulder in snapshot.buttons && .Left_Shoulder not_in edge_state.buttons
+		right_shoulder_pressed := .Right_Shoulder in snapshot.buttons && .Right_Shoulder not_in edge_state.buttons
 		menu_input := menu_input_merge(keyboard_menu_input(), menu_edges(&edge_state, snapshot))
 		if screen == .Menu {
 			command := menu_step(&menu, len(DEMOS), menu_input)
@@ -297,12 +306,13 @@ main :: proc() {
 		if screen == .Menu {
 			draw_menu_frame(menu)
 		} else {
-			input := frame_input()
+			input := frame_input(view.scene.camera_mode)
 			// The turn is scaled here, so the step's limit on a long frame applies here too.
 			gamepad_input := gamepad_scene_input(snapshot, min(delta_time, engine.SCENE_VIEW_STEP_LIMIT))
 			input.walk += gamepad_input.walk
 			input.turn += gamepad_input.turn
-			input.cycle_configuration = input.cycle_configuration || north_pressed
+			input.cycle_configuration = input.cycle_configuration || north_pressed || right_shoulder_pressed
+			input.previous_configuration = left_shoulder_pressed
 			engine.scene_view_step(&view, input, delta_time)
 			draw_frame(&view)
 		}
