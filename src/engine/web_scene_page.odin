@@ -38,10 +38,14 @@ Scene_Page :: struct {
 	cycle_pending:               bool,
 	// A press of the pad's left shoulder since the last step.
 	previous_pending:            bool,
+	// The orbit's focus steps since the last step: the left arrow and the d-pad left count minus one, the right ones one.
+	focus_pending:               int,
 	// North was down on the last step, so a held button cycles once.
 	north_held:                  bool,
 	// The left and right shoulders were down on the last step.
 	shoulders_held:              [2]bool,
+	// The d-pad left and right were down on the last step.
+	dpad_sides_held:             [2]bool,
 	ready:                       bool,
 }
 
@@ -82,7 +86,9 @@ scene_page_step :: proc(page: ^Scene_Page, delta_time: f32) {
 	input.cycle_configuration = page.cycle_pending
 	input.previous_configuration = page.previous_pending
 	page.cycle_pending = false
+	input.focus_step = page.focus_pending
 	page.previous_pending = false
+	page.focus_pending = 0
 	scene_view_step(&page.view, input, delta_time)
 	scene_view_draw(&page.view, page.canvas_width, page.canvas_height)
 }
@@ -192,7 +198,7 @@ scene_page_walk :: proc(keys: bit_set[Scene_Page_Key]) -> [3]f32 {
 	}
 }
 
-// The standard mapping: the left stick walks, the right stick turns, the d-pad moves up and down, North and the right shoulder cycle the configuration and the left shoulder steps it back.
+// The standard mapping: the left stick walks, the right stick turns, the d-pad moves up and down, North and the right shoulder cycle the configuration, the left shoulder steps it back and the d-pad left and right step the orbit's focus.
 @(private = "file")
 scene_page_gamepad :: proc(page: ^Scene_Page, input: ^Scene_Input, delta_time: f32) {
 	state: js.Gamepad_State
@@ -209,6 +215,10 @@ scene_page_gamepad :: proc(page: ^Scene_Page, input: ^Scene_Input, delta_time: f
 	if shoulders[0] && !page.shoulders_held[0] do page.previous_pending = true
 	if shoulders[1] && !page.shoulders_held[1] do page.cycle_pending = true
 	page.shoulders_held = shoulders
+	dpad_sides := [2]bool{state.buttons[14].pressed, state.buttons[15].pressed}
+	if dpad_sides[0] && !page.dpad_sides_held[0] do page.focus_pending -= 1
+	if dpad_sides[1] && !page.dpad_sides_held[1] do page.focus_pending += 1
+	page.dpad_sides_held = dpad_sides
 }
 
 @(private = "file")
@@ -252,6 +262,17 @@ on_scene_page_key_down :: proc(event: js.Event) {
 	if event.data.key.repeat do return
 	page := (^Scene_Page)(event.user_data)
 	if event.data.key.code == "KeyC" do page.cycle_pending = true
+	// In orbit mode the side arrows step the focus instead of walking.
+	if page.view.scene.camera_mode == .Orbit {
+		if event.data.key.code == "ArrowLeft" {
+			page.focus_pending -= 1
+			return
+		}
+		if event.data.key.code == "ArrowRight" {
+			page.focus_pending += 1
+			return
+		}
+	}
 	key, known := scene_page_key_from_code(event.data.key.code)
 	if !known do return
 	page.keys_held += {key}

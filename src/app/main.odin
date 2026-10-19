@@ -109,24 +109,25 @@ any_key_down :: proc(keys: []rl.KeyboardKey) -> bool {
 	return false
 }
 
-// The page's keys (engine scene_page_key_from_code): opposite keys cancel.
-keyboard_walk :: proc() -> [3]f32 {
+// The page's keys (engine scene_page_key_from_code): opposite keys cancel. Without side_arrows_walk only A and D walk sideways.
+keyboard_walk :: proc(side_arrows_walk: bool) -> [3]f32 {
 	forward := any_key_down({.W, .UP})
 	back := any_key_down({.S, .DOWN})
-	left := any_key_down({.A, .LEFT})
-	right := any_key_down({.D, .RIGHT})
+	left := any_key_down({.A}) || (side_arrows_walk && rl.IsKeyDown(.LEFT))
+	right := any_key_down({.D}) || (side_arrows_walk && rl.IsKeyDown(.RIGHT))
 	up := any_key_down({.E, .SPACE})
 	down := any_key_down({.Q, .LEFT_SHIFT, .RIGHT_SHIFT, .LEFT_CONTROL, .RIGHT_CONTROL})
 	return {key_axis(right, left), key_axis(up, down), key_axis(forward, back)}
 }
 
-// In orbit mode the mouse turns only while its left button is down and the wheel zooms.
+// In orbit mode the mouse turns only while its left button is down, the wheel zooms and the side arrows step the focus instead of walking.
 frame_input :: proc(camera_mode: engine.Scene_Camera_Mode) -> engine.Scene_Input {
 	mouse := rl.GetMouseDelta()
 	input := engine.Scene_Input {
-		walk = keyboard_walk(),
+		walk = keyboard_walk(camera_mode != .Orbit),
 		turn = {mouse.x, mouse.y} * APP_MOUSE_RADIANS_PER_PIXEL,
 		cycle_configuration = rl.IsKeyPressed(.C),
+		focus_step = int(rl.IsKeyPressed(.RIGHT)) - int(rl.IsKeyPressed(.LEFT)),
 	}
 	if camera_mode == .Orbit {
 		if !rl.IsMouseButtonDown(.LEFT) do input.turn = {}
@@ -291,6 +292,8 @@ main :: proc() {
 		north_pressed := .North in snapshot.buttons && .North not_in edge_state.buttons
 		left_shoulder_pressed := .Left_Shoulder in snapshot.buttons && .Left_Shoulder not_in edge_state.buttons
 		right_shoulder_pressed := .Right_Shoulder in snapshot.buttons && .Right_Shoulder not_in edge_state.buttons
+		dpad_left_pressed := .Dpad_Left in snapshot.buttons && .Dpad_Left not_in edge_state.buttons
+		dpad_right_pressed := .Dpad_Right in snapshot.buttons && .Dpad_Right not_in edge_state.buttons
 		menu_input := menu_input_merge(keyboard_menu_input(), menu_edges(&edge_state, snapshot))
 		if screen == .Menu {
 			command := menu_step(&menu, len(DEMOS), menu_input)
@@ -313,6 +316,7 @@ main :: proc() {
 			input.turn += gamepad_input.turn
 			input.cycle_configuration = input.cycle_configuration || north_pressed || right_shoulder_pressed
 			input.previous_configuration = left_shoulder_pressed
+			input.focus_step += int(dpad_right_pressed) - int(dpad_left_pressed)
 			engine.scene_view_step(&view, input, delta_time)
 			draw_frame(&view)
 		}
