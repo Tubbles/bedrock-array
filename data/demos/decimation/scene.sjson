@@ -1,0 +1,26 @@
+// The decimation demo: the full model as the reference, then Blender's decimations of its Poisson closing (tools/models/reconstruct.py, then decimate.py) from 768000 triangles down to 12000, halving each step, in a row from the left. The plaques alternate in height so neighbours do not overlap.
+camera = { target = [0, 0.5, 0], yaw = 0, pitch = 0.35, distance = 6, fit_width = 14 }
+sun = { direction = [0.4, -1, -0.3], colour = [1, 0.96, 0.9], intensity = 1 }
+exposure = 1
+ambient = 0.15
+items = [
+	{ shape = "box", size = [14, 0.1, 3], position = [0, -0.05, 0], material = "concrete" }
+	{ shape = "mesh", file = "full.mesh", scale = 1, position = [-5.6, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", file = "poisson_768000.mesh", scale = 1, position = [-4, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", file = "poisson_384000.mesh", scale = 1, position = [-2.4, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", file = "poisson_192000.mesh", scale = 1, position = [-0.8, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", file = "poisson_96000.mesh", scale = 1, position = [0.8, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", file = "poisson_48000.mesh", scale = 1, position = [2.4, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", file = "poisson_24000.mesh", scale = 1, position = [4, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", file = "poisson_12000.mesh", scale = 1, position = [5.6, 0, 0], material = "painted_steel" }
+]
+labels = [
+	{ text = "full, 1.46 M triangles", position = [-5.6, 1.3, 0] }
+	{ text = "768000 triangles", position = [-4, 1.6, 0] }
+	{ text = "384000 triangles", position = [-2.4, 1.3, 0] }
+	{ text = "192000 triangles", position = [-0.8, 1.6, 0] }
+	{ text = "96000 triangles", position = [0.8, 1.3, 0] }
+	{ text = "48000 triangles", position = [2.4, 1.6, 0] }
+	{ text = "24000 triangles", position = [4, 1.3, 0] }
+	{ text = "12000 triangles", position = [5.6, 1.6, 0] }
+]

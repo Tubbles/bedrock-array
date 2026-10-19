@@ -36,6 +36,12 @@ DEMOS := [?]Demo {
 		scene = #load("../../data/demos/models/scene.sjson"),
 		meshes = #load_directory("../../data/demos/models/meshes"),
 	},
+	{
+		name = "decimation",
+		description = #load("../demos/decimation/description.txt", string),
+		scene = #load("../../data/demos/decimation/scene.sjson"),
+		meshes = #load_directory("../../data/demos/decimation/meshes"),
+	},
 }
 
 // The demo of that name, ok false when no demo has it.
