@@ -181,7 +181,7 @@ scene_view_draw :: proc(view: ^Scene_View, width, height: i32) {
 		transform := linalg.matrix4_translate_f32(item.position) * linalg.matrix4_scale_f32({item.scale, item.scale, item.scale})
 		levels := view.item_levels[index]
 		if len(levels.mesh_ids) > 0 {
-			scene_view_add_levels(&view.draw_list, levels, item.material, transform)
+			scene_view_add_levels(&view.draw_list, levels, item.material, transform, view.lod.tint)
 			continue
 		}
 		entry := index * count + view.configuration
@@ -192,13 +192,21 @@ scene_view_draw :: proc(view: ^Scene_View, width, height: i32) {
 
 // The current level, and while fading the previous one too, each keeping the pixels the other discards.
 @(private = "file")
-scene_view_add_levels :: proc(list: ^Draw_List, levels: Scene_Item_Levels, material: Material_Id, transform: matrix[4, 4]f32) {
+scene_view_add_levels :: proc(list: ^Draw_List, levels: Scene_Item_Levels, material: Material_Id, transform: matrix[4, 4]f32, tinted: bool) {
+	current_tint := scene_view_level_tint(tinted, levels.current)
 	if levels.fade >= 1 {
-		draw_list_add(list, levels.mesh_ids[levels.current], material, transform, levels.half_extents)
+		append(&list.items, Draw_Item{mesh = levels.mesh_ids[levels.current], material = material, transform = transform, half_extents = levels.half_extents, tint = current_tint})
 		return
 	}
-	append(&list.items, Draw_Item{mesh = levels.mesh_ids[levels.current], material = material, transform = transform, half_extents = levels.half_extents, dither_skip = {levels.fade, 1}})
-	append(&list.items, Draw_Item{mesh = levels.mesh_ids[levels.previous], material = material, transform = transform, half_extents = levels.half_extents, dither_skip = {0, levels.fade}})
+	previous_tint := scene_view_level_tint(tinted, levels.previous)
+	append(&list.items, Draw_Item{mesh = levels.mesh_ids[levels.current], material = material, transform = transform, half_extents = levels.half_extents, dither_skip = {levels.fade, 1}, tint = current_tint})
+	append(&list.items, Draw_Item{mesh = levels.mesh_ids[levels.previous], material = material, transform = transform, half_extents = levels.half_extents, dither_skip = {0, levels.fade}, tint = previous_tint})
+}
+
+// The level's debug colour when tinted, white otherwise.
+@(private = "file")
+scene_view_level_tint :: proc(tinted: bool, level: int) -> [3]f32 {
+	return lod_tint(level) if tinted else {1, 1, 1}
 }
 
 // Each item with levels takes the level lod_choose gives the screen pixels of the sphere around its middle, none while the lod is frozen.

@@ -23,6 +23,8 @@ Draw_Item :: struct {
 	half_extents: [3]f32,
 	// The range of the dither threshold, from x up to but not including y, whose pixels the item discards; the zero value keeps every pixel.
 	dither_skip:  [2]f32,
+	// Multiplies the albedo, white keeps the material's colour.
+	tint:         [3]f32,
 }
 
 // What a demo or module fills each frame and the renderer only reads.
@@ -38,7 +40,7 @@ Draw_List :: struct {
 }
 
 draw_list_add :: proc(list: ^Draw_List, mesh: Mesh_Id, material: Material_Id, transform: matrix[4, 4]f32, half_extents: [3]f32) {
-	append(&list.items, Draw_Item{mesh = mesh, material = material, transform = transform, half_extents = half_extents})
+	append(&list.items, Draw_Item{mesh = mesh, material = material, transform = transform, half_extents = half_extents, tint = {1, 1, 1}})
 }
 
 draw_list_add_light :: proc(list: ^Draw_List, light: Point_Light) {

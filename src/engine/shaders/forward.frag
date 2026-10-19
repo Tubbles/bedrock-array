@@ -31,6 +31,8 @@ uniform float wear_amount;
 uniform vec3 wear_metal;
 // The range of the dither threshold, from x up to but not including y, whose fragments are discarded.
 uniform vec2 dither_skip;
+// Multiplies the surface albedo, white keeps it.
+uniform vec3 tint;
 in vec3 world_normal;
 in vec3 world_position;
 in vec3 local_position;
@@ -145,6 +147,7 @@ void main() {
 	vec3 p = world_position / texture_metres;
 	vec3 blend = triplanar_blend(geometric_normal);
 	Surface surface = surface_at(p, blend);
+	surface.albedo *= tint;
 	vec3 n = geometric_normal;
 	if (has_textures != 0) {
 		n = triplanar_normal(normal_map, p, geometric_normal, blend);

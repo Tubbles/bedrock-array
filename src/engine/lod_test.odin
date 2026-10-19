@@ -55,3 +55,13 @@ test_lod_screen_pixels_halves_with_double_distance :: proc(t: ^testing.T) {
 	testing.expectf(t, abs(far_area * 4 - near_area) <= 0.01, "far area %v, near area %v", far_area, near_area)
 	testing.expect_value(t, lod_screen_pixels(camera, 1000, {0, 0, -0.5}, 1), 1000 * 1000)
 }
+
+@(test)
+test_lod_tint_is_distinct_per_level :: proc(t: ^testing.T) {
+	for first in 0 ..< 8 {
+		for second in first + 1 ..< 8 {
+			testing.expect(t, lod_tint(first) != lod_tint(second), "two levels share a tint")
+		}
+	}
+	testing.expect_value(t, lod_tint(12), lod_tint(7))
+}

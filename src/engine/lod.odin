@@ -45,3 +45,9 @@ lod_screen_pixels :: proc(camera: Camera, canvas_height: f32, centre: [3]f32, ra
 	diameter := radius / (distance * math.tan(camera.vertical_fov_radians / 2)) * canvas_height
 	return math.PI / 4 * diameter * diameter
 }
+
+// The debug colour of a level, eight distinct ones finest first, the last for every level past them.
+lod_tint :: proc(level: int) -> [3]f32 {
+	palette := [8][3]f32{{1, 1, 1}, {0.2, 0.9, 0.2}, {0.2, 0.5, 1}, {1, 0.9, 0.1}, {1, 0.5, 0.1}, {0.9, 0.2, 0.9}, {0.1, 0.9, 0.9}, {1, 0.15, 0.15}}
+	return palette[clamp(level, 0, len(palette) - 1)]
+}

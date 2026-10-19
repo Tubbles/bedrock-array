@@ -317,6 +317,8 @@ main :: proc() {
 			input.cycle_configuration = input.cycle_configuration || north_pressed || right_shoulder_pressed
 			input.previous_configuration = left_shoulder_pressed
 			input.focus_step += int(dpad_right_pressed) - int(dpad_left_pressed)
+			if rl.IsKeyPressed(.T) do view.lod.tint = !view.lod.tint
+			if rl.IsKeyPressed(.F) do view.lod.freeze = !view.lod.freeze
 			engine.scene_view_step(&view, input, delta_time)
 			draw_frame(&view)
 		}
