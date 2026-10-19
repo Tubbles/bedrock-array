@@ -81,13 +81,13 @@ lights = []
 
 @(test)
 test_scene_item_mesh_by_shape :: proc(t: ^testing.T) {
-	box, _ := scene_item_mesh(Scene_Item{shape = .Box, size = {1, 1, 1}}, nil)
+	box, _ := scene_item_mesh(Scene_Item{shape = .Box, size = {1, 1, 1}}, 0, nil)
 	defer mesh_data_destroy(&box)
 	testing.expect_value(t, len(box.vertices), 24)
-	cylinder, _ := scene_item_mesh(Scene_Item{shape = .Cylinder, radius = 0.5, height = 1, segments = 8}, nil)
+	cylinder, _ := scene_item_mesh(Scene_Item{shape = .Cylinder, radius = 0.5, height = 1, segments = 8}, 0, nil)
 	defer mesh_data_destroy(&cylinder)
 	testing.expect_value(t, len(cylinder.vertices), 36)
-	room, _ := scene_item_mesh(Scene_Item{shape = .Room, size = {1, 1, 1}}, nil)
+	room, _ := scene_item_mesh(Scene_Item{shape = .Room, size = {1, 1, 1}}, 0, nil)
 	defer mesh_data_destroy(&room)
 	testing.expect_value(t, len(room.vertices), 24)
 }
@@ -232,7 +232,8 @@ items = [
 	testing.expect_value(t, len(scene.items), 2)
 	if len(scene.items) == 2 {
 		testing.expect_value(t, scene.items[0].shape, Scene_Shape.Mesh)
-		testing.expect_value(t, scene.items[0].file, "part.mesh")
+		testing.expect_value(t, len(scene.items[0].files), 1)
+		if len(scene.items[0].files) == 1 do testing.expect_value(t, scene.items[0].files[0], "part.mesh")
 		testing.expect_value(t, scene.items[0].scale, 2)
 		testing.expect_value(t, scene.items[1].scale, 1)
 	}
@@ -252,7 +253,7 @@ items = [
 `
 	scene, problem := parse_scene(transmute([]byte)text, library)
 	defer scene_destroy(&scene)
-	testing.expectf(t, strings.contains(problem, "item 0: file missing"), "problem: %q", problem)
+	testing.expectf(t, strings.contains(problem, "item 0: file or files missing"), "problem: %q", problem)
 	testing.expect_value(t, len(scene.items), 0)
 }
 
@@ -282,4 +283,54 @@ items = [
 	defer scene_destroy(&rejected)
 	testing.expectf(t, strings.contains(rejected_problem, "label 0: text missing"), "problem: %q", rejected_problem)
 	testing.expect_value(t, len(rejected.labels), 0)
+}
+
+@(test)
+test_parse_scene_reads_configurations_and_files :: proc(t: ^testing.T) {
+	library, _ := parse_material_library(transmute([]byte)string(TEST_LIBRARY_TEXT))
+	defer material_library_destroy(&library)
+	text := `
+configurations = ["a", "b"]
+camera = { target = [0, 0.5, 0], yaw = 0.6, pitch = 0.5, distance = 5 }
+sun = { direction = [0.4, -1, -0.3], colour = [1, 0.96, 0.9], intensity = 1 }
+exposure = 1
+items = [
+	{ shape = "mesh", files = ["x.mesh", "y.mesh"], position = [0, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", file = "z.mesh", position = [2, 0, 0], material = "painted_steel" }
+]
+`
+	scene, problem := parse_scene(transmute([]byte)text, library)
+	defer scene_destroy(&scene)
+	testing.expect_value(t, problem, "")
+	testing.expect_value(t, scene_configuration_count(scene), 2)
+	if len(scene.configurations) == 2 {
+		testing.expect_value(t, scene.configurations[0], "a")
+		testing.expect_value(t, scene.configurations[1], "b")
+	}
+	testing.expect_value(t, len(scene.items), 2)
+	if len(scene.items) == 2 {
+		testing.expect_value(t, scene_item_file(scene.items[0], 0), "x.mesh")
+		testing.expect_value(t, scene_item_file(scene.items[0], 1), "y.mesh")
+		testing.expect_value(t, scene_item_file(scene.items[1], 0), "z.mesh")
+		testing.expect_value(t, scene_item_file(scene.items[1], 1), "z.mesh")
+	}
+}
+
+@(test)
+test_parse_scene_rejects_files_of_the_wrong_count :: proc(t: ^testing.T) {
+	library, _ := parse_material_library(transmute([]byte)string(TEST_LIBRARY_TEXT))
+	defer material_library_destroy(&library)
+	text := `
+configurations = ["a", "b"]
+camera = { target = [0, 0.5, 0], yaw = 0.6, pitch = 0.5, distance = 5 }
+sun = { direction = [0.4, -1, -0.3], colour = [1, 0.96, 0.9], intensity = 1 }
+exposure = 1
+items = [
+	{ shape = "mesh", files = ["x.mesh", "y.mesh", "w.mesh"], position = [0, 0, 0], material = "painted_steel" }
+]
+`
+	scene, problem := parse_scene(transmute([]byte)text, library)
+	defer scene_destroy(&scene)
+	testing.expectf(t, strings.contains(problem, "item 0: files has 3 entries, the scene has 2 configurations"), "problem: %q", problem)
+	testing.expect_value(t, len(scene.items), 0)
 }

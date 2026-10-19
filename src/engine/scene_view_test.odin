@@ -28,3 +28,24 @@ test_scene_view_label_screen :: proc(t: ^testing.T) {
 	_, out_of_range := scene_view_label_screen(&view, 1, {800, 600})
 	testing.expect(t, !out_of_range)
 }
+
+@(test)
+test_scene_view_cycle_configuration :: proc(t: ^testing.T) {
+	view: Scene_View
+	view.scene.configurations = []string{"none", "fill", "smart"}
+	testing.expect_value(t, scene_view_configuration_count(&view), 3)
+	testing.expect_value(t, scene_view_configuration_name(&view), "none")
+	expected := [?]string{"fill", "smart", "none"}
+	for name, index in expected {
+		scene_view_step(&view, {cycle_configuration = true}, 0)
+		testing.expect_value(t, view.configuration, (index + 1) % 3)
+		testing.expect_value(t, scene_view_configuration_name(&view), name)
+	}
+	scene_view_step(&view, {}, 0)
+	testing.expect_value(t, view.configuration, 0)
+	plain: Scene_View
+	scene_view_step(&plain, {cycle_configuration = true}, 0)
+	testing.expect_value(t, plain.configuration, 0)
+	testing.expect_value(t, scene_view_configuration_count(&plain), 1)
+	testing.expect_value(t, scene_view_configuration_name(&plain), "")
+}
