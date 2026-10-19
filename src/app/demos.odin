@@ -46,6 +46,12 @@ DEMOS := [?]Demo {
 		meshes = decimation_meshes,
 	},
 	{
+		name = "parts",
+		description = #load("../demos/parts/description.txt", string),
+		scene = #load("../../data/demos/parts/scene.sjson"),
+		meshes = #load_directory("../../data/demos/parts/meshes"),
+	},
+	{
 		name = "lod",
 		description = #load("../../data/demos/lod/description.txt", string),
 		scene = #load("../../data/demos/lod/scene.sjson"),
