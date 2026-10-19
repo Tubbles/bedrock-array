@@ -4,11 +4,15 @@
 
 A .ply input goes through Blender's PLY importer with Y up, the glTF axes reconstruct.py keeps, anything else through the glTF importer.
 Every mesh part gets a collapse decimate at the one ratio that brings the whole model to the budget, so a part keeps its share of the triangles. Prints the triangle count before and after.
+The parts are then shaded smooth by angle: an edge sharper than SMOOTH_ANGLE_DEGREES keeps split normals, the rest share their vertices, so the export is not one vertex triple per triangle as a flat shaded mesh would be.
 """
 import argparse
+import math
 import sys
 
 import bpy
+
+SMOOTH_ANGLE_DEGREES = 30
 
 
 def parse_arguments():
@@ -50,6 +54,14 @@ def decimate(part, ratio):
     bpy.ops.object.modifier_apply(modifier=modifier.name)
 
 
+def shade_smooth(parts):
+    bpy.ops.object.select_all(action="DESELECT")
+    for part in parts:
+        part.select_set(True)
+    bpy.context.view_layer.objects.active = parts[0]
+    bpy.ops.object.shade_smooth_by_angle(angle=math.radians(SMOOTH_ANGLE_DEGREES))
+
+
 def main():
     arguments = parse_arguments()
     reset_scene()
@@ -60,6 +72,7 @@ def main():
     for part in parts:
         decimate(part, ratio)
     after = triangle_count(parts)
+    shade_smooth(parts)
     print(f"decimated {len(parts)} parts from {before} to {after} triangles at ratio {ratio:.5f}")
     bpy.ops.export_scene.gltf(filepath=arguments.glb_out, export_format="GLB", export_apply=True)
 
