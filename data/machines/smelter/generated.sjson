@@ -1,0 +1,14 @@
+// How the smelter's generated model maps onto its brief (doc/workflows/models.md, the finish step), read by tools/models/parts.py.
+// front: the generated model's axis that becomes the brief's +z. margin: metres a vertex may lie outside a blockout box and still count. overrides: generated part name to brief part name.
+source = "work/models/smelter/model_7.glb"
+front = "+x"
+margin = 0.06
+// The six louvre slats sit on both sides behind the brief's one blockout, so the boxes give them to the body.
+overrides = {
+	tripo_part_8 = "louvre"
+	tripo_part_10 = "louvre"
+	tripo_part_11 = "louvre"
+	tripo_part_12 = "louvre"
+	tripo_part_15 = "louvre"
+	tripo_part_16 = "louvre"
+}
