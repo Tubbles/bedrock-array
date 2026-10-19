@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Generate a machine's untextured, segmented model through Tripo (doc/workflows/models.md).
 
-    tools/models/generate.py <id> [--seed 7] [--dry-run]
+    tools/models/generate.py <id> [--seed 7] [--face-limit <n>] [--smart-low-poly] [--dry-run]
 
 Uploads the four kept views data/art/<id>/turnaround/{front,left,back,right}.png, sends them to Tripo's
-multiview to model endpoint, polls the task and downloads the GLB to work/models/<id>/model_<seed>.glb,
-with model_<seed>.txt beside it recording the task id, the seed, the model version, the views, the credits
-spent and the date. The key is ~/.config/tripo/key, never printed. --dry-run prints the views, the request
-body and the output path and makes no request.
+multiview to model endpoint, polls the task and downloads the GLB to work/models/<id>/<stem>.glb, with
+<stem>.txt beside it recording the task id, the seed, the model version, the face limit, the low poly flag,
+the views, the credits spent and the date. The stem is model_<seed>, plus _faces<n> with --face-limit and
+_smart with --smart-low-poly. The key is ~/.config/tripo/key, never printed. --dry-run prints the views,
+the request body and the output path and makes no request.
 """
 import argparse
 import datetime
@@ -82,12 +83,23 @@ def upload(path, key):
     return data["file_token"]
 
 
-def submit_body(tokens, seed):
-    return {"inputs": tokens, "model": MODEL_VERSION, "texture": False, "pbr": False, "generate_parts": True, "model_seed": seed}
+def submit_body(tokens, seed, face_limit, smart_low_poly):
+    body = {"inputs": tokens, "model": MODEL_VERSION, "texture": False, "pbr": False, "generate_parts": True, "model_seed": seed}
+    if face_limit is not None:
+        body["face_limit"] = face_limit
+    if smart_low_poly:
+        body["smart_low_poly"] = True
+    return body
 
 
-def submit(tokens, seed, key):
-    body = json.dumps(submit_body(tokens, seed)).encode()
+def output_stem(seed, face_limit, smart_low_poly):
+    faces = f"_faces{face_limit}" if face_limit is not None else ""
+    smart = "_smart" if smart_low_poly else ""
+    return f"model_{seed}{faces}{smart}"
+
+
+def submit(tokens, seed, face_limit, smart_low_poly, key):
+    body = json.dumps(submit_body(tokens, seed, face_limit, smart_low_poly)).encode()
     return request("/v3/generation/multiview-to-model", key, body, "application/json")["task_id"]
 
 
@@ -121,8 +133,10 @@ def download(url, path):
         open(path, "wb").write(response.read())
 
 
-def sidecar_text(task_id, seed, paths, spent):
-    lines = [f"task_id: {task_id}", f"seed: {seed}", f"model: {MODEL_VERSION}", f"views: {', '.join(map(relative, paths))}",
+def sidecar_text(task_id, seed, face_limit, smart_low_poly, paths, spent):
+    face_limit_text = "none" if face_limit is None else face_limit
+    lines = [f"task_id: {task_id}", f"seed: {seed}", f"model: {MODEL_VERSION}", f"face_limit: {face_limit_text}",
+             f"smart_low_poly: {'true' if smart_low_poly else 'false'}", f"views: {', '.join(map(relative, paths))}",
              f"credits: {spent}", f"date: {datetime.date.today().isoformat()}"]
     return "\n".join(lines) + "\n"
 
@@ -131,21 +145,25 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("id")
     parser.add_argument("--seed", type=int, default=7)
+    parser.add_argument("--face-limit", type=int, default=None)
+    parser.add_argument("--smart-low-poly", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     arguments = parser.parse_args()
     paths = views(arguments.id)
-    output = os.path.join(ROOT, "work", "models", arguments.id, f"model_{arguments.seed}.glb")
+    stem = output_stem(arguments.seed, arguments.face_limit, arguments.smart_low_poly)
+    output = os.path.join(ROOT, "work", "models", arguments.id, f"{stem}.glb")
     if arguments.dry_run:
-        print("\n".join(map(relative, paths)), json.dumps(submit_body(["<file_token>"] * len(paths), arguments.seed), indent=2), relative(output), sep="\n")
+        body = submit_body(["<file_token>"] * len(paths), arguments.seed, arguments.face_limit, arguments.smart_low_poly)
+        print("\n".join(map(relative, paths)), json.dumps(body, indent=2), relative(output), sep="\n")
         return
     key = read_key()
     before = balance(key)
     tokens = [upload(path, key) for path in paths]
-    task_id = submit(tokens, arguments.seed, key)
+    task_id = submit(tokens, arguments.seed, arguments.face_limit, arguments.smart_low_poly, key)
     print(f"task {task_id}")
     download(model_url(wait(task_id, key)), output)
     spent = before - balance(key)
-    open(output[:-len(".glb")] + ".txt", "w").write(sidecar_text(task_id, arguments.seed, paths, spent))
+    open(output[:-len(".glb")] + ".txt", "w").write(sidecar_text(task_id, arguments.seed, arguments.face_limit, arguments.smart_low_poly, paths, spent))
     print(f"{relative(output)}, {spent} credits")
 
 
