@@ -3,7 +3,7 @@
 source = "work/models/smelter/model_7.glb"
 front = "+x"
 margin = 0.06
-// The six louvre slats sit on both sides behind the brief's one blockout, so the boxes give them to the body.
+// The six louvre slats sit on both sides behind the brief's one blockout, so the boxes give them to the body. The ten studs and bolts are the copper fittings (user, 2026-10-19), their boxes too small to win against the body's.
 overrides = {
 	tripo_part_8 = "louvre"
 	tripo_part_10 = "louvre"
@@ -11,4 +11,14 @@ overrides = {
 	tripo_part_12 = "louvre"
 	tripo_part_15 = "louvre"
 	tripo_part_16 = "louvre"
+	tripo_part_19 = "fittings"
+	tripo_part_20 = "fittings"
+	tripo_part_21 = "fittings"
+	tripo_part_22 = "fittings"
+	tripo_part_23 = "fittings"
+	tripo_part_24 = "fittings"
+	tripo_part_25 = "fittings"
+	tripo_part_26 = "fittings"
+	tripo_part_27 = "fittings"
+	tripo_part_28 = "fittings"
 }

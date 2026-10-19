@@ -1,4 +1,4 @@
-// The parts demo: the smelter's full generated model split into its brief's parts by tools/models/parts.py (data/machines/smelter/generated.sjson), each part in the material the brief names, orbited. The sill has no blob, the generator merged it into the hearth frame, and the small studs and bolts sit in the body and the skirt.
+// The parts demo: the smelter's full generated model split into its brief's parts by tools/models/parts.py (data/machines/smelter/generated.sjson), each part in the material the brief names, orbited. The sill has no blob, the generator merged it into the hearth frame.
 camera = { mode = "orbit", target = [0, 0.5, 0], yaw = 0.5, pitch = 0.3, distance = 2.5 }
 sun = { direction = [0.4, -1, -0.3], colour = [1, 0.96, 0.9], intensity = 1 }
 exposure = 1
@@ -12,4 +12,5 @@ items = [
 	{ shape = "mesh", file = "hearth.mesh", scale = 1, position = [0, 0, 0], material = "furnace_glow" }
 	{ shape = "mesh", file = "vents.mesh", scale = 1, position = [0, 0, 0], material = "bare_alloy" }
 	{ shape = "mesh", file = "louvre.mesh", scale = 1, position = [0, 0, 0], material = "bare_alloy" }
+	{ shape = "mesh", file = "fittings.mesh", scale = 1, position = [0, 0, 0], material = "copper" }
 ]
