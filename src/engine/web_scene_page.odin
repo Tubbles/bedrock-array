@@ -7,6 +7,8 @@ import gl "vendor:wasm/WebGL"
 
 SCENE_PAGE_DRAG_RADIANS_PER_PIXEL :: f32(0.005)
 SCENE_PAGE_PINCH_METRES_PER_PIXEL :: f32(0.02)
+SCENE_PAGE_PINCH_ZOOM_PER_PIXEL :: f32(0.005)
+SCENE_PAGE_WHEEL_ZOOM_PER_PIXEL :: f32(0.001)
 SCENE_PAGE_STICK_DEAD_ZONE :: f32(0.15)
 SCENE_PAGE_STICK_TURN_RADIANS_PER_SECOND :: f32(2)
 
@@ -30,10 +32,16 @@ Scene_Page :: struct {
 	turn_pending:                [2]f32,
 	// Two fingers' move in metres in the fly's frame since the last step.
 	move_pending:                [3]f32,
-	// A press of the C key or the pad's North button since the last step.
+	// The wheel's and two fingers' zoom since the last step, applied in orbit mode.
+	zoom_pending:                f32,
+	// A press of the C key, the pad's North button or right shoulder since the last step.
 	cycle_pending:               bool,
+	// A press of the pad's left shoulder since the last step.
+	previous_pending:            bool,
 	// North was down on the last step, so a held button cycles once.
 	north_held:                  bool,
+	// The left and right shoulders were down on the last step.
+	shoulders_held:              [2]bool,
 	ready:                       bool,
 }
 
@@ -65,12 +73,16 @@ scene_page_step :: proc(page: ^Scene_Page, delta_time: f32) {
 		walk = scene_page_walk(page.keys_held),
 		turn = page.turn_pending,
 		move = page.move_pending,
+		zoom = page.zoom_pending,
 	}
 	page.turn_pending = {}
 	page.move_pending = {}
+	page.zoom_pending = 0
 	scene_page_gamepad(page, &input, min(delta_time, SCENE_VIEW_STEP_LIMIT))
 	input.cycle_configuration = page.cycle_pending
+	input.previous_configuration = page.previous_pending
 	page.cycle_pending = false
+	page.previous_pending = false
 	scene_view_step(&page.view, input, delta_time)
 	scene_view_draw(&page.view, page.canvas_width, page.canvas_height)
 }
@@ -162,6 +174,14 @@ cycle_configuration :: proc "contextless" () {
 	scene_view_step(&registered_page.view, {cycle_configuration = true}, 0)
 }
 
+// Steps back at once, as cycle_configuration.
+@(export)
+previous_configuration :: proc "contextless" () {
+	if registered_page == nil || !registered_page.ready do return
+	context = runtime.default_context()
+	scene_view_step(&registered_page.view, {previous_configuration = true}, 0)
+}
+
 // Held keys walk the fly; opposite keys cancel.
 @(private = "file")
 scene_page_walk :: proc(keys: bit_set[Scene_Page_Key]) -> [3]f32 {
@@ -172,7 +192,7 @@ scene_page_walk :: proc(keys: bit_set[Scene_Page_Key]) -> [3]f32 {
 	}
 }
 
-// The standard mapping: the left stick walks, the right stick turns, the d-pad moves up and down.
+// The standard mapping: the left stick walks, the right stick turns, the d-pad moves up and down, North and the right shoulder cycle the configuration and the left shoulder steps it back.
 @(private = "file")
 scene_page_gamepad :: proc(page: ^Scene_Page, input: ^Scene_Input, delta_time: f32) {
 	state: js.Gamepad_State
@@ -185,6 +205,10 @@ scene_page_gamepad :: proc(page: ^Scene_Page, input: ^Scene_Input, delta_time: f
 	north := state.buttons[3].pressed
 	if north && !page.north_held do page.cycle_pending = true
 	page.north_held = north
+	shoulders := [2]bool{state.buttons[4].pressed, state.buttons[5].pressed}
+	if shoulders[0] && !page.shoulders_held[0] do page.previous_pending = true
+	if shoulders[1] && !page.shoulders_held[1] do page.cycle_pending = true
+	page.shoulders_held = shoulders
 }
 
 @(private = "file")
@@ -200,6 +224,7 @@ scene_page_listen :: proc(page: ^Scene_Page) {
 	js.add_event_listener(page.canvas_id, .Pointer_Up, page, on_scene_page_pointer_up)
 	js.add_event_listener(page.canvas_id, .Pointer_Cancel, page, on_scene_page_pointer_up)
 	js.add_event_listener(page.canvas_id, .Pointer_Leave, page, on_scene_page_pointer_up)
+	js.add_event_listener(page.canvas_id, .Wheel, page, on_scene_page_wheel)
 }
 
 @(private = "file")
@@ -295,7 +320,7 @@ on_scene_page_pointer_down :: proc(event: js.Event) {
 	scene_page_add_pointer(page, event.data.mouse.pointer.pointer_id, scene_page_pointer_client(event))
 }
 
-// A lone pointer turns the fly, a finger dragging the scene and the mouse the view; two fingers move it by touch_pair_move and turn nothing. Any pointer counts, not only the primary, so the finger left of a pair turns. A mouse joins on its first move over the canvas, a finger on its down.
+// A lone pointer turns the fly, a finger dragging the scene and the mouse the view; two fingers move it by touch_pair_move and turn nothing. In orbit mode the mouse turns only while a button is down, a finger turns by its plain movement since it grabs the model, and two fingers zoom by their spread. Any pointer counts, not only the primary, so the finger left of a pair turns. A mouse joins on its first move over the canvas, a finger on its down.
 @(private = "file")
 on_scene_page_pointer_move :: proc(event: js.Event) {
 	page := (^Scene_Page)(event.user_data)
@@ -311,9 +336,18 @@ on_scene_page_pointer_move :: proc(event: js.Event) {
 	previous := [2][2]f32{page.active_pointers[0].client, page.active_pointers[1].client}
 	movement := client - page.active_pointers[slot].client
 	page.active_pointers[slot].client = client
+	orbit := page.view.scene.camera_mode == .Orbit
 	if page.active_pointer_count == 2 {
 		current := [2][2]f32{page.active_pointers[0].client, page.active_pointers[1].client}
-		page.move_pending += touch_pair_move(previous, current, SCENE_PAGE_PINCH_METRES_PER_PIXEL)
+		if orbit {
+			page.zoom_pending += touch_pair_spread(previous, current) * SCENE_PAGE_PINCH_ZOOM_PER_PIXEL
+		} else {
+			page.move_pending += touch_pair_move(previous, current, SCENE_PAGE_PINCH_METRES_PER_PIXEL)
+		}
+		return
+	}
+	if orbit {
+		if pointer.pointer_type != .Mouse || event.data.mouse.buttons != {} do page.turn_pending += movement * SCENE_PAGE_DRAG_RADIANS_PER_PIXEL
 		return
 	}
 	if pointer.pointer_type == .Mouse {
@@ -321,6 +355,15 @@ on_scene_page_pointer_move :: proc(event: js.Event) {
 	} else {
 		page.turn_pending += touch_turn(movement, SCENE_PAGE_DRAG_RADIANS_PER_PIXEL)
 	}
+}
+
+// Zooms in either mode, fly ignores it. Scrolling up closes in.
+@(private = "file")
+on_scene_page_wheel :: proc(event: js.Event) {
+	page := (^Scene_Page)(event.user_data)
+	// Firefox counts a notch in lines, the others in pixels; a line is taken as 40 pixels, a page as 800.
+	pixels_per_unit := [js.Delta_Mode]f32{.Pixel = 1, .Line = 40, .Page = 800}
+	page.zoom_pending += -f32(event.data.wheel.delta.y) * pixels_per_unit[event.data.wheel.delta_mode] * SCENE_PAGE_WHEEL_ZOOM_PER_PIXEL
 }
 
 @(private = "file")

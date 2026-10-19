@@ -1,7 +1,8 @@
 // Runs the demo and keeps one plaque per scene label over its projected
 // point, and on a scene that names more than one configuration a button
-// showing the current one that cycles it. The Odin runtime has no DOM
-// writer, so the plaques and the button live here.
+// showing the current one that cycles it, between a button stepping back
+// and one stepping forward. The Odin runtime has no DOM writer, so the
+// plaques and the buttons live here.
 (function () {
 	const memory = new odin.WasmMemoryInterface();
 	const plaques = [];
@@ -33,17 +34,28 @@
 		if (button.textContent !== name) button.textContent = name;
 	}
 
-	function createButton(exports) {
-		if (exports.configuration_count() <= 1) return;
-		button = document.createElement("button");
-		button.className = "configuration";
-		button.addEventListener("click", function () {
-			exports.cycle_configuration();
+	function stepButton(exports, text, step) {
+		const stepper = document.createElement("button");
+		stepper.className = "configuration";
+		stepper.textContent = text;
+		stepper.addEventListener("click", function () {
+			step();
 			refreshButton(exports);
 			// A focused button would also take Space, the rise key.
-			button.blur();
+			stepper.blur();
 		});
-		document.body.appendChild(button);
+		return stepper;
+	}
+
+	function createButton(exports) {
+		if (exports.configuration_count() <= 1) return;
+		const row = document.createElement("div");
+		row.className = "configurations";
+		row.appendChild(stepButton(exports, "\u25c0", exports.previous_configuration));
+		button = stepButton(exports, "", exports.cycle_configuration);
+		row.appendChild(button);
+		row.appendChild(stepButton(exports, "\u25b6", exports.cycle_configuration));
+		document.body.appendChild(row);
 	}
 
 	function frame() {

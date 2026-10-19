@@ -29,3 +29,10 @@ test_touch_pair_move_drag_moves_with_the_scene :: proc(t: ^testing.T) {
 	testing.expect(t, move.y > 0)
 	testing.expect(t, math.abs(move.z) < 1e-5)
 }
+
+@(test)
+test_touch_pair_spread :: proc(t: ^testing.T) {
+	testing.expect(t, math.abs(touch_pair_spread({{50, 0}, {150, 0}}, {{0, 0}, {200, 0}}) - 100) < 1e-5)
+	testing.expect(t, math.abs(touch_pair_spread({{0, 0}, {200, 0}}, {{50, 0}, {150, 0}}) + 100) < 1e-5)
+	testing.expect(t, math.abs(touch_pair_spread({{0, 0}, {100, 0}}, {{50, 50}, {150, 50}})) < 1e-5)
+}
