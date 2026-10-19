@@ -169,10 +169,6 @@ gl_renderer_init :: proc(renderer: ^Gl_Renderer) -> bool {
 	// Needed once before an RGBA16F colour attachment renders.
 	gl.GetExtension("EXT_color_buffer_float")
 	renderer.fullscreen_vertex_array = gl.CreateVertexArray()
-	gl.Enable(gl.DEPTH_TEST)
-	gl.Enable(gl.CULL_FACE)
-	gl.FrontFace(gl.CCW)
-	gl.DepthFunc(gl.LEQUAL)
 	return true
 }
 
@@ -364,6 +360,13 @@ gl_renderer_draw :: proc(renderer: ^Gl_Renderer, list: Draw_List, library: Mater
 		level_width, level_height = max(level_width / 2, 1), max(level_height / 2, 1)
 		gl_renderer_target_ensure(&level, level_width, level_height, false, true)
 	}
+	// The forward pass's state, set every frame: a host such as raylib draws
+	// its own between frames.
+	gl.Enable(gl.DEPTH_TEST)
+	gl.DepthFunc(gl.LEQUAL)
+	gl.Enable(gl.CULL_FACE)
+	gl.FrontFace(gl.CCW)
+	gl.Disable(gl.BLEND)
 	gl.BindFramebuffer(gl.FRAMEBUFFER, renderer.target.framebuffer)
 	gl.Viewport(0, 0, width, height)
 	// Linear, so it passes the tone map: it displays close to (0.05, 0.06, 0.08).
@@ -409,7 +412,6 @@ gl_renderer_draw :: proc(renderer: ^Gl_Renderer, list: Draw_List, library: Mater
 	gl.Disable(gl.DEPTH_TEST)
 	gl_renderer_bloom_passes(renderer)
 	gl_renderer_tonemap_pass(renderer, list.exposure, width, height)
-	gl.Enable(gl.DEPTH_TEST)
 }
 
 // Binds the material's texture set to the units 0 to 2, or tells the shader it has none.

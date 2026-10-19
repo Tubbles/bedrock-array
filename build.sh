@@ -7,7 +7,8 @@
 #                        every src/engine/shaders/ file with glslangValidator,
 #                        as it is and with "#version 330 core" for its version line
 #   ./build.sh test      odin test src/engine -all-packages -vet -strict-style,
-#                        so the tests of the packages under src/engine/ run too
+#                        so the tests of the packages under src/engine/ run too,
+#                        then odin test src/app with the app's flags
 #   ./build.sh web <demo>
 #                        builds src/demos/<demo> to build/web/<demo>/ with
 #                        odin.js and the page shell from web/
@@ -123,10 +124,21 @@ build_app() {
 }
 
 # Three frames under a virtual X server, so a link or window problem
-# shows without opening a window.
+# shows without opening a window. The debug build's GL binding drains
+# every error right after the call that raised it and prints it, so the
+# app's own check never sees one there: the run fails on the printed line.
 smoke_app() {
 	build_app -debug
-	xvfb-run -a -s "-screen 0 1280x720x24" env XDG_SESSION_TYPE=x11 "$app_output" --frames 3
+	local output status=0
+	output="$(xvfb-run -a -s "-screen 0 1280x720x24" env XDG_SESSION_TYPE=x11 "$app_output" --frames 3 2>&1)" || status=$?
+	printf '%s\n' "$output"
+	if [ "$status" -ne 0 ]; then
+		return "$status"
+	fi
+	if printf '%s\n' "$output" | grep -q "glGetError() returned"; then
+		echo "smoke: the run raised GL errors" >&2
+		return 1
+	fi
 }
 
 build_web() {
@@ -152,7 +164,11 @@ case "$mode" in
 		check_demos
 		validate_shaders
 		;;
-	test) "$odin" test src/engine -all-packages -vet -strict-style -define:BUILD_INFO="$build_info" ;;
+	test)
+		"$odin" test src/engine -all-packages -vet -strict-style -define:BUILD_INFO="$build_info"
+		create_linker_shims
+		"$odin" test src/app "$collection" -vet -strict-style -define:BUILD_INFO="$build_info" -extra-linker-flags:"-L$shim_directory"
+		;;
 	web)
 		ensure_wasm_linker
 		build_web "${2:-}"

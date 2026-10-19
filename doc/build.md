@@ -11,11 +11,11 @@ Odin at `~/opt/odin` (the dev-2026-09 nightly). The environment variable `ODIN` 
 | Command | Runs |
 | --- | --- |
 | `./build.sh check` (the default) | `odin check src/engine -no-entry-point -vet -strict-style` with the build stamp define (the engine is a library package without `main`), the same check of the engine again for `-target:js_wasm32` so it compiles for both targets (test files carry `#+build !js`, since `core:testing` does not compile for the browser), then `odin check src/app -collection:shared=shared -vet -strict-style` with the build stamp define, then `odin check` of every `src/demos/*/` for `-target:js_wasm32`, then every shader under `src/engine/shaders/` is validated with `glslangValidator`, as it is and once more as a temporary copy whose first line is `#version 330 core`, the desktop profile the native build swaps in |
-| `./build.sh test` | `odin test src/engine -all-packages -vet -strict-style` with the build stamp define, so the tests of the packages under `src/engine/` run too |
+| `./build.sh test` | `odin test src/engine -all-packages -vet -strict-style` with the build stamp define, so the tests of the packages under `src/engine/` run too, then `odin test src/app -vet -strict-style` with the collection, the linker shims and the build stamp define |
 | `./build.sh web <demo>` | builds `src/demos/<demo>` for the browser, see [The web build](#the-web-build) |
 | `./build.sh debug` | builds `src/app` to `build/bedrock-array` with `-debug`, see [The native build](#the-native-build) |
 | `./build.sh release` | the same build with `-o:speed` |
-| `./build.sh smoke` | the debug build, then three frames of it under `xvfb-run` |
+| `./build.sh smoke` | the debug build, then three frames of it under `xvfb-run`, failing on a printed `glGetError() returned` line |
 
 Any other argument prints the usage to stderr and exits with status 2.
 
@@ -33,9 +33,9 @@ The engine and the native commands pass `-define:BUILD_INFO="<commit> <UTC time>
 
 `./build.sh debug` and `./build.sh release` run `odin build src/app -out:build/bedrock-array -collection:shared=shared -vet -strict-style` with the build stamp define and `-debug` or `-o:speed`. raylib 6.0 comes from the `shared:raylib` collection, a copy of the toolchain's binding with an archive built from source ([shared/raylib/README.md](../shared/raylib/README.md) holds the why and the build record). The archive links X11, and Bazzite ships `libX11.so.6` and `libSDL3.so.0` without the unversioned development links the linker looks for, so the build creates `tmp/linker-shims/libX11.so` and `libSDL3.so` as symlinks to them and passes `-extra-linker-flags` pointing the linker at `tmp/linker-shims`.
 
-The binary takes `--frames <n>`, which stops after n frames (0, the default, runs until the window closes), and `--windowed`, which keeps the 1280 by 720 window instead of going borderless over the monitor. Any other argument prints the usage and exits with status 2. When the window does not open it exits with status 1 and a line on stderr. After the window opens it prints the GL vendor, renderer and version, read through GLFW's `glfwGetProcAddress` so it links no libGL.
+The binary shows one scene demo first person, the scenes and their data embedded by `src/app/demos.odin`, with the mouse and the keys of the pages ([render.md](render.md), Scene files), and Escape quits. It takes `--demo <name>`, one of `light`, `surface`, `cave` and `models` (the default), `--frames <n>`, which stops after n frames (0, the default, runs until the window closes or Escape), and `--windowed`, which keeps the 1280 by 720 window and the cursor instead of going borderless over the monitor with the cursor captured. Any other argument or an unknown demo prints the usage and exits with status 2. When the window does not open or the scene does not load it exits with status 1 and a line on stderr. After the window opens it loads OpenGL 3.3 through GLFW's `glfwGetProcAddress`, so it links no libGL, and prints the GL vendor, renderer and version. After the first frame it reads `glGetError` once and on an error prints `gl error 0x...` on stderr and exits with status 1.
 
-`./build.sh smoke` runs the debug build as `xvfb-run -a -s "-screen 0 1280x720x24" env XDG_SESSION_TYPE=x11 build/bedrock-array --frames 3`, so a link or window problem shows in a headless session and not on the couch.
+`./build.sh smoke` runs the debug build as `xvfb-run -a -s "-screen 0 1280x720x24" env XDG_SESSION_TYPE=x11 build/bedrock-array --frames 3`, so a link or window problem shows in a headless session and not on the couch. The run fails on a printed `glGetError() returned` line: the debug build's GL binding drains every error right after the call that raised it and prints it, so the app's own one shot check only sees errors in the release build.
 
 ## Writing a demo
 
