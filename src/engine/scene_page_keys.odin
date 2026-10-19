@@ -10,7 +10,6 @@ Scene_Page_Key :: enum {
 	Down,
 }
 
-// Shift beside Control: the browser owns Control with W, S, D and A, so Control cannot be held while walking.
 scene_page_key_from_code :: proc(code: string) -> (Scene_Page_Key, bool) {
 	switch code {
 	case "KeyW", "ArrowUp":
@@ -23,7 +22,7 @@ scene_page_key_from_code :: proc(code: string) -> (Scene_Page_Key, bool) {
 		return .Right, true
 	case "KeyE", "Space":
 		return .Up, true
-	case "KeyQ", "ControlLeft", "ControlRight", "ShiftLeft", "ShiftRight":
+	case "KeyQ", "ShiftLeft", "ShiftRight":
 		return .Down, true
 	}
 	return .Forward, false

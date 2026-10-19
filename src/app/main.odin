@@ -116,7 +116,7 @@ keyboard_walk :: proc(side_arrows_walk: bool) -> [3]f32 {
 	left := any_key_down({.A}) || (side_arrows_walk && rl.IsKeyDown(.LEFT))
 	right := any_key_down({.D}) || (side_arrows_walk && rl.IsKeyDown(.RIGHT))
 	up := any_key_down({.E, .SPACE})
-	down := any_key_down({.Q, .LEFT_SHIFT, .RIGHT_SHIFT, .LEFT_CONTROL, .RIGHT_CONTROL})
+	down := any_key_down({.Q, .LEFT_SHIFT, .RIGHT_SHIFT})
 	return {key_axis(right, left), key_axis(up, down), key_axis(forward, back)}
 }
 
