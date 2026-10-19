@@ -6,7 +6,7 @@ The third asset workflow (definition.md, lesson 3, pipeline 5): how a machine's 
 
 The accepted turnaround (front, left, back, right) goes to Tripo's multiview to model API (`v3.1-20260211`) with `generate_parts = true`, `texture = false`, `pbr = false` and a fixed `model_seed`, which returns segmented, untextured geometry: the model carries no baked look, as DESIGN.md's consistency rule wants, so nothing has to be stripped. A headless Blender script then does what no generator does: the scale, the part mapping to the brief, the cleanup, the UVs, the masks, the cue pivots and sockets, the export. A segmentation task (`/v3/mesh/segment` with the hero as the reference image) is the fallback when the parts come back wrong.
 
-What was not verified: no generator output of a squat drum machine was seen, and hard surface rankings come from vendor blogs. The smelter is the test. Soft edges send it to Tripo's retopology or to Meshy on the same turnaround. In the first set Tripo's reductions to about ten thousand triangles and Blender's collapse to that count were unacceptable beside the full model, only the smart low poly one somewhat acceptable, so the second set at 700000 and 24000 is on the models page.
+What was not verified: no generator output of a squat drum machine was seen, and hard surface rankings come from vendor blogs. The smelter is the test. Soft edges send it to Tripo's retopology or to Meshy on the same turnaround. In the first set Tripo's reductions to about ten thousand triangles and Blender's collapse to that count were unacceptable beside the full model, only the smart low poly one somewhat acceptable, and the second set at 700000 and 24000 stands with it on the models page, in two rows by mode.
 
 ## Files
 
