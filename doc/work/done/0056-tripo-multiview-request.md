@@ -1,0 +1,15 @@
+# 0056: The Tripo multiview request
+
+Status: landed (2026-10-19, 0b84949)
+
+Goal: step 1 of `doc/workflows/models.md`, the tool that sends the smelter's four kept elevations to Tripo's multiview to model endpoint and brings the untextured, segmented GLB back with its sidecar. The account exists (user, 2026-10-19), the key at `~/.config/tripo/key` answers the balance endpoint with 1000 credits.
+
+Verify:
+- `python3 tools/models/generate.py smelter --dry-run` prints the four view paths under `data/art/smelter/turnaround/`, the request body with `model`, `texture`, `pbr`, `generate_parts` and `model_seed`, and the output path `work/models/smelter/model_7.glb`, and makes no request.
+- `python3 tools/models/generate.py drill --dry-run` fails with a message naming the missing views.
+- The live run is the main agent's.
+
+## Specification
+
+- `tools/models/generate.py <id> [--seed 7] [--dry-run]`, stdlib and nothing else, in the style of `tools/art/generate.py` (its `read_key`, `request` and `fail` shapes; copy what fits, import nothing from it). The key is `~/.config/tripo/key` stripped, the base URL `https://openapi.tripo3d.ai`, every call with the header `Authorization: Bearer <key>`; a response is the JSON envelope `{"code": 0, "status": "success", "data": {...}}`, any other `code` or a `status` of `error` fails with the envelope's `message`; the procedure that unwraps it returns `data`. `views(machine)`: the four paths `data/art/<id>/turnaround/<view>.png` for `front`, `left`, `back`, `right`, in that order, every one required. `upload(path)`: `POST /v3/files` as multipart form data with one field `file` (the file name and `image/png`), returns `data["file_token"]`. `submit(tokens, seed)`: `POST /v3/generation/multiview-to-model` with the JSON body `{"inputs": tokens, "model": "v3.1-20260211", "texture": false, "pbr": false, "generate_parts": true, "model_seed": seed}`, returns `data["task_id"]`. `wait(task_id)`: `GET /v3/tasks/<task_id>` every 5 s, the interval doubling to at most 30 s, printing the `status` and `progress` when they change, until the status is one of `success`, `failed`, `cancelled`, `banned`, `expired`; anything but `success` fails with the task's `data`. `model_url(task)`: the first present of `output.model_url`, `output.model`, `output.pbr_model`. `balance()`: `GET /v3/account/balance`, `data["balance"]`. `main`: the balance before, the uploads, the submit, the wait, the download of the model URL to `work/models/<id>/model_<seed>.glb` (the directory made), the balance after, and the sidecar `work/models/<id>/model_<seed>.txt` with one `key: value` line each for the task id, the seed, the model version, the views, the credits spent (before minus after) and the date. `--dry-run` prints the views, the body and the output path and stops before the first request. The module docstring: the usage line and what the tool does, pointing to the workflow document.
+- `doc/workflows/models.md`: step 1 names the command with its flags, the inputs as the kept turnaround under `data/art/<id>/turnaround/`, and the sidecar's name; the first paragraph loses "Waits for the Tripo account (SUGGESTIONS.md)".
