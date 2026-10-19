@@ -32,10 +32,17 @@ Scene_Label :: struct {
 	position: [3]f32,
 }
 
+// How the scene view moves the camera: Fly starts at the camera orbit and walks, Orbit turns around its target.
+Scene_Camera_Mode :: enum {
+	Fly,
+	Orbit,
+}
+
 // configurations names the scene's variants, empty for one unnamed one.
 Scene :: struct {
 	configurations:            []string,
 	camera:                    Orbit,
+	camera_mode:               Scene_Camera_Mode,
 	fit_width:                 f32,
 	sun:                       Directional_Light,
 	exposure:                  f32,
@@ -72,7 +79,7 @@ parse_scene :: proc(data: []byte, library: Material_Library, allocator := contex
 		return {}, problem
 	}
 	defer delete(configurations, context.temp_allocator)
-	if scene.camera, scene.fit_width, problem = parse_scene_camera(fields); problem != "" {
+	if scene.camera, scene.fit_width, scene.camera_mode, problem = parse_scene_camera(fields); problem != "" {
 		return {}, problem
 	}
 	if scene.sun, problem = parse_scene_sun(fields); problem != "" {
@@ -267,32 +274,52 @@ scene_string_array_field :: proc(owner, key: string, fields: json.Object) -> (te
 }
 
 @(private = "file")
-parse_scene_camera :: proc(fields: json.Object) -> (camera: Orbit, fit_width: f32, problem: string) {
+parse_scene_camera :: proc(fields: json.Object) -> (camera: Orbit, fit_width: f32, mode: Scene_Camera_Mode, problem: string) {
 	camera_fields: json.Object
 	if camera_fields, problem = scene_object_field("scene", "camera", fields); problem != "" {
-		return {}, 0, problem
+		return {}, 0, .Fly, problem
 	}
-	if problem = scene_check_keys("camera", camera_fields, {"target", "yaw", "pitch", "distance", "fit_width"}); problem != "" {
-		return {}, 0, problem
+	if problem = scene_check_keys("camera", camera_fields, {"target", "yaw", "pitch", "distance", "fit_width", "mode"}); problem != "" {
+		return {}, 0, .Fly, problem
 	}
 	if camera.target, problem = scene_vector_field("camera", "target", camera_fields); problem != "" {
-		return {}, 0, problem
+		return {}, 0, .Fly, problem
 	}
 	if camera.yaw, problem = scene_number_field("camera", "yaw", camera_fields); problem != "" {
-		return {}, 0, problem
+		return {}, 0, .Fly, problem
 	}
 	if camera.pitch, problem = scene_number_field("camera", "pitch", camera_fields); problem != "" {
-		return {}, 0, problem
+		return {}, 0, .Fly, problem
 	}
 	if camera.distance, problem = scene_non_negative_field("camera", "distance", camera_fields); problem != "" {
-		return {}, 0, problem
+		return {}, 0, .Fly, problem
 	}
 	if "fit_width" in camera_fields {
 		if fit_width, problem = scene_non_negative_field("camera", "fit_width", camera_fields); problem != "" {
-			return {}, 0, problem
+			return {}, 0, .Fly, problem
 		}
 	}
-	return camera, fit_width, ""
+	if "mode" in camera_fields {
+		if mode, problem = scene_camera_mode_field(camera_fields); problem != "" {
+			return {}, 0, .Fly, problem
+		}
+	}
+	return camera, fit_width, mode, ""
+}
+
+@(private = "file")
+scene_camera_mode_field :: proc(camera_fields: json.Object) -> (mode: Scene_Camera_Mode, problem: string) {
+	mode_name: string
+	if mode_name, problem = scene_string_field("camera", "mode", camera_fields); problem != "" {
+		return .Fly, problem
+	}
+	switch mode_name {
+	case "fly":
+		return .Fly, ""
+	case "orbit":
+		return .Orbit, ""
+	}
+	return .Fly, fmt.tprintf("camera: mode %s is neither fly nor orbit", mode_name)
 }
 
 @(private = "file")

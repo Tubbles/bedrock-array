@@ -151,6 +151,33 @@ items = [
 }
 
 @(test)
+test_parse_scene_camera_mode :: proc(t: ^testing.T) {
+	library, _ := parse_material_library(transmute([]byte)string(TEST_LIBRARY_TEXT))
+	defer material_library_destroy(&library)
+	rest := `
+sun = { direction = [0.4, -1, -0.3], colour = [1, 0.96, 0.9], intensity = 1 }
+exposure = 1
+items = [
+	{ shape = "box", size = [1, 1, 1], position = [0, 0.5, 0], material = "painted_steel" }
+]
+`
+	absent := strings.concatenate({"camera = { target = [0, 0.5, 0], yaw = 0.6, pitch = 0.5, distance = 5 }", rest}, context.temp_allocator)
+	absent_scene, absent_problem := parse_scene(transmute([]byte)absent, library)
+	defer scene_destroy(&absent_scene)
+	testing.expect_value(t, absent_problem, "")
+	testing.expect_value(t, absent_scene.camera_mode, Scene_Camera_Mode.Fly)
+	orbit := strings.concatenate({`camera = { target = [0, 0.5, 0], yaw = 0.6, pitch = 0.5, distance = 5, mode = "orbit" }`, rest}, context.temp_allocator)
+	orbit_scene, orbit_problem := parse_scene(transmute([]byte)orbit, library)
+	defer scene_destroy(&orbit_scene)
+	testing.expect_value(t, orbit_problem, "")
+	testing.expect_value(t, orbit_scene.camera_mode, Scene_Camera_Mode.Orbit)
+	walk := strings.concatenate({`camera = { target = [0, 0.5, 0], yaw = 0.6, pitch = 0.5, distance = 5, mode = "walk" }`, rest}, context.temp_allocator)
+	walk_scene, walk_problem := parse_scene(transmute([]byte)walk, library)
+	defer scene_destroy(&walk_scene)
+	testing.expectf(t, strings.contains(walk_problem, "camera: mode walk is neither fly nor orbit"), "problem: %q", walk_problem)
+}
+
+@(test)
 test_parse_scene_hemisphere_defaults_to_ambient :: proc(t: ^testing.T) {
 	library, _ := parse_material_library(transmute([]byte)string(TEST_LIBRARY_TEXT))
 	defer material_library_destroy(&library)

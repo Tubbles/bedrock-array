@@ -10,17 +10,25 @@ SCENE_VIEW_VERTICAL_FOV :: f32(math.PI / 3)
 // Metres per second a held key or the stick walks the fly.
 SCENE_VIEW_FLY_SPEED :: f32(5)
 SCENE_VIEW_STEP_LIMIT :: f32(0.1)
+SCENE_VIEW_DISTANCE_MINIMUM :: f32(1)
+// Radians per second a held key or the stick turns the orbit.
+SCENE_VIEW_ORBIT_TURN_RADIANS_PER_SECOND :: f32(2)
+// Zoom per second a held key or the stick applies, the distance scaled by exp(-zoom).
+SCENE_VIEW_ZOOM_PER_SECOND :: f32(1)
 
-// One frame's input: walk per axis (right, up, forward), each from minus one to one, turn in radians (yaw, pitch), already scaled by the caller, and cycle_configuration the edge of the press the caller detects.
+// One frame's input: walk per axis (right, up, forward), each from minus one to one, turn in radians (yaw, pitch), already scaled by the caller, and cycle_configuration and previous_configuration the edges of the presses the caller detects. In orbit mode walk and turn go round the target and walk.z zooms.
 Scene_Input :: struct {
 	walk:                [3]f32,
 	turn:                [2]f32,
 	// Metres in the fly's frame (right, up, forward), applied as given with no speed or frame time, for a gesture that already measured its distance.
-	move:                [3]f32,
-	cycle_configuration: bool,
+	move:                   [3]f32,
+	// Applied as given in orbit mode, the distance scaled by exp(-zoom).
+	zoom:                   f32,
+	cycle_configuration:    bool,
+	previous_configuration: bool,
 }
 
-// A scene drawn from its data through the fly camera, with no window or canvas of its own. The item arrays hold one entry per item and configuration, at item_index * count + configuration.
+// A scene drawn from its data through the fly or the orbit camera, by the scene's camera mode, with no window or canvas of its own. The item arrays hold one entry per item and configuration, at item_index * count + configuration.
 Scene_View :: struct {
 	library:           Material_Library,
 	scene:             Scene,
@@ -29,6 +37,7 @@ Scene_View :: struct {
 	item_half_extents: [][3]f32,
 	draw_list:         Draw_List,
 	fly:               Fly,
+	orbit:             Orbit,
 	configuration:     int,
 }
 
@@ -38,7 +47,8 @@ scene_view_init :: proc(view: ^Scene_View, library_data, scene_data: []byte, tex
 	if problem != "" do return fmt.tprintf("material library: %s", problem)
 	view.scene, problem = parse_scene(scene_data, view.library)
 	if problem != "" do return fmt.tprintf("scene: %s", problem)
-	view.fly = fly_from_orbit(orbit_fit_width(view.scene.camera, view.scene.fit_width, SCENE_VIEW_VERTICAL_FOV, aspect, SCENE_VIEW_DISTANCE_MAXIMUM))
+	view.orbit = orbit_fit_width(view.scene.camera, view.scene.fit_width, SCENE_VIEW_VERTICAL_FOV, aspect, SCENE_VIEW_DISTANCE_MAXIMUM)
+	view.fly = fly_from_orbit(view.orbit)
 	if !gl_renderer_init(&view.renderer) do return "the GL shaders did not compile"
 	problem = scene_view_upload_meshes(view, meshes)
 	if problem != "" do return fmt.tprintf("meshes: %s", problem)
@@ -50,11 +60,34 @@ scene_view_init :: proc(view: ^Scene_View, library_data, scene_data: []byte, tex
 scene_view_step :: proc(view: ^Scene_View, input: Scene_Input, delta_time: f32) {
 	// A hidden tab delivers its whole span as one step; a walk that long would leave the scene.
 	step_time := min(delta_time, SCENE_VIEW_STEP_LIMIT)
-	// The turn first, so the walk follows this frame's facing.
-	if input.turn != {} do view.fly = fly_turn(view.fly, input.turn, 1)
-	if input.move != {} do view.fly = fly_walk(view.fly, input.move, 1)
-	if input.walk != {} do view.fly = fly_walk(view.fly, input.walk, SCENE_VIEW_FLY_SPEED * step_time)
-	if input.cycle_configuration do view.configuration = (view.configuration + 1) % scene_configuration_count(view.scene)
+	switch view.scene.camera_mode {
+	case .Fly:
+		view.fly = scene_view_fly_step(view.fly, input, step_time)
+	case .Orbit:
+		view.orbit = scene_view_orbit_step(view.orbit, input, step_time)
+	}
+	count := scene_configuration_count(view.scene)
+	if input.cycle_configuration do view.configuration = (view.configuration + 1) % count
+	if input.previous_configuration do view.configuration = (view.configuration + count - 1) % count
+}
+
+// The turn first, so the walk follows this frame's facing.
+@(private = "file")
+scene_view_fly_step :: proc(fly: Fly, input: Scene_Input, step_time: f32) -> Fly {
+	result := fly
+	if input.turn != {} do result = fly_turn(result, input.turn, 1)
+	if input.move != {} do result = fly_walk(result, input.move, 1)
+	if input.walk != {} do result = fly_walk(result, input.walk, SCENE_VIEW_FLY_SPEED * step_time)
+	return result
+}
+
+// D and the stick right go round to the right, up rises, walk.z zooms in. The move is ignored.
+@(private = "file")
+scene_view_orbit_step :: proc(orbit: Orbit, input: Scene_Input, step_time: f32) -> Orbit {
+	result := orbit_turn(orbit, input.turn, 1)
+	result = orbit_turn(result, {-input.walk.x, input.walk.y}, SCENE_VIEW_ORBIT_TURN_RADIANS_PER_SECOND * step_time)
+	zoom := input.zoom + input.walk.z * SCENE_VIEW_ZOOM_PER_SECOND * step_time
+	return orbit_zoom(result, zoom, SCENE_VIEW_DISTANCE_MINIMUM, SCENE_VIEW_DISTANCE_MAXIMUM)
 }
 
 // The current configuration's name, "" for a scene that names none.
@@ -88,6 +121,7 @@ scene_view_draw :: proc(view: ^Scene_View, width, height: i32) {
 }
 
 scene_view_camera :: proc(view: ^Scene_View) -> Camera {
+	if view.scene.camera_mode == .Orbit do return orbit_camera(view.orbit, SCENE_VIEW_VERTICAL_FOV, 0.1, 100)
 	return fly_camera(view.fly, SCENE_VIEW_VERTICAL_FOV, 0.1, 100)
 }
 

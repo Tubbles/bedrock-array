@@ -114,6 +114,26 @@ test_fly_turn_turns_and_clamps :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_orbit_turn_turns_and_clamps :: proc(t: ^testing.T) {
+	orbit := Orbit{yaw = 0, pitch = 0, distance = 5}
+	turned := orbit_turn(orbit, {10, 10}, 0.01)
+	expect_near(t, turned.yaw, -0.1)
+	expect_near(t, turned.pitch, 0.1)
+	expect_near(t, turned.distance, 5)
+	expect_near(t, orbit_turn(orbit, {0, 1000}, 0.01).pitch, ORBIT_PITCH_LIMIT)
+	expect_near(t, orbit_turn(orbit, {0, -1000}, 0.01).pitch, -ORBIT_PITCH_LIMIT)
+}
+
+@(test)
+test_orbit_zoom_scales_and_clamps :: proc(t: ^testing.T) {
+	orbit := Orbit{distance = 4}
+	expect_near(t, orbit_zoom(orbit, math.ln(f32(2)), 1, 30).distance, 2)
+	expect_near(t, orbit_zoom(orbit, -math.ln(f32(2)), 1, 30).distance, 8)
+	expect_near(t, orbit_zoom(orbit, 10, 1, 30).distance, 1)
+	expect_near(t, orbit_zoom(orbit, -10, 1, 30).distance, 30)
+}
+
+@(test)
 test_fly_walk_moves_along_the_ground_and_up :: proc(t: ^testing.T) {
 	fly := Fly{yaw = 0, pitch = 0.5}
 	forward := fly_walk(fly, {0, 0, 1}, 1).position

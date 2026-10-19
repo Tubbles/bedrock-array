@@ -35,6 +35,21 @@ orbit_camera :: proc(orbit: Orbit, vertical_fov_radians, near, far: f32) -> Came
 // Radians of pitch either way, short of the poles where the up vector fails.
 ORBIT_PITCH_LIMIT :: f32(1.5)
 
+// A drag turns the orbit with the signs of fly_turn: right lowers yaw, down raises pitch, pitch limited.
+orbit_turn :: proc(orbit: Orbit, delta: [2]f32, radians_per_unit: f32) -> Orbit {
+	result := orbit
+	result.yaw -= delta.x * radians_per_unit
+	result.pitch = clamp(orbit.pitch + delta.y * radians_per_unit, -ORBIT_PITCH_LIMIT, ORBIT_PITCH_LIMIT)
+	return result
+}
+
+// A zoom scales the distance by exp(-zoom), so a positive zoom closes in, within the limits.
+orbit_zoom :: proc(orbit: Orbit, zoom, minimum, maximum: f32) -> Orbit {
+	result := orbit
+	result.distance = clamp(orbit.distance * math.exp(-zoom), minimum, maximum)
+	return result
+}
+
 // A fit moves the camera back until fit_width metres span the canvas at the
 // target's depth, never closer than the orbit and never past the maximum.
 // A width of 0 leaves the orbit.
