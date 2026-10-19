@@ -1,16 +1,17 @@
-// The parts demo: the smelter's full generated model split into its brief's parts by tools/models/parts.py (data/machines/smelter/generated.sjson), each part in the material the brief names, orbited. The sill has no blob, the generator merged it into the hearth frame.
+// The parts demo: the smelter's full generated model split into its brief's parts by tools/models/parts.py (data/machines/smelter/generated.sjson), each part in the material the brief names, orbited. The second configuration is each part closed by Poisson, trimmed to 1 cm of its surface and decimated to its share of 192000 triangles (tools/models/finish_parts.sh). The sill has no blob, the generator merged it into the hearth frame.
 camera = { mode = "orbit", target = [0, 0.5, 0], yaw = 0.5, pitch = 0.3, distance = 2.5 }
 sun = { direction = [0.4, -1, -0.3], colour = [1, 0.96, 0.9], intensity = 1 }
 exposure = 1
 ambient = 0.15
+configurations = ["as generated", "closed per part, 192000 triangles"]
 items = [
 	{ shape = "box", size = [3, 0.1, 3], position = [0, -0.05, 0], material = "concrete" }
-	{ shape = "mesh", file = "skirt.mesh", scale = 1, position = [0, 0, 0], material = "painted_steel" }
-	{ shape = "mesh", file = "body.mesh", scale = 1, position = [0, 0, 0], material = "painted_steel" }
-	{ shape = "mesh", file = "lid.mesh", scale = 1, position = [0, 0, 0], material = "painted_steel" }
-	{ shape = "mesh", file = "hearth_frame.mesh", scale = 1, position = [0, 0, 0], material = "copper" }
-	{ shape = "mesh", file = "hearth.mesh", scale = 1, position = [0, 0, 0], material = "furnace_glow" }
-	{ shape = "mesh", file = "vents.mesh", scale = 1, position = [0, 0, 0], material = "bare_alloy" }
-	{ shape = "mesh", file = "louvre.mesh", scale = 1, position = [0, 0, 0], material = "bare_alloy" }
-	{ shape = "mesh", file = "fittings.mesh", scale = 1, position = [0, 0, 0], material = "copper" }
+	{ shape = "mesh", files = ["skirt.mesh", "skirt_192000.mesh"], scale = 1, position = [0, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", files = ["body.mesh", "body_192000.mesh"], scale = 1, position = [0, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", files = ["lid.mesh", "lid_192000.mesh"], scale = 1, position = [0, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", files = ["hearth_frame.mesh", "hearth_frame_192000.mesh"], scale = 1, position = [0, 0, 0], material = "copper" }
+	{ shape = "mesh", files = ["hearth.mesh", "hearth_192000.mesh"], scale = 1, position = [0, 0, 0], material = "furnace_glow" }
+	{ shape = "mesh", files = ["vents.mesh", "vents_192000.mesh"], scale = 1, position = [0, 0, 0], material = "bare_alloy" }
+	{ shape = "mesh", files = ["louvre.mesh", "louvre_192000.mesh"], scale = 1, position = [0, 0, 0], material = "bare_alloy" }
+	{ shape = "mesh", files = ["fittings.mesh", "fittings_192000.mesh"], scale = 1, position = [0, 0, 0], material = "copper" }
 ]
