@@ -2,7 +2,7 @@
 package engine
 
 import "core:math/linalg"
-import gl "vendor:wasm/WebGL"
+import gl "glapi"
 
 Webgl_Mesh :: struct {
 	vertex_array:                gl.VertexArrayObject,
