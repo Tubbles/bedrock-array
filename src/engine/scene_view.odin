@@ -15,6 +15,8 @@ SCENE_VIEW_STEP_LIMIT :: f32(0.1)
 Scene_Input :: struct {
 	walk:                [3]f32,
 	turn:                [2]f32,
+	// Metres in the fly's frame (right, up, forward), applied as given with no speed or frame time, for a gesture that already measured its distance.
+	move:                [3]f32,
 	cycle_configuration: bool,
 }
 
@@ -50,6 +52,7 @@ scene_view_step :: proc(view: ^Scene_View, input: Scene_Input, delta_time: f32) 
 	step_time := min(delta_time, SCENE_VIEW_STEP_LIMIT)
 	// The turn first, so the walk follows this frame's facing.
 	if input.turn != {} do view.fly = fly_turn(view.fly, input.turn, 1)
+	if input.move != {} do view.fly = fly_walk(view.fly, input.move, 1)
 	if input.walk != {} do view.fly = fly_walk(view.fly, input.walk, SCENE_VIEW_FLY_SPEED * step_time)
 	if input.cycle_configuration do view.configuration = (view.configuration + 1) % scene_configuration_count(view.scene)
 }

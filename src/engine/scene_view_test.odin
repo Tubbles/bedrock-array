@@ -18,6 +18,16 @@ test_scene_view_step_turns_then_walks :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_scene_view_step_moves_unscaled :: proc(t: ^testing.T) {
+	for delta_time in ([?]f32{0, 1.0 / 60, 10}) {
+		view: Scene_View
+		scene_view_step(&view, {move = {0, 0, 2}}, delta_time)
+		testing.expect(t, math.abs(view.fly.position.z + 2) < 1e-4)
+		testing.expect(t, math.abs(view.fly.position.x) < 1e-4)
+	}
+}
+
+@(test)
 test_scene_view_label_screen :: proc(t: ^testing.T) {
 	view: Scene_View
 	view.scene.labels = []Scene_Label{{text = "plaque", position = {0, 0, -5}}}

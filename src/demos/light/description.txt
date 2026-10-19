@@ -1,1 +1,1 @@
-Three primitives in library materials under a sun and two coloured lamps, the test bench of the renderer stages. Move the mouse to look around, WASD to walk, Space and Shift to rise and sink. A finger looks on the phone, a gamepad walks and looks.
+Three primitives in library materials under a sun and two coloured lamps, the test bench of the renderer stages. Move the mouse to look around, WASD to walk, Space and Shift to rise and sink. On the phone a finger looks, two fingers spread and pinch to walk and drag to move sideways and up, a gamepad walks and looks.

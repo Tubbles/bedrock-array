@@ -6,16 +6,17 @@ import "core:sys/wasm/js"
 import gl "vendor:wasm/WebGL"
 
 SCENE_PAGE_DRAG_RADIANS_PER_PIXEL :: f32(0.005)
+SCENE_PAGE_PINCH_METRES_PER_PIXEL :: f32(0.02)
 SCENE_PAGE_STICK_DEAD_ZONE :: f32(0.15)
 SCENE_PAGE_STICK_TURN_RADIANS_PER_SECOND :: f32(2)
 
-// A pointer on the canvas: the mouse over it or a finger down, the primary one turning the fly.
+// A pointer on the canvas: the mouse over it or a finger down. One alone turns the fly, two move it.
 Scene_Page_Pointer :: struct {
 	pointer_id: int,
 	client:     [2]f32,
 }
 
-// A scene view on a canvas: the mouse or a finger looks, the keys or a gamepad walk.
+// A scene view on a canvas: the mouse or a finger looks, two fingers move, the keys or a gamepad walk.
 Scene_Page :: struct {
 	canvas_id:                   string,
 	view:                        Scene_View,
@@ -25,8 +26,10 @@ Scene_Page :: struct {
 	active_pointer_count:        int,
 	keys_held:                   bit_set[Scene_Page_Key],
 	gamepad_index:               int,
-	// The primary pointer's turn in radians since the last step.
+	// A lone pointer's turn in radians since the last step.
 	turn_pending:                [2]f32,
+	// Two fingers' move in metres in the fly's frame since the last step.
+	move_pending:                [3]f32,
 	// A press of the C key or the pad's North button since the last step.
 	cycle_pending:               bool,
 	// North was down on the last step, so a held button cycles once.
@@ -61,8 +64,10 @@ scene_page_step :: proc(page: ^Scene_Page, delta_time: f32) {
 	input := Scene_Input {
 		walk = scene_page_walk(page.keys_held),
 		turn = page.turn_pending,
+		move = page.move_pending,
 	}
 	page.turn_pending = {}
+	page.move_pending = {}
 	scene_page_gamepad(page, &input, min(delta_time, SCENE_VIEW_STEP_LIMIT))
 	input.cycle_configuration = page.cycle_pending
 	page.cycle_pending = false
@@ -290,12 +295,11 @@ on_scene_page_pointer_down :: proc(event: js.Event) {
 	scene_page_add_pointer(page, event.data.mouse.pointer.pointer_id, scene_page_pointer_client(event))
 }
 
-// The primary pointer turns the fly; a mouse joins on its first move over the canvas, a finger on its down.
+// A lone pointer turns the fly, a finger dragging the scene and the mouse the view; two fingers move it by touch_pair_move and turn nothing. Any pointer counts, not only the primary, so the finger left of a pair turns. A mouse joins on its first move over the canvas, a finger on its down.
 @(private = "file")
 on_scene_page_pointer_move :: proc(event: js.Event) {
 	page := (^Scene_Page)(event.user_data)
 	pointer := event.data.mouse.pointer
-	if !pointer.is_primary do return
 	client := scene_page_pointer_client(event)
 	slot, found := scene_page_find_pointer(page, pointer.pointer_id)
 	if !found {
@@ -304,9 +308,19 @@ on_scene_page_pointer_move :: proc(event: js.Event) {
 	}
 	// The client delta, not the event's movement: odin.js stores the
 	// browser's fractional movement as i64, and a value in (-1, 0) breaks.
+	previous := [2][2]f32{page.active_pointers[0].client, page.active_pointers[1].client}
 	movement := client - page.active_pointers[slot].client
 	page.active_pointers[slot].client = client
-	page.turn_pending += movement * SCENE_PAGE_DRAG_RADIANS_PER_PIXEL
+	if page.active_pointer_count == 2 {
+		current := [2][2]f32{page.active_pointers[0].client, page.active_pointers[1].client}
+		page.move_pending += touch_pair_move(previous, current, SCENE_PAGE_PINCH_METRES_PER_PIXEL)
+		return
+	}
+	if pointer.pointer_type == .Mouse {
+		page.turn_pending += movement * SCENE_PAGE_DRAG_RADIANS_PER_PIXEL
+	} else {
+		page.turn_pending += touch_turn(movement, SCENE_PAGE_DRAG_RADIANS_PER_PIXEL)
+	}
 }
 
 @(private = "file")
