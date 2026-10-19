@@ -47,6 +47,7 @@ Scene_Page :: struct {
 	orbit:                       Orbit,
 	canvas_width, canvas_height: i32,
 	client_height:               f32,
+	aspect, pixel_ratio:         f32,
 	active_pointers:             [2]Scene_Page_Pointer,
 	active_pointer_count:        int,
 	keys_held:                   bit_set[Scene_Page_Key],
@@ -54,9 +55,18 @@ Scene_Page :: struct {
 	ready:                       bool,
 }
 
+// The page the label exports read, for the page's labels.js.
+@(private = "file")
+registered_page: ^Scene_Page
+
+scene_page_register :: proc(page: ^Scene_Page) {
+	registered_page = page
+}
+
 scene_page_init :: proc(page: ^Scene_Page, canvas_id: string, library_data, scene_data: []byte, textures, meshes: []runtime.Load_Directory_File) -> (problem: string) {
 	page.canvas_id = canvas_id
 	page.gamepad_index = -1
+	scene_page_register(page)
 	gl.CreateCurrentContextById(canvas_id, {})
 	scene_page_resize(page)
 	scene_page_listen(page)
@@ -82,7 +92,7 @@ scene_page_step :: proc(page: ^Scene_Page, delta_time: f32) {
 	scene_page_walk(page, step_time)
 	scene_page_gamepad(page, step_time)
 	draw_list_clear(&page.draw_list)
-	page.draw_list.camera = orbit_camera(page.orbit, math.PI / 3, 0.1, 100)
+	page.draw_list.camera = scene_page_camera(page)
 	page.draw_list.sun = page.scene.sun
 	page.draw_list.exposure = page.scene.exposure
 	page.draw_list.sky_colour = page.scene.sky_colour
@@ -95,6 +105,66 @@ scene_page_step :: proc(page: ^Scene_Page, delta_time: f32) {
 		draw_list_add(&page.draw_list, page.item_mesh_ids[index], item.material, transform, page.item_half_extents[index])
 	}
 	webgl_renderer_draw(&page.renderer, page.draw_list, page.library, page.canvas_width, page.canvas_height)
+}
+
+@(private = "file")
+scene_page_camera :: proc(page: ^Scene_Page) -> Camera {
+	return orbit_camera(page.orbit, math.PI / 3, 0.1, 100)
+}
+
+// The registered page's label at index, found false out of range.
+@(private = "file")
+scene_page_label :: proc "contextless" (index: i32) -> (label: Scene_Label, found: bool) {
+	if registered_page == nil || index < 0 || int(index) >= len(registered_page.scene.labels) do return {}, false
+	return registered_page.scene.labels[index], true
+}
+
+// The label's point in CSS pixels from the canvas's top left.
+@(private = "file")
+scene_page_label_screen :: proc "contextless" (index: i32) -> (pixel: [2]f32, visible: bool) {
+	label, found := scene_page_label(index)
+	if !found do return {}, false
+	// The camera procedures take a context; the default one allocates nothing here.
+	context = runtime.default_context()
+	page := registered_page
+	canvas := [2]f32{f32(page.canvas_width), f32(page.canvas_height)} / max(page.pixel_ratio, 1e-3)
+	return world_to_screen(scene_page_camera(page), page.aspect, canvas, label.position)
+}
+
+@(export)
+label_count :: proc "contextless" () -> i32 {
+	if registered_page == nil do return 0
+	return i32(len(registered_page.scene.labels))
+}
+
+@(export)
+label_text_pointer :: proc "contextless" (index: i32) -> rawptr {
+	label, _ := scene_page_label(index)
+	return raw_data(label.text)
+}
+
+@(export)
+label_text_length :: proc "contextless" (index: i32) -> i32 {
+	label, _ := scene_page_label(index)
+	return i32(len(label.text))
+}
+
+@(export)
+label_screen_x :: proc "contextless" (index: i32) -> f32 {
+	pixel, _ := scene_page_label_screen(index)
+	return pixel.x
+}
+
+@(export)
+label_screen_y :: proc "contextless" (index: i32) -> f32 {
+	pixel, _ := scene_page_label_screen(index)
+	return pixel.y
+}
+
+@(export)
+label_visible :: proc "contextless" (index: i32) -> bool {
+	_, visible := scene_page_label_screen(index)
+	return visible
 }
 
 // Held keys walk the target at a pace proportional to the orbit distance; opposite keys cancel.
@@ -186,6 +256,9 @@ scene_page_resize :: proc(page: ^Scene_Page) {
 	js.set_element_key_f64(page.canvas_id, "height", height)
 	page.canvas_width = i32(width)
 	page.canvas_height = i32(height)
+	page.pixel_ratio = f32(pixel_ratio)
+	// From the whole pixels, as the renderer's viewport, so a plaque's point is the drawn one.
+	page.aspect = f32(page.canvas_width) / f32(max(page.canvas_height, 1))
 }
 
 @(private = "file")

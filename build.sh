@@ -104,6 +104,7 @@ build_web() {
 	cp "$odin_js" "$out/odin.js"
 	sed "s/__DEMO__/$demo/g" web/index.html > "$out/index.html"
 	cp web/style.css "$out/style.css"
+	cp web/labels.js "$out/labels.js"
 }
 
 case "$mode" in

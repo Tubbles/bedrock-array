@@ -98,3 +98,14 @@ view_matrix :: proc(camera: Camera) -> matrix[4, 4]f32 {
 projection_matrix :: proc(camera: Camera, aspect: f32) -> matrix[4, 4]f32 {
 	return linalg.matrix4_perspective_f32(camera.vertical_fov_radians, aspect, camera.near, camera.far)
 }
+
+// The canvas pixel of a world point, from the top left with y down, and
+// whether it lies in front of the camera within the view.
+world_to_screen :: proc(camera: Camera, aspect: f32, canvas: [2]f32, world: [3]f32) -> (pixel: [2]f32, visible: bool) {
+	clip := projection_matrix(camera, aspect) * view_matrix(camera) * [4]f32{world.x, world.y, world.z, 1}
+	if clip.w <= 0 do return {}, false
+	normalised := clip.xy / clip.w
+	pixel = {(normalised.x + 1) / 2 * canvas.x, (1 - normalised.y) / 2 * canvas.y}
+	visible = abs(normalised.x) <= 1 && abs(normalised.y) <= 1
+	return pixel, visible
+}

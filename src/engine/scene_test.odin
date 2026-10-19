@@ -227,3 +227,31 @@ items = [
 	testing.expectf(t, strings.contains(problem, "item 0: file missing"), "problem: %q", problem)
 	testing.expect_value(t, len(scene.items), 0)
 }
+
+@(test)
+test_parse_scene_reads_labels :: proc(t: ^testing.T) {
+	library, _ := parse_material_library(transmute([]byte)string(TEST_LIBRARY_TEXT))
+	defer material_library_destroy(&library)
+	header := `
+camera = { target = [0, 0.5, 0], yaw = 0.6, pitch = 0.5, distance = 5 }
+sun = { direction = [0.4, -1, -0.3], colour = [1, 0.96, 0.9], intensity = 1 }
+exposure = 1
+items = [
+	{ shape = "box", size = [1, 1, 1], position = [0, 0.5, 0], material = "painted_steel" }
+]
+`
+	text := strings.concatenate({header, `labels = [{ text = "full", position = [0, 1.2, 0] }]`}, context.temp_allocator)
+	scene, problem := parse_scene(transmute([]byte)text, library)
+	defer scene_destroy(&scene)
+	testing.expect_value(t, problem, "")
+	testing.expect_value(t, len(scene.labels), 1)
+	if len(scene.labels) == 1 {
+		testing.expect_value(t, scene.labels[0].text, "full")
+		testing.expect_value(t, scene.labels[0].position, [3]f32{0, 1.2, 0})
+	}
+	missing_text := strings.concatenate({header, `labels = [{ position = [0, 1.2, 0] }]`}, context.temp_allocator)
+	rejected, rejected_problem := parse_scene(transmute([]byte)missing_text, library)
+	defer scene_destroy(&rejected)
+	testing.expectf(t, strings.contains(rejected_problem, "label 0: text missing"), "problem: %q", rejected_problem)
+	testing.expect_value(t, len(rejected.labels), 0)
+}

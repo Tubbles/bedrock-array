@@ -26,6 +26,12 @@ Scene_Item :: struct {
 	material:       Material_Id,
 }
 
+// A plaque naming what stands at position.
+Scene_Label :: struct {
+	text:     string,
+	position: [3]f32,
+}
+
 Scene :: struct {
 	camera:                    Orbit,
 	sun:                       Directional_Light,
@@ -34,6 +40,7 @@ Scene :: struct {
 	sky_colour, ground_colour: [3]f32,
 	items:                     []Scene_Item,
 	lights:                    []Point_Light,
+	labels:                    []Scene_Label,
 }
 
 // Parses data/demos/<name>/scene.sjson against the material library. The
@@ -52,7 +59,7 @@ parse_scene :: proc(data: []byte, library: Material_Library, allocator := contex
 	}
 	for key in fields {
 		switch key {
-		case "camera", "sun", "exposure", "ambient", "sky_colour", "ground_colour", "items", "lights":
+		case "camera", "sun", "exposure", "ambient", "sky_colour", "ground_colour", "items", "lights", "labels":
 		case:
 			return {}, fmt.tprintf("scene: unknown key %s", key)
 		}
@@ -102,6 +109,19 @@ parse_scene :: proc(data: []byte, library: Material_Library, allocator := contex
 			return {}, problem
 		}
 	}
+	labels_array: json.Array
+	if "labels" in fields {
+		if labels_array, problem = scene_array_field("scene", "labels", fields); problem != "" {
+			return {}, problem
+		}
+	}
+	labels := make([]Scene_Label, len(labels_array), context.temp_allocator)
+	defer delete(labels, context.temp_allocator)
+	for element, index in labels_array {
+		if labels[index], problem = parse_scene_label(fmt.tprintf("label %d", index), element); problem != "" {
+			return {}, problem
+		}
+	}
 	scene.items = make([]Scene_Item, len(items), allocator)
 	copy(scene.items, items)
 	// The file names point into the parsed SJSON, freed on return.
@@ -110,6 +130,11 @@ parse_scene :: proc(data: []byte, library: Material_Library, allocator := contex
 	}
 	scene.lights = make([]Point_Light, len(lights), allocator)
 	copy(scene.lights, lights)
+	// The texts point into the parsed SJSON too.
+	scene.labels = make([]Scene_Label, len(labels), allocator)
+	for label, index in labels {
+		scene.labels[index] = {strings.clone(label.text, allocator), label.position}
+	}
 	return scene, ""
 }
 
@@ -119,8 +144,13 @@ scene_destroy :: proc(scene: ^Scene, allocator := context.allocator) {
 	}
 	delete(scene.items, allocator)
 	delete(scene.lights, allocator)
+	for label in scene.labels {
+		delete(label.text, allocator)
+	}
+	delete(scene.labels, allocator)
 	scene.items = nil
 	scene.lights = nil
+	scene.labels = nil
 }
 
 // The item's mesh by its shape, for the caller to upload and destroy. A mesh
@@ -287,6 +317,25 @@ parse_scene_light :: proc(owner: string, value: json.Value) -> (light: Point_Lig
 		return {}, problem
 	}
 	return light, ""
+}
+
+// The text points into the parsed SJSON until parse_scene clones it.
+@(private = "file")
+parse_scene_label :: proc(owner: string, value: json.Value) -> (label: Scene_Label, problem: string) {
+	fields, is_object := value.(json.Object)
+	if !is_object {
+		return {}, fmt.tprintf("%s: expected an object", owner)
+	}
+	if problem = scene_check_keys(owner, fields, {"text", "position"}); problem != "" {
+		return {}, problem
+	}
+	if label.text, problem = scene_string_field(owner, "text", fields); problem != "" {
+		return {}, problem
+	}
+	if label.position, problem = scene_vector_field(owner, "position", fields); problem != "" {
+		return {}, problem
+	}
+	return label, ""
 }
 
 @(private = "file")

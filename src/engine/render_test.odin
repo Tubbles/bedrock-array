@@ -42,6 +42,26 @@ test_projection_maps_near_and_far_to_the_clip_range :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_world_to_screen_centre_and_behind :: proc(t: ^testing.T) {
+	camera := Camera {
+		position = {0, 0, 5},
+		target = {0, 0, 0},
+		up = {0, 1, 0},
+		vertical_fov_radians = math.PI / 2,
+		near = 0.1,
+		far = 100,
+	}
+	pixel, visible := world_to_screen(camera, 4.0 / 3.0, {800, 600}, {0, 0, 0})
+	testing.expect(t, visible)
+	expect_near(t, pixel.x, 400, 1e-3)
+	expect_near(t, pixel.y, 300, 1e-3)
+	above, _ := world_to_screen(camera, 4.0 / 3.0, {800, 600}, {0, 1, 0})
+	testing.expect(t, above.y < 300)
+	_, behind_visible := world_to_screen(camera, 4.0 / 3.0, {800, 600}, {0, 0, 10})
+	testing.expect(t, !behind_visible)
+}
+
+@(test)
 test_orbit_camera_sits_behind_the_target_at_yaw_zero :: proc(t: ^testing.T) {
 	camera := orbit_camera(Orbit{distance = 5}, math.PI / 2, 0.1, 100)
 	expect_near(t, camera.position.x, 0)

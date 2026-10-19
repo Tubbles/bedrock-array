@@ -25,3 +25,16 @@ canvas {
 	text-decoration: none;
 	border-radius: 6px;
 }
+
+.label {
+	position: fixed;
+	transform: translate(-50%, -100%);
+	padding: 3px 8px;
+	background: rgba(0, 0, 0, 0.6);
+	color: #eee;
+	font-family: sans-serif;
+	font-size: 0.85rem;
+	white-space: nowrap;
+	border-radius: 4px;
+	pointer-events: none;
+}
