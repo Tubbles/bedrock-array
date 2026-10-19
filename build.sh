@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
-# Check, test or build for the web. See doc/build.md.
+# Check, test, build natively or build for the web. See doc/build.md.
 #   ./build.sh [check]   odin check src/engine -no-entry-point -vet
 #                        -strict-style (default), natively and again for
-#                        -target:js_wasm32, then every src/demos/*/ for
-#                        -target:js_wasm32, then every src/engine/shaders/
-#                        file with glslangValidator
+#                        -target:js_wasm32, then src/app natively, then
+#                        every src/demos/*/ for -target:js_wasm32, then
+#                        every src/engine/shaders/ file with glslangValidator
 #   ./build.sh test      odin test src/engine -all-packages -vet -strict-style,
 #                        so the tests of the packages under src/engine/ run too
 #   ./build.sh web <demo>
 #                        builds src/demos/<demo> to build/web/<demo>/ with
 #                        odin.js and the page shell from web/
+#   ./build.sh debug     builds src/app to build/bedrock-array with -debug
+#   ./build.sh release   builds src/app to build/bedrock-array with -o:speed
+#   ./build.sh smoke     debug build, then three frames under xvfb-run
 set -euo pipefail
 
 odin="${ODIN:-$HOME/opt/odin/odin}"
@@ -17,7 +20,10 @@ repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mode="${1:-check}"
 odin_root="$(dirname "$odin")"
 odin_js="$odin_root/core/sys/wasm/js/odin.js"
-usage="usage: $0 [check|test|web <demo>]"
+usage="usage: $0 [check|test|web <demo>|debug|release|smoke]"
+app_output="build/bedrock-array"
+shim_directory="$repository_root/tmp/linker-shims"
+collection="-collection:shared=shared"
 
 cd "$repository_root"
 
@@ -92,6 +98,29 @@ validate_shaders() {
 	fi
 }
 
+# Bazzite ships runtime libraries without the unversioned development
+# symlinks the linker looks for, so point it at a directory of our own.
+create_linker_shims() {
+	mkdir -p "$shim_directory"
+	ln -sfn /usr/lib64/libX11.so.6 "$shim_directory/libX11.so"
+	ln -sfn /usr/lib64/libSDL3.so.0 "$shim_directory/libSDL3.so"
+}
+
+# The native app, with the optimisation flag as the argument.
+build_app() {
+	create_linker_shims
+	mkdir -p "$(dirname "$app_output")"
+	"$odin" build src/app -out:"$app_output" "$collection" -vet -strict-style \
+		-define:BUILD_INFO="$build_info" -extra-linker-flags:"-L$shim_directory" "$1"
+}
+
+# Three frames under a virtual X server, so a link or window problem
+# shows without opening a window.
+smoke_app() {
+	build_app -debug
+	xvfb-run -a -s "-screen 0 1280x720x24" env XDG_SESSION_TYPE=x11 "$app_output" --frames 3
+}
+
 build_web() {
 	local demo="${1:-}"
 	if [ -z "$demo" ] || [ ! -d "src/demos/$demo" ]; then
@@ -111,6 +140,7 @@ case "$mode" in
 	check)
 		"$odin" check src/engine -no-entry-point -vet -strict-style -define:BUILD_INFO="$build_info"
 		"$odin" check src/engine -no-entry-point -target:js_wasm32 -vet -strict-style -define:BUILD_INFO="$build_info"
+		"$odin" check src/app "$collection" -vet -strict-style -define:BUILD_INFO="$build_info"
 		check_demos
 		validate_shaders
 		;;
@@ -119,6 +149,9 @@ case "$mode" in
 		ensure_wasm_linker
 		build_web "${2:-}"
 		;;
+	debug) build_app -debug ;;
+	release) build_app -o:speed ;;
+	smoke) smoke_app ;;
 	*)
 		echo "$usage" >&2
 		exit 2

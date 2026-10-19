@@ -1,30 +1,41 @@
 # Build
 
-How the engine is checked and tested and the demos are built for the browser: the toolchain, the commands of `build.sh` and the build stamp they pass.
+How the engine is checked and tested, the demos are built for the browser and the app is built natively: the toolchain, the commands of `build.sh` and the build stamp they pass.
 
 ## The host toolchain
 
-Odin at `~/opt/odin` (the dev-2026-09 nightly). The environment variable `ODIN` overrides the path to the compiler. Browser builds link with `wasm-ld`, which the link step calls from `PATH`. When `wasm-ld` is missing, `build.sh` wraps the Rust toolchain's `rust-lld` (`-flavor wasm`) in `tmp/linker-shims/wasm-ld` and puts that directory first on `PATH`, so lld or rustup is the one extra requirement. glslang (the Homebrew formula `glslang`, its `glslangValidator` command) is optional: without it `./build.sh check` skips the shader validation with a note.
+Odin at `~/opt/odin` (the dev-2026-09 nightly). The environment variable `ODIN` overrides the path to the compiler. Browser builds link with `wasm-ld`, which the link step calls from `PATH`. When `wasm-ld` is missing, `build.sh` wraps the Rust toolchain's `rust-lld` (`-flavor wasm`) in `tmp/linker-shims/wasm-ld` and puts that directory first on `PATH`, so lld or rustup is the one extra requirement. The native smoke run needs `xvfb-run`. glslang (the Homebrew formula `glslang`, its `glslangValidator` command) is optional: without it `./build.sh check` skips the shader validation with a note.
 
 ## build.sh
 
 | Command | Runs |
 | --- | --- |
-| `./build.sh check` (the default) | `odin check src/engine -no-entry-point -vet -strict-style` with the build stamp define (the engine is a library package without `main`), the same check of the engine again for `-target:js_wasm32` so it compiles for both targets (test files carry `#+build !js`, since `core:testing` does not compile for the browser), then `odin check` of every `src/demos/*/` for `-target:js_wasm32`, then every shader under `src/engine/shaders/` is validated with `glslangValidator` |
+| `./build.sh check` (the default) | `odin check src/engine -no-entry-point -vet -strict-style` with the build stamp define (the engine is a library package without `main`), the same check of the engine again for `-target:js_wasm32` so it compiles for both targets (test files carry `#+build !js`, since `core:testing` does not compile for the browser), then `odin check src/app -collection:shared=shared -vet -strict-style` with the build stamp define, then `odin check` of every `src/demos/*/` for `-target:js_wasm32`, then every shader under `src/engine/shaders/` is validated with `glslangValidator` |
 | `./build.sh test` | `odin test src/engine -all-packages -vet -strict-style` with the build stamp define, so the tests of the packages under `src/engine/` run too |
 | `./build.sh web <demo>` | builds `src/demos/<demo>` for the browser, see [The web build](#the-web-build) |
+| `./build.sh debug` | builds `src/app` to `build/bedrock-array` with `-debug`, see [The native build](#the-native-build) |
+| `./build.sh release` | the same build with `-o:speed` |
+| `./build.sh smoke` | the debug build, then three frames of it under `xvfb-run` |
 
 Any other argument prints the usage to stderr and exits with status 2.
 
 ## The build stamp
 
-The engine commands pass `-define:BUILD_INFO="<commit> <UTC time>"`, for example `a1b2c3d+dirty 2026-10-18T12:00Z`, read by `build_stamp` in `src/engine/build_stamp.odin`. The demo commands do not pass it yet: no demo shows the stamp, and Odin warns on an unused define. The commit and the time share one define so an all digit commit is never read as a number. The commit is `git rev-parse --short HEAD`, with `+dirty` appended when `git status --porcelain` prints anything, and `unknown` outside a repository. `BEDROCK_ARRAY_COMMIT` in the environment overrides it: an archive build has no `.git`, so the script building it passes the commit it was made from.
+The engine and the native commands pass `-define:BUILD_INFO="<commit> <UTC time>"`, for example `a1b2c3d+dirty 2026-10-18T12:00Z`, read by `build_stamp` in `src/engine/build_stamp.odin` and by `BUILD_INFO` in `src/app/main.odin`. The demo commands do not pass it yet: no demo shows the stamp, and Odin warns on an unused define. The commit and the time share one define so an all digit commit is never read as a number. The commit is `git rev-parse --short HEAD`, with `+dirty` appended when `git status --porcelain` prints anything, and `unknown` outside a repository. `BEDROCK_ARRAY_COMMIT` in the environment overrides it: an archive build has no `.git`, so the script building it passes the commit it was made from.
 
 ## The web build
 
 `./build.sh web <demo>` runs `odin build src/demos/<demo> -target:js_wasm32 -vet -strict-style` and writes `build/web/<demo>/`: `index.html`, `demo.wasm`, `odin.js` (the toolchain's runtime from `core/sys/wasm/js/odin.js`), `style.css` and `labels.js`, a copy of `web/labels.js`, which starts the wasm in place of a bare `runWasm` call and moves the scene's label plaques each frame. `index.html` is `web/index.html` with every `__DEMO__` replaced by the demo's name, `style.css` a copy of `web/style.css`. Without a demo name, or with a name that has no `src/demos/<demo>/`, the command prints the usage and exits with status 2. `./build.sh check` checks every demo for the same target with the same flags.
 
 `odin.js` fetches the wasm, so a page opened as `file://` does not run. To view a build locally: `python3 -m http.server --directory build/web/<demo> 8000`, then `http://localhost:8000/`.
+
+## The native build
+
+`./build.sh debug` and `./build.sh release` run `odin build src/app -out:build/bedrock-array -collection:shared=shared -vet -strict-style` with the build stamp define and `-debug` or `-o:speed`. raylib 6.0 comes from the `shared:raylib` collection, a copy of the toolchain's binding with an archive built from source ([shared/raylib/README.md](../shared/raylib/README.md) holds the why and the build record). The archive links X11, and Bazzite ships `libX11.so.6` and `libSDL3.so.0` without the unversioned development links the linker looks for, so the build creates `tmp/linker-shims/libX11.so` and `libSDL3.so` as symlinks to them and passes `-extra-linker-flags` pointing the linker at `tmp/linker-shims`.
+
+The binary takes `--frames <n>`, which stops after n frames (0, the default, runs until the window closes), and `--windowed`, which keeps the 1280 by 720 window instead of going borderless over the monitor. Any other argument prints the usage and exits with status 2. When the window does not open it exits with status 1 and a line on stderr. After the window opens it prints the GL vendor, renderer and version, read through GLFW's `glfwGetProcAddress` so it links no libGL.
+
+`./build.sh smoke` runs the debug build as `xvfb-run -a -s "-screen 0 1280x720x24" env XDG_SESSION_TYPE=x11 build/bedrock-array --frames 3`, so a link or window problem shows in a headless session and not on the couch.
 
 ## Writing a demo
 
