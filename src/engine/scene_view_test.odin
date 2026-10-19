@@ -135,3 +135,24 @@ test_scene_view_focus_step_moves_the_target :: proc(t: ^testing.T) {
 	scene_view_step(&view, {focus_step = 1}, 0)
 	testing.expect_value(t, view.focus, 0)
 }
+
+@(test)
+test_scene_view_choose_levels_by_distance :: proc(t: ^testing.T) {
+	view: Scene_View
+	view.lod = LOD_SETTINGS_DEFAULT
+	view.scene.items = []Scene_Item{{shape = .Mesh, scale = 1}, {shape = .Box, scale = 1}}
+	triangle_counts := []int{10000, 1000, 100}
+	view.item_levels = []Scene_Item_Levels{{triangle_counts = triangle_counts, half_extents = {0.5, 0.5, 0.5}}, {}}
+	// The fly looks down minus z from its position.
+	view.fly = Fly{position = {0, 0.5, 1}}
+	scene_view_choose_levels(&view, 1080)
+	testing.expect_value(t, view.item_levels[0].current, 0)
+	view.fly = Fly{position = {0, 0.5, 200}}
+	scene_view_choose_levels(&view, 1080)
+	testing.expect_value(t, view.item_levels[0].current, 2)
+	view.lod.freeze = true
+	view.fly = Fly{position = {0, 0.5, 1}}
+	scene_view_choose_levels(&view, 1080)
+	testing.expect_value(t, view.item_levels[0].current, 2)
+	testing.expect_value(t, view.item_levels[1].current, 0)
+}

@@ -361,3 +361,70 @@ items = [
 	testing.expectf(t, strings.contains(problem, "item 0: files has 3 entries, the scene has 2 configurations"), "problem: %q", problem)
 	testing.expect_value(t, len(scene.items), 0)
 }
+
+@(test)
+test_parse_scene_item_levels :: proc(t: ^testing.T) {
+	library, _ := parse_material_library(transmute([]byte)string(TEST_LIBRARY_TEXT))
+	defer material_library_destroy(&library)
+	header := `
+configurations = ["a", "b"]
+camera = { target = [0, 0.5, 0], yaw = 0.6, pitch = 0.5, distance = 5 }
+sun = { direction = [0.4, -1, -0.3], colour = [1, 0.96, 0.9], intensity = 1 }
+exposure = 1
+`
+	text := strings.concatenate({header, `items = [{ shape = "mesh", levels = ["fine.mesh", "coarse.mesh"], position = [0, 0, 0], material = "painted_steel" }]`}, context.temp_allocator)
+	scene, problem := parse_scene(transmute([]byte)text, library)
+	defer scene_destroy(&scene)
+	testing.expect_value(t, problem, "")
+	testing.expect_value(t, len(scene.items), 1)
+	if len(scene.items) == 1 {
+		testing.expect_value(t, len(scene.items[0].files), 0)
+		testing.expect_value(t, len(scene.items[0].levels), 2)
+		if len(scene.items[0].levels) == 2 {
+			testing.expect_value(t, scene.items[0].levels[0], "fine.mesh")
+			testing.expect_value(t, scene.items[0].levels[1], "coarse.mesh")
+		}
+	}
+	rejected := [?]struct {
+		items, problem: string,
+	}{
+		{`items = [{ shape = "mesh", levels = ["fine.mesh"], position = [0, 0, 0], material = "painted_steel" }]`, "item 0: levels has 1 entries, at least 2 needed"},
+		{`items = [{ shape = "mesh", file = "x.mesh", levels = ["a.mesh", "b.mesh"], position = [0, 0, 0], material = "painted_steel" }]`, "item 0: file and levels both given"},
+		{`items = [{ shape = "mesh", files = ["x.mesh", "y.mesh"], levels = ["a.mesh", "b.mesh"], position = [0, 0, 0], material = "painted_steel" }]`, "item 0: files and levels both given"},
+	}
+	for case_ in rejected {
+		rejected_text := strings.concatenate({header, case_.items}, context.temp_allocator)
+		rejected_scene, rejected_problem := parse_scene(transmute([]byte)rejected_text, library)
+		defer scene_destroy(&rejected_scene)
+		testing.expectf(t, strings.contains(rejected_problem, case_.problem), "problem: %q", rejected_problem)
+	}
+}
+
+@(test)
+test_parse_scene_lod_settings :: proc(t: ^testing.T) {
+	library, _ := parse_material_library(transmute([]byte)string(TEST_LIBRARY_TEXT))
+	defer material_library_destroy(&library)
+	header := `
+camera = { target = [0, 0.5, 0], yaw = 0.6, pitch = 0.5, distance = 5 }
+sun = { direction = [0.4, -1, -0.3], colour = [1, 0.96, 0.9], intensity = 1 }
+exposure = 1
+items = [{ shape = "box", size = [1, 1, 1], position = [0, 0.5, 0], material = "painted_steel" }]
+`
+	plain, plain_problem := parse_scene(transmute([]byte)string(header), library)
+	defer scene_destroy(&plain)
+	testing.expect_value(t, plain_problem, "")
+	testing.expect_value(t, plain.lod, LOD_SETTINGS_DEFAULT)
+	text := strings.concatenate({header, `lod = { pixels_per_triangle = 4, crossfade_seconds = 1 }`}, context.temp_allocator)
+	scene, problem := parse_scene(transmute([]byte)text, library)
+	defer scene_destroy(&scene)
+	testing.expect_value(t, problem, "")
+	testing.expect_value(t, scene.lod, Lod_Settings{pixels_per_triangle = 4, hysteresis = LOD_SETTINGS_DEFAULT.hysteresis, crossfade_seconds = 1})
+	unknown := strings.concatenate({header, `lod = { freeze = true }`}, context.temp_allocator)
+	rejected, rejected_problem := parse_scene(transmute([]byte)unknown, library)
+	defer scene_destroy(&rejected)
+	testing.expectf(t, strings.contains(rejected_problem, "lod: unknown key freeze"), "problem: %q", rejected_problem)
+	negative := strings.concatenate({header, `lod = { hysteresis = -1 }`}, context.temp_allocator)
+	rejected_negative, negative_problem := parse_scene(transmute([]byte)negative, library)
+	defer scene_destroy(&rejected_negative)
+	testing.expectf(t, strings.contains(negative_problem, "lod: hysteresis -1 must be 0 or more"), "problem: %q", negative_problem)
+}

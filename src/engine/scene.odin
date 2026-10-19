@@ -14,13 +14,16 @@ Scene_Shape :: enum {
 
 // size for a box or a room, radius, height and segments for a cylinder, files
 // (the mesh blob's file name, one per configuration or one for all) for a
-// mesh. scale is a uniform scale, 1 unless a mesh sets it.
+// mesh. levels are a mesh's levels of detail instead, finest first, the same
+// in every configuration, and files is then empty. scale is a uniform scale, 1
+// unless a mesh sets it.
 Scene_Item :: struct {
 	shape:          Scene_Shape,
 	size:           [3]f32,
 	radius, height: f32,
 	segments:       int,
 	files:          []string,
+	levels:         []string,
 	scale:          f32,
 	position:       [3]f32,
 	material:       Material_Id,
@@ -51,6 +54,7 @@ Scene :: struct {
 	items:                     []Scene_Item,
 	lights:                    []Point_Light,
 	labels:                    []Scene_Label,
+	lod:                       Lod_Settings,
 }
 
 // Parses data/demos/<name>/scene.sjson against the material library. The
@@ -69,7 +73,7 @@ parse_scene :: proc(data: []byte, library: Material_Library, allocator := contex
 	}
 	for key in fields {
 		switch key {
-		case "configurations", "camera", "sun", "exposure", "ambient", "sky_colour", "ground_colour", "items", "lights", "labels":
+		case "configurations", "camera", "sun", "exposure", "ambient", "sky_colour", "ground_colour", "items", "lights", "labels", "lod":
 		case:
 			return {}, fmt.tprintf("scene: unknown key %s", key)
 		}
@@ -98,6 +102,9 @@ parse_scene :: proc(data: []byte, library: Material_Library, allocator := contex
 		return {}, problem
 	}
 	if scene.ground_colour, problem = scene_hemisphere_colour("ground_colour", scene.ambient, fields); problem != "" {
+		return {}, problem
+	}
+	if scene.lod, problem = parse_scene_lod(fields); problem != "" {
 		return {}, problem
 	}
 	items_array, items_problem := scene_array_field("scene", "items", fields)
@@ -145,6 +152,9 @@ parse_scene :: proc(data: []byte, library: Material_Library, allocator := contex
 		file_names := item.files
 		item.files = scene_clone_strings(file_names, allocator)
 		delete(file_names, context.temp_allocator)
+		level_names := item.levels
+		item.levels = scene_clone_strings(level_names, allocator)
+		delete(level_names, context.temp_allocator)
 	}
 	scene.lights = make([]Point_Light, len(lights), allocator)
 	copy(scene.lights, lights)
@@ -159,6 +169,7 @@ parse_scene :: proc(data: []byte, library: Material_Library, allocator := contex
 scene_destroy :: proc(scene: ^Scene, allocator := context.allocator) {
 	for item in scene.items {
 		scene_delete_strings(item.files, allocator)
+		scene_delete_strings(item.levels, allocator)
 	}
 	delete(scene.items, allocator)
 	scene_delete_strings(scene.configurations, allocator)
@@ -196,15 +207,22 @@ scene_item_mesh :: proc(item: Scene_Item, configuration: int, meshes: []runtime.
 	case .Room:
 		return room_mesh(item.size), ""
 	case .Mesh:
-		file_name := scene_item_file(item, configuration)
-		data, found := scene_mesh_file_find(meshes, file_name)
-		if !found do return {}, fmt.tprintf("mesh file %s missing", file_name)
-		if mesh, problem = parse_mesh_blob(data); problem != "" {
-			return {}, fmt.tprintf("%s: %s", file_name, problem)
-		}
-		return mesh, ""
+		// An item with levels has no files; its blobs are read by level.
+		if len(item.files) == 0 do return {}, "mesh item has levels, not files"
+		return scene_mesh_file_parse(scene_item_file(item, configuration), meshes)
 	}
 	return {}, ""
+}
+
+// The blob of the file name among meshes, parsed, for the caller to destroy.
+// The problem text lives in context.temp_allocator, valid until its next reset.
+scene_mesh_file_parse :: proc(file_name: string, meshes: []runtime.Load_Directory_File) -> (mesh: Mesh_Data, problem: string) {
+	data, found := scene_mesh_file_find(meshes, file_name)
+	if !found do return {}, fmt.tprintf("mesh file %s missing", file_name)
+	if mesh, problem = parse_mesh_blob(data); problem != "" {
+		return {}, fmt.tprintf("%s: %s", file_name, problem)
+	}
+	return mesh, ""
 }
 
 // The half extents of the item's mesh around its origin, for the wear rule's
@@ -246,6 +264,31 @@ scene_delete_strings :: proc(texts: []string, allocator := context.allocator) {
 		delete(text, allocator)
 	}
 	delete(texts, allocator)
+}
+
+// LOD_SETTINGS_DEFAULT with the dials the optional lod object names, each 0 or more.
+@(private = "file")
+parse_scene_lod :: proc(fields: json.Object) -> (lod: Lod_Settings, problem: string) {
+	lod = LOD_SETTINGS_DEFAULT
+	if "lod" not_in fields do return lod, ""
+	lod_fields: json.Object
+	if lod_fields, problem = scene_object_field("scene", "lod", fields); problem != "" {
+		return {}, problem
+	}
+	if problem = scene_check_keys("lod", lod_fields, {"pixels_per_triangle", "hysteresis", "crossfade_seconds"}); problem != "" {
+		return {}, problem
+	}
+	dials := [?]struct {
+		key:    string,
+		target: ^f32,
+	}{{"pixels_per_triangle", &lod.pixels_per_triangle}, {"hysteresis", &lod.hysteresis}, {"crossfade_seconds", &lod.crossfade_seconds}}
+	for dial in dials {
+		if dial.key not_in lod_fields do continue
+		if dial.target^, problem = scene_non_negative_field("lod", dial.key, lod_fields); problem != "" {
+			return {}, problem
+		}
+	}
+	return lod, ""
 }
 
 // The names point into the parsed SJSON, in a slice of context.temp_allocator.
@@ -375,7 +418,7 @@ parse_scene_item :: proc(owner: string, value: json.Value, library: Material_Lib
 		}
 	case "mesh":
 		item.shape = .Mesh
-		if item.files, item.scale, problem = parse_scene_mesh(owner, fields, configuration_names); problem != "" {
+		if item.files, item.levels, item.scale, problem = parse_scene_mesh(owner, fields, configuration_names); problem != "" {
 			return {}, problem
 		}
 	case:
@@ -463,27 +506,49 @@ parse_scene_cylinder :: proc(owner: string, fields: json.Object) -> (radius, hei
 	return radius, height, segments, ""
 }
 
-// The file names point into the parsed SJSON, in a slice of
+// The file and level names point into the parsed SJSON, in slices of
 // context.temp_allocator, until parse_scene clones them; scale is optional,
 // above 0, 1 when absent.
 @(private = "file")
-parse_scene_mesh :: proc(owner: string, fields: json.Object, configuration_names: int) -> (files: []string, scale: f32, problem: string) {
-	if problem = scene_check_keys(owner, fields, {"shape", "file", "files", "scale", "position", "material"}); problem != "" {
-		return nil, 0, problem
+parse_scene_mesh :: proc(owner: string, fields: json.Object, configuration_names: int) -> (files, levels: []string, scale: f32, problem: string) {
+	if problem = scene_check_keys(owner, fields, {"shape", "file", "files", "levels", "scale", "position", "material"}); problem != "" {
+		return nil, nil, 0, problem
 	}
-	if files, problem = parse_scene_mesh_files(owner, fields, configuration_names); problem != "" {
-		return nil, 0, problem
+	if "levels" in fields {
+		levels, problem = parse_scene_mesh_levels(owner, fields)
+	} else {
+		files, problem = parse_scene_mesh_files(owner, fields, configuration_names)
 	}
-	if "scale" not_in fields do return files, 1, ""
-	if scale, problem = scene_number_field(owner, "scale", fields); problem != "" {
+	if problem != "" do return nil, nil, 0, problem
+	scale = 1
+	if "scale" in fields {
+		if scale, problem = scene_number_field(owner, "scale", fields); problem == "" && scale <= 0 {
+			problem = fmt.tprintf("%s: scale %v must be above 0", owner, scale)
+		}
+	}
+	if problem != "" {
 		delete(files, context.temp_allocator)
-		return nil, 0, problem
+		delete(levels, context.temp_allocator)
+		return nil, nil, 0, problem
 	}
-	if scale <= 0 {
-		delete(files, context.temp_allocator)
-		return nil, 0, fmt.tprintf("%s: scale %v must be above 0", owner, scale)
+	return files, levels, scale, ""
+}
+
+// At least two names, with neither file nor files beside them.
+@(private = "file")
+parse_scene_mesh_levels :: proc(owner: string, fields: json.Object) -> (levels: []string, problem: string) {
+	for key in ([?]string{"file", "files"}) {
+		if key in fields do return nil, fmt.tprintf("%s: %s and levels both given", owner, key)
 	}
-	return files, scale, ""
+	if levels, problem = scene_string_array_field(owner, "levels", fields); problem != "" {
+		return nil, problem
+	}
+	if len(levels) < 2 {
+		count := len(levels)
+		delete(levels, context.temp_allocator)
+		return nil, fmt.tprintf("%s: levels has %d entries, at least 2 needed", owner, count)
+	}
+	return levels, ""
 }
 
 // One name from file, or one per configuration from files.
