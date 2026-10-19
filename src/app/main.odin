@@ -121,7 +121,11 @@ keyboard_walk :: proc() -> [3]f32 {
 
 frame_input :: proc() -> engine.Scene_Input {
 	mouse := rl.GetMouseDelta()
-	return {walk = keyboard_walk(), turn = {mouse.x, mouse.y} * APP_MOUSE_RADIANS_PER_PIXEL}
+	return {
+		walk = keyboard_walk(),
+		turn = {mouse.x, mouse.y} * APP_MOUSE_RADIANS_PER_PIXEL,
+		cycle_configuration = rl.IsKeyPressed(.C),
+	}
 }
 
 // The renderer sets GL state behind rlgl's back. rlgl.SetBlendMode skips a
@@ -167,6 +171,14 @@ draw_labels :: proc(view: ^engine.Scene_View, size: [2]i32) {
 	}
 }
 
+// Bottom right, at the stamp's margin, only for a scene with configurations to cycle.
+draw_configuration_name :: proc(view: ^engine.Scene_View, screen: [2]i32) {
+	if engine.scene_view_configuration_count(view) <= 1 do return
+	text := fmt.ctprintf("Y: %s", engine.scene_view_configuration_name(view))
+	x := screen.x - 16 - rl.MeasureText(text, LABEL_FONT_SIZE)
+	rl.DrawText(text, x, screen.y - 16 - LABEL_FONT_SIZE, LABEL_FONT_SIZE, TEXT_COLOR)
+}
+
 draw_frame :: proc(view: ^engine.Scene_View) {
 	size := render_size()
 	screen := screen_size()
@@ -175,6 +187,7 @@ draw_frame :: proc(view: ^engine.Scene_View) {
 	give_state_back_to_rlgl(size)
 	draw_labels(view, screen)
 	rl.DrawText(BUILD_INFO, 16, screen.y - 16 - LABEL_FONT_SIZE, LABEL_FONT_SIZE, TEXT_COLOR)
+	draw_configuration_name(view, screen)
 	rl.EndDrawing()
 }
 
@@ -268,6 +281,7 @@ main :: proc() {
 		snapshot: Gamepad_Snapshot
 		if gamepad_ready do snapshot = gamepad_poll(&gamepad_state)
 		start_pressed := .Start in snapshot.buttons && .Start not_in edge_state.buttons
+		north_pressed := .North in snapshot.buttons && .North not_in edge_state.buttons
 		menu_input := menu_input_merge(keyboard_menu_input(), menu_edges(&edge_state, snapshot))
 		if screen == .Menu {
 			command := menu_step(&menu, len(DEMOS), menu_input)
@@ -288,6 +302,7 @@ main :: proc() {
 			gamepad_input := gamepad_scene_input(snapshot, min(delta_time, engine.SCENE_VIEW_STEP_LIMIT))
 			input.walk += gamepad_input.walk
 			input.turn += gamepad_input.turn
+			input.cycle_configuration = input.cycle_configuration || north_pressed
 			engine.scene_view_step(&view, input, delta_time)
 			draw_frame(&view)
 		}
