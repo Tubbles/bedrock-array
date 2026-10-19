@@ -1,7 +1,8 @@
-"""Decimate a generated GLB in Blender to a triangle budget, the comparison for Tripo's own reductions (doc/workflows/models.md, step 1).
+"""Decimate a generated GLB, or a closed PLY from reconstruct.py, in Blender to a triangle budget, the comparison for Tripo's own reductions (doc/workflows/models.md, step 1).
 
-    flatpak run org.blender.Blender -b --python "$PWD/tools/models/decimate.py" -- <in.glb> <out.glb> --triangles <n>
+    flatpak run org.blender.Blender -b --python "$PWD/tools/models/decimate.py" -- <in.glb|in.ply> <out.glb> --triangles <n>
 
+A .ply input goes through Blender's PLY importer with Y up, the glTF axes reconstruct.py keeps, anything else through the glTF importer.
 Every mesh part gets a collapse decimate at the one ratio that brings the whole model to the budget, so a part keeps its share of the triangles. Prints the triangle count before and after.
 """
 import argparse
@@ -12,7 +13,7 @@ import bpy
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("glb_in")
+    parser.add_argument("mesh_in")
     parser.add_argument("glb_out")
     parser.add_argument("--triangles", type=int, required=True)
     return parser.parse_args(sys.argv[sys.argv.index("--") + 1:])
@@ -33,6 +34,13 @@ def triangle_count(parts):
     return sum(len(part.data.loop_triangles) for part in parts)
 
 
+def import_mesh(path):
+    if path.lower().endswith(".ply"):
+        bpy.ops.wm.ply_import(filepath=path, forward_axis="NEGATIVE_Z", up_axis="Y")
+    else:
+        bpy.ops.import_scene.gltf(filepath=path)
+
+
 def decimate(part, ratio):
     modifier = part.modifiers.new("decimate", "DECIMATE")
     modifier.decimate_type = "COLLAPSE"
@@ -45,7 +53,7 @@ def decimate(part, ratio):
 def main():
     arguments = parse_arguments()
     reset_scene()
-    bpy.ops.import_scene.gltf(filepath=arguments.glb_in)
+    import_mesh(arguments.mesh_in)
     parts = mesh_parts()
     before = triangle_count(parts)
     ratio = min(1.0, arguments.triangles / max(before, 1))
