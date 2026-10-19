@@ -16,7 +16,7 @@ SCENE_VIEW_ORBIT_TURN_RADIANS_PER_SECOND :: f32(2)
 // Zoom per second a held key or the stick applies, the distance scaled by exp(-zoom).
 SCENE_VIEW_ZOOM_PER_SECOND :: f32(1)
 
-// One frame's input: walk per axis (right, up, forward), each from minus one to one, turn in radians (yaw, pitch), already scaled by the caller, and cycle_configuration and previous_configuration the edges of the presses the caller detects. In orbit mode walk and turn go round the target and walk.z zooms.
+// One frame's input: walk per axis (right, up, forward), each from minus one to one, turn in radians (yaw, pitch), already scaled by the caller, and cycle_configuration, previous_configuration and focus_step the edges of the presses the caller detects. In orbit mode walk and turn go round the target and walk.z zooms.
 Scene_Input :: struct {
 	walk:                [3]f32,
 	turn:                [2]f32,
@@ -26,6 +26,8 @@ Scene_Input :: struct {
 	zoom:                   f32,
 	cycle_configuration:    bool,
 	previous_configuration: bool,
+	// Minus one, zero or one: in orbit mode the orbit moves to the previous or next mesh item.
+	focus_step:             int,
 }
 
 // A scene drawn from its data through the fly or the orbit camera, by the scene's camera mode, with no window or canvas of its own. The item arrays hold one entry per item and configuration, at item_index * count + configuration.
@@ -39,6 +41,9 @@ Scene_View :: struct {
 	fly:               Fly,
 	orbit:             Orbit,
 	configuration:     int,
+	// The index into scene.items of the orbited item, and the camera target's offset from the item focused at init.
+	focus:             int,
+	focus_offset:      [3]f32,
 }
 
 // Needs a current GL context; the aspect fits the start view.
@@ -49,6 +54,10 @@ scene_view_init :: proc(view: ^Scene_View, library_data, scene_data: []byte, tex
 	if problem != "" do return fmt.tprintf("scene: %s", problem)
 	view.orbit = orbit_fit_width(view.scene.camera, view.scene.fit_width, SCENE_VIEW_VERTICAL_FOV, aspect, SCENE_VIEW_DISTANCE_MAXIMUM)
 	view.fly = fly_from_orbit(view.orbit)
+	view.focus = scene_nearest_mesh_item(view.scene.items, view.scene.camera.target)
+	if view.focus < len(view.scene.items) && view.scene.items[view.focus].shape == .Mesh {
+		view.focus_offset = view.scene.camera.target - view.scene.items[view.focus].position
+	}
 	if !gl_renderer_init(&view.renderer) do return "the GL shaders did not compile"
 	problem = scene_view_upload_meshes(view, meshes)
 	if problem != "" do return fmt.tprintf("meshes: %s", problem)
@@ -65,6 +74,7 @@ scene_view_step :: proc(view: ^Scene_View, input: Scene_Input, delta_time: f32) 
 		view.fly = scene_view_fly_step(view.fly, input, step_time)
 	case .Orbit:
 		view.orbit = scene_view_orbit_step(view.orbit, input, step_time)
+		if input.focus_step != 0 do scene_view_focus_step(view, input.focus_step)
 	}
 	count := scene_configuration_count(view.scene)
 	if input.cycle_configuration do view.configuration = (view.configuration + 1) % count
@@ -88,6 +98,37 @@ scene_view_orbit_step :: proc(orbit: Orbit, input: Scene_Input, step_time: f32) 
 	result = orbit_turn(result, {-input.walk.x, input.walk.y}, SCENE_VIEW_ORBIT_TURN_RADIANS_PER_SECOND * step_time)
 	zoom := input.zoom + input.walk.z * SCENE_VIEW_ZOOM_PER_SECOND * step_time
 	return orbit_zoom(result, zoom, SCENE_VIEW_DISTANCE_MINIMUM, SCENE_VIEW_DISTANCE_MAXIMUM)
+}
+
+// The orbit keeps its yaw, pitch and distance and looks at the same point on the next model. A scene without mesh items keeps its target.
+@(private = "file")
+scene_view_focus_step :: proc(view: ^Scene_View, step: int) {
+	next := scene_next_mesh_item(view.scene.items, view.focus, step)
+	if next >= len(view.scene.items) || view.scene.items[next].shape != .Mesh do return
+	view.focus = next
+	view.orbit.target = view.scene.items[next].position + view.focus_offset
+}
+
+// The first mesh item after from in the direction of step's sign, wrapping, from itself when it is the only one, from when there is none.
+scene_next_mesh_item :: proc(items: []Scene_Item, from, step: int) -> int {
+	count := len(items)
+	direction := step < 0 ? -1 : 1
+	for offset in 1 ..= count {
+		index := ((from + direction * offset) % count + count) % count
+		if items[index].shape == .Mesh do return index
+	}
+	return from
+}
+
+// The mesh item whose position is nearest the point, 0 when there is none.
+@(private = "file")
+scene_nearest_mesh_item :: proc(items: []Scene_Item, point: [3]f32) -> int {
+	nearest, nearest_distance := 0, max(f32)
+	for item, index in items {
+		distance := linalg.length2(item.position - point)
+		if item.shape == .Mesh && distance < nearest_distance do nearest, nearest_distance = index, distance
+	}
+	return nearest
 }
 
 // The current configuration's name, "" for a scene that names none.

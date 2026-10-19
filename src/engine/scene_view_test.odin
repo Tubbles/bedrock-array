@@ -107,3 +107,31 @@ test_scene_view_previous_configuration_wraps :: proc(t: ^testing.T) {
 	scene_view_step(&plain, {previous_configuration = true}, 0)
 	testing.expect_value(t, plain.configuration, 0)
 }
+
+@(test)
+test_scene_next_mesh_item_skips_and_wraps :: proc(t: ^testing.T) {
+	items := []Scene_Item{{shape = .Box}, {shape = .Mesh}, {shape = .Mesh}, {shape = .Box}}
+	testing.expect_value(t, scene_next_mesh_item(items, 1, 1), 2)
+	testing.expect_value(t, scene_next_mesh_item(items, 2, 1), 1)
+	testing.expect_value(t, scene_next_mesh_item(items, 1, -1), 2)
+	testing.expect_value(t, scene_next_mesh_item([]Scene_Item{{shape = .Box}}, 0, 1), 0)
+}
+
+@(test)
+test_scene_view_focus_step_moves_the_target :: proc(t: ^testing.T) {
+	view: Scene_View
+	view.scene.camera_mode = .Orbit
+	view.scene.items = []Scene_Item{{shape = .Mesh, position = {0, 0, 0}}, {shape = .Box, position = {9, 9, 9}}, {shape = .Mesh, position = {4, 0, 0}}}
+	view.focus_offset = {0, 1, 0.5}
+	view.orbit = Orbit{target = {0, 1, 0.5}, yaw = 0.75, pitch = 0.25, distance = 2}
+	scene_view_step(&view, {focus_step = 1}, 0)
+	testing.expect_value(t, view.focus, 2)
+	testing.expect_value(t, view.orbit, Orbit{target = {4, 1, 0.5}, yaw = 0.75, pitch = 0.25, distance = 2})
+	scene_view_step(&view, {focus_step = -1}, 0)
+	testing.expect_value(t, view.focus, 0)
+	testing.expect_value(t, view.orbit.target, [3]f32{0, 1, 0.5})
+	// Fly mode ignores the step.
+	view.scene.camera_mode = .Fly
+	scene_view_step(&view, {focus_step = 1}, 0)
+	testing.expect_value(t, view.focus, 0)
+}
