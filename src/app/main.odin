@@ -109,10 +109,10 @@ any_key_down :: proc(keys: []rl.KeyboardKey) -> bool {
 	return false
 }
 
-// The page's keys (engine scene_page_key_from_code): opposite keys cancel. Without side_arrows_walk only A and D walk sideways.
-keyboard_walk :: proc(side_arrows_walk: bool) -> [3]f32 {
-	forward := any_key_down({.W, .UP})
-	back := any_key_down({.S, .DOWN})
+// The page's keys (engine scene_page_key_from_code): opposite keys cancel. Without side_arrows_walk only A and D walk sideways, without forward_arrows_walk only W and S walk forward and back.
+keyboard_walk :: proc(side_arrows_walk, forward_arrows_walk: bool) -> [3]f32 {
+	forward := rl.IsKeyDown(.W) || (forward_arrows_walk && rl.IsKeyDown(.UP))
+	back := rl.IsKeyDown(.S) || (forward_arrows_walk && rl.IsKeyDown(.DOWN))
 	left := any_key_down({.A}) || (side_arrows_walk && rl.IsKeyDown(.LEFT))
 	right := any_key_down({.D}) || (side_arrows_walk && rl.IsKeyDown(.RIGHT))
 	up := any_key_down({.E, .SPACE})
@@ -120,15 +120,15 @@ keyboard_walk :: proc(side_arrows_walk: bool) -> [3]f32 {
 	return {key_axis(right, left), key_axis(up, down), key_axis(forward, back)}
 }
 
-// In orbit mode the mouse turns only while its left button is down, the wheel zooms and the side arrows step the focus instead of walking.
-frame_input :: proc(camera_mode: engine.Scene_Camera_Mode) -> engine.Scene_Input {
+// In orbit mode the mouse turns only while its left button is down, the wheel zooms and the side arrows step the focus instead of walking. While the panel is open the arrows drive it and neither walk nor step the focus.
+frame_input :: proc(camera_mode: engine.Scene_Camera_Mode, panel_open: bool) -> engine.Scene_Input {
 	mouse := rl.GetMouseDelta()
 	input := engine.Scene_Input {
-		walk = keyboard_walk(camera_mode != .Orbit),
+		walk = keyboard_walk(camera_mode != .Orbit && !panel_open, !panel_open),
 		turn = {mouse.x, mouse.y} * APP_MOUSE_RADIANS_PER_PIXEL,
 		cycle_configuration = rl.IsKeyPressed(.C),
-		focus_step = int(rl.IsKeyPressed(.RIGHT)) - int(rl.IsKeyPressed(.LEFT)),
 	}
+	if !panel_open do input.focus_step = int(rl.IsKeyPressed(.RIGHT)) - int(rl.IsKeyPressed(.LEFT))
 	if camera_mode == .Orbit {
 		if !rl.IsMouseButtonDown(.LEFT) do input.turn = {}
 		input.zoom = rl.GetMouseWheelMove() * APP_WHEEL_ZOOM_PER_NOTCH
@@ -187,7 +187,7 @@ draw_configuration_name :: proc(view: ^engine.Scene_View, screen: [2]i32) {
 	rl.DrawText(text, x, screen.y - 16 - LABEL_FONT_SIZE, LABEL_FONT_SIZE, TEXT_COLOR)
 }
 
-draw_frame :: proc(view: ^engine.Scene_View) {
+draw_frame :: proc(view: ^engine.Scene_View, panel: Lod_Panel) {
 	size := render_size()
 	screen := screen_size()
 	rl.BeginDrawing()
@@ -196,6 +196,7 @@ draw_frame :: proc(view: ^engine.Scene_View) {
 	draw_labels(view, screen)
 	rl.DrawText(BUILD_INFO, 16, screen.y - 16 - LABEL_FONT_SIZE, LABEL_FONT_SIZE, TEXT_COLOR)
 	draw_configuration_name(view, screen)
+	lod_panel_draw(panel, view)
 	rl.EndDrawing()
 }
 
@@ -278,6 +279,7 @@ main :: proc() {
 	edge_state: Menu_Edge_State
 	menu: Menu_State
 	view: engine.Scene_View
+	lod_panel: Lod_Panel
 	screen := App_Screen.Menu
 	if known {
 		enter_demo(&view, demo, options)
@@ -294,6 +296,10 @@ main :: proc() {
 		right_shoulder_pressed := .Right_Shoulder in snapshot.buttons && .Right_Shoulder not_in edge_state.buttons
 		dpad_left_pressed := .Dpad_Left in snapshot.buttons && .Dpad_Left not_in edge_state.buttons
 		dpad_right_pressed := .Dpad_Right in snapshot.buttons && .Dpad_Right not_in edge_state.buttons
+		dpad_up_pressed := .Dpad_Up in snapshot.buttons && .Dpad_Up not_in edge_state.buttons
+		dpad_down_pressed := .Dpad_Down in snapshot.buttons && .Dpad_Down not_in edge_state.buttons
+		back_pressed := .Back in snapshot.buttons && .Back not_in edge_state.buttons
+		south_pressed := .South in snapshot.buttons && .South not_in edge_state.buttons
 		menu_input := menu_input_merge(keyboard_menu_input(), menu_edges(&edge_state, snapshot))
 		if screen == .Menu {
 			command := menu_step(&menu, len(DEMOS), menu_input)
@@ -304,23 +310,36 @@ main :: proc() {
 			}
 		} else if menu_input.back || start_pressed {
 			leave_demo(&view, options)
+			lod_panel.open = false
 			screen = .Menu
 		}
 		if screen == .Menu {
 			draw_menu_frame(menu)
 		} else {
-			input := frame_input(view.scene.camera_mode)
+			if lod_panel_available(&view) {
+				lod_panel_step(&lod_panel, &view.lod, {
+					toggle = back_pressed || rl.IsKeyPressed(.TAB),
+					up = dpad_up_pressed || rl.IsKeyPressed(.UP),
+					down = dpad_down_pressed || rl.IsKeyPressed(.DOWN),
+					left = dpad_left_pressed || rl.IsKeyPressed(.LEFT),
+					right = dpad_right_pressed || rl.IsKeyPressed(.RIGHT),
+					reset = south_pressed || rl.IsKeyPressed(.ENTER),
+				})
+			}
+			input := frame_input(view.scene.camera_mode, lod_panel.open)
 			// The turn is scaled here, so the step's limit on a long frame applies here too.
 			gamepad_input := gamepad_scene_input(snapshot, min(delta_time, engine.SCENE_VIEW_STEP_LIMIT))
+			// While the panel is open the d-pad drives it and does not rise, sink or step the focus.
+			if lod_panel.open do gamepad_input.walk.y = 0
 			input.walk += gamepad_input.walk
 			input.turn += gamepad_input.turn
 			input.cycle_configuration = input.cycle_configuration || north_pressed || right_shoulder_pressed
 			input.previous_configuration = left_shoulder_pressed
-			input.focus_step += int(dpad_right_pressed) - int(dpad_left_pressed)
+			if !lod_panel.open do input.focus_step += int(dpad_right_pressed) - int(dpad_left_pressed)
 			if rl.IsKeyPressed(.T) do view.lod.tint = !view.lod.tint
 			if rl.IsKeyPressed(.F) do view.lod.freeze = !view.lod.freeze
 			engine.scene_view_step(&view, input, delta_time)
-			draw_frame(&view)
+			draw_frame(&view, lod_panel)
 		}
 		if frames_drawn == 0 do exit_on_gl_error()
 		frames_drawn += 1

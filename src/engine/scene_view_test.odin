@@ -184,3 +184,16 @@ test_scene_view_level_fade_advances_and_settles :: proc(t: ^testing.T) {
 	scene_view_step(&view, {}, 0.01)
 	testing.expect_value(t, levels.fade, 1)
 }
+
+@(test)
+test_scene_view_level_counts :: proc(t: ^testing.T) {
+	view: Scene_View
+	view.scene.items = []Scene_Item{{shape = .Mesh, scale = 1}, {shape = .Box, scale = 1}, {shape = .Mesh, scale = 1}}
+	mesh_ids := []Mesh_Id{1, 2, 3}
+	triangle_counts := []int{1000, 100, 10}
+	view.item_levels = []Scene_Item_Levels{{mesh_ids = mesh_ids, triangle_counts = triangle_counts, current = 1, fade = 1}, {}, {mesh_ids = mesh_ids, triangle_counts = triangle_counts, current = 2, previous = 1, fade = 0.5}}
+	view.item_triangle_counts = []int{1000, 12, 1000}
+	triangles, items_per_level := scene_view_level_counts(&view)
+	testing.expect_value(t, triangles, 100 + 12 + 10 + 100)
+	testing.expect_value(t, items_per_level, [8]int{0, 1, 1, 0, 0, 0, 0, 0})
+}

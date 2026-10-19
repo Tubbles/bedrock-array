@@ -47,6 +47,7 @@ Scene_View :: struct {
 	renderer:          Gl_Renderer,
 	item_mesh_ids:     []Mesh_Id,
 	item_half_extents: [][3]f32,
+	item_triangle_counts: []int,
 	item_levels:       []Scene_Item_Levels,
 	lod:               Lod_Settings,
 	draw_list:         Draw_List,
@@ -225,6 +226,21 @@ scene_view_choose_levels :: proc(view: ^Scene_View, canvas_height: f32) {
 	}
 }
 
+// The triangles drawn with the current levels, a fading item's previous level counted too, and each plain item's mesh of the current configuration, with the count of items at each level, the last entry for every level past it.
+scene_view_level_counts :: proc(view: ^Scene_View) -> (triangles: int, items_per_level: [8]int) {
+	count := scene_configuration_count(view.scene)
+	for levels, index in view.item_levels {
+		if len(levels.mesh_ids) == 0 {
+			triangles += view.item_triangle_counts[index * count + view.configuration]
+			continue
+		}
+		triangles += levels.triangle_counts[levels.current]
+		if levels.fade < 1 do triangles += levels.triangle_counts[levels.previous]
+		items_per_level[clamp(levels.current, 0, len(items_per_level) - 1)] += 1
+	}
+	return triangles, items_per_level
+}
+
 scene_view_camera :: proc(view: ^Scene_View) -> Camera {
 	if view.scene.camera_mode == .Orbit do return orbit_camera(view.orbit, SCENE_VIEW_VERTICAL_FOV, 0.1, 100)
 	return fly_camera(view.fly, SCENE_VIEW_VERTICAL_FOV, 0.1, 100)
@@ -243,6 +259,7 @@ scene_view_destroy :: proc(view: ^Scene_View) {
 	draw_list_destroy(&view.draw_list)
 	delete(view.item_mesh_ids)
 	delete(view.item_half_extents)
+	delete(view.item_triangle_counts)
 	for levels in view.item_levels {
 		delete(levels.mesh_ids)
 		delete(levels.triangle_counts)
@@ -267,6 +284,7 @@ scene_view_upload_meshes :: proc(view: ^Scene_View, meshes: []runtime.Load_Direc
 	count := scene_configuration_count(view.scene)
 	view.item_mesh_ids = make([]Mesh_Id, len(view.scene.items) * count)
 	view.item_half_extents = make([][3]f32, len(view.scene.items) * count)
+	view.item_triangle_counts = make([]int, len(view.scene.items) * count)
 	view.item_levels = make([]Scene_Item_Levels, len(view.scene.items))
 	blob_by_file := make(map[string]Scene_View_Blob, context.temp_allocator)
 	defer delete(blob_by_file)
@@ -279,19 +297,20 @@ scene_view_upload_meshes :: proc(view: ^Scene_View, meshes: []runtime.Load_Direc
 			blob: Scene_View_Blob
 			switch {
 			case len(item.levels) > 0:
-				blob = {view.item_levels[index].mesh_ids[0], view.item_levels[index].half_extents, 0}
+				blob = {view.item_levels[index].mesh_ids[0], view.item_levels[index].half_extents, view.item_levels[index].triangle_counts[0]}
 			case item.shape == .Mesh:
 				if blob, problem = scene_view_upload_blob(view, scene_item_file(item, configuration), &blob_by_file, meshes); problem != "" do return problem
 			case configuration > 0:
-				blob = {view.item_mesh_ids[index * count], view.item_half_extents[index * count], 0}
+				blob = {view.item_mesh_ids[index * count], view.item_half_extents[index * count], view.item_triangle_counts[index * count]}
 			case:
 				mesh: Mesh_Data
 				if mesh, problem = scene_item_mesh(item, configuration, meshes); problem != "" do return problem
-				blob = {gl_renderer_upload_mesh(&view.renderer, mesh), scene_item_half_extents(item, mesh), 0}
+				blob = {gl_renderer_upload_mesh(&view.renderer, mesh), scene_item_half_extents(item, mesh), len(mesh.indices) / 3}
 				mesh_data_destroy(&mesh)
 			}
 			view.item_mesh_ids[entry] = blob.mesh_id
 			view.item_half_extents[entry] = blob.half_extents
+			view.item_triangle_counts[entry] = blob.triangle_count
 		}
 	}
 	return ""
