@@ -9,7 +9,7 @@ import engine "../../engine"
 page: engine.Scene_Page
 
 main :: proc() {
-	problem := engine.scene_page_init(&page, "canvas", #load("../../../data/materials/library.sjson"), #load("../../../data/demos/light/scene.sjson"), #load_directory("../../../data/materials/textures"))
+	problem := engine.scene_page_init(&page, "canvas", #load("../../../data/materials/library.sjson"), #load("../../../data/demos/light/scene.sjson"), #load_directory("../../../data/materials/textures"), nil)
 	if problem != "" do fmt.eprintln(problem)
 	// The decoded textures and any problem live in the temp arena until here.
 	free_all(context.temp_allocator)

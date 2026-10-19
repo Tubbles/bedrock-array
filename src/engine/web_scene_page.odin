@@ -42,6 +42,7 @@ Scene_Page :: struct {
 	library:                     Material_Library,
 	scene:                       Scene,
 	item_mesh_ids:               []Mesh_Id,
+	item_half_extents:           [][3]f32,
 	draw_list:                   Draw_List,
 	orbit:                       Orbit,
 	canvas_width, canvas_height: i32,
@@ -53,7 +54,7 @@ Scene_Page :: struct {
 	ready:                       bool,
 }
 
-scene_page_init :: proc(page: ^Scene_Page, canvas_id: string, library_data, scene_data: []byte, textures: []runtime.Load_Directory_File) -> (problem: string) {
+scene_page_init :: proc(page: ^Scene_Page, canvas_id: string, library_data, scene_data: []byte, textures, meshes: []runtime.Load_Directory_File) -> (problem: string) {
 	page.canvas_id = canvas_id
 	page.gamepad_index = -1
 	gl.CreateCurrentContextById(canvas_id, {})
@@ -65,7 +66,8 @@ scene_page_init :: proc(page: ^Scene_Page, canvas_id: string, library_data, scen
 	if problem != "" do return fmt.tprintf("scene: %s", problem)
 	page.orbit = page.scene.camera
 	if !webgl_renderer_init(&page.renderer) do return "the WebGL2 shaders did not compile"
-	scene_page_upload_meshes(page)
+	problem = scene_page_upload_meshes(page, meshes)
+	if problem != "" do return fmt.tprintf("meshes: %s", problem)
 	problem = scene_page_upload_textures(page, textures)
 	if problem != "" do return fmt.tprintf("textures: %s", problem)
 	page.ready = true
@@ -89,7 +91,8 @@ scene_page_step :: proc(page: ^Scene_Page, delta_time: f32) {
 		draw_list_add_light(&page.draw_list, light)
 	}
 	for item, index in page.scene.items {
-		draw_list_add(&page.draw_list, page.item_mesh_ids[index], item.material, linalg.matrix4_translate_f32(item.position), scene_item_half_extents(item))
+		transform := linalg.matrix4_translate_f32(item.position) * linalg.matrix4_scale_f32({item.scale, item.scale, item.scale})
+		draw_list_add(&page.draw_list, page.item_mesh_ids[index], item.material, transform, page.item_half_extents[index])
 	}
 	webgl_renderer_draw(&page.renderer, page.draw_list, page.library, page.canvas_width, page.canvas_height)
 }
@@ -144,14 +147,19 @@ scene_page_listen :: proc(page: ^Scene_Page) {
 	js.add_event_listener(page.canvas_id, .Context_Menu, page, on_scene_page_context_menu)
 }
 
+// The half extents are kept from the parsed mesh, which is freed once uploaded.
 @(private = "file")
-scene_page_upload_meshes :: proc(page: ^Scene_Page) {
+scene_page_upload_meshes :: proc(page: ^Scene_Page, meshes: []runtime.Load_Directory_File) -> (problem: string) {
 	page.item_mesh_ids = make([]Mesh_Id, len(page.scene.items))
+	page.item_half_extents = make([][3]f32, len(page.scene.items))
 	for item, index in page.scene.items {
-		mesh := scene_item_mesh(item)
+		mesh: Mesh_Data
+		if mesh, problem = scene_item_mesh(item, meshes); problem != "" do return problem
 		page.item_mesh_ids[index] = webgl_renderer_upload_mesh(&page.renderer, mesh)
+		page.item_half_extents[index] = scene_item_half_extents(item, mesh)
 		mesh_data_destroy(&mesh)
 	}
+	return ""
 }
 
 // One set per material that names one; the decoded pixels live in the temp allocator until uploaded.

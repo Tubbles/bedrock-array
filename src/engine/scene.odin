@@ -1,20 +1,27 @@
 package engine
 
+import "base:runtime"
 import "core:encoding/json"
 import "core:fmt"
+import "core:strings"
 
 Scene_Shape :: enum {
 	Box,
 	Cylinder,
 	Room,
+	Mesh,
 }
 
-// size for a box or a room, radius, height and segments for a cylinder.
+// size for a box or a room, radius, height and segments for a cylinder, file
+// (a mesh blob's file name) for a mesh. scale is a uniform scale, 1 unless a
+// mesh sets it.
 Scene_Item :: struct {
 	shape:          Scene_Shape,
 	size:           [3]f32,
 	radius, height: f32,
 	segments:       int,
+	file:           string,
+	scale:          f32,
 	position:       [3]f32,
 	material:       Material_Id,
 }
@@ -97,40 +104,68 @@ parse_scene :: proc(data: []byte, library: Material_Library, allocator := contex
 	}
 	scene.items = make([]Scene_Item, len(items), allocator)
 	copy(scene.items, items)
+	// The file names point into the parsed SJSON, freed on return.
+	for &item in scene.items {
+		if item.file != "" do item.file = strings.clone(item.file, allocator)
+	}
 	scene.lights = make([]Point_Light, len(lights), allocator)
 	copy(scene.lights, lights)
 	return scene, ""
 }
 
 scene_destroy :: proc(scene: ^Scene, allocator := context.allocator) {
+	for item in scene.items {
+		delete(item.file, allocator)
+	}
 	delete(scene.items, allocator)
 	delete(scene.lights, allocator)
 	scene.items = nil
 	scene.lights = nil
 }
 
-// The item's mesh by its shape, for the caller to upload and destroy.
-scene_item_mesh :: proc(item: Scene_Item) -> Mesh_Data {
+// The item's mesh by its shape, for the caller to upload and destroy. A mesh
+// item's blob is found by its file name among meshes.
+// The problem text lives in context.temp_allocator, valid until its next reset.
+scene_item_mesh :: proc(item: Scene_Item, meshes: []runtime.Load_Directory_File) -> (mesh: Mesh_Data, problem: string) {
 	switch item.shape {
 	case .Box:
-		return box_mesh(item.size)
+		return box_mesh(item.size), ""
 	case .Cylinder:
-		return cylinder_mesh(item.radius, item.height, item.segments)
+		return cylinder_mesh(item.radius, item.height, item.segments), ""
 	case .Room:
-		return room_mesh(item.size)
+		return room_mesh(item.size), ""
+	case .Mesh:
+		data, found := scene_mesh_file_find(meshes, item.file)
+		if !found do return {}, fmt.tprintf("mesh file %s missing", item.file)
+		if mesh, problem = parse_mesh_blob(data); problem != "" {
+			return {}, fmt.tprintf("%s: %s", item.file, problem)
+		}
+		return mesh, ""
 	}
-	return {}
+	return {}, ""
 }
 
-// The half extents of the item's mesh around its origin, for the wear rule's edge distance.
-scene_item_half_extents :: proc(item: Scene_Item) -> [3]f32 {
+// The half extents of the item's mesh around its origin, for the wear rule's
+// edge distance, in the mesh's own units since the shader compares them with
+// the vertex position before the scale; mesh is the parsed blob of a mesh item.
+scene_item_half_extents :: proc(item: Scene_Item, mesh: Mesh_Data) -> [3]f32 {
 	switch item.shape {
 	case .Box, .Room:
 		return item.size / 2
 	case .Cylinder:
 		return {item.radius, item.height / 2, item.radius}
+	case .Mesh:
+		return mesh_half_extents(mesh)
 	}
 	return {}
+}
+
+@(private = "file")
+scene_mesh_file_find :: proc(files: []runtime.Load_Directory_File, file_name: string) -> (data: []byte, found: bool) {
+	for file in files {
+		if file.name == file_name do return file.data, true
+	}
+	return nil, false
 }
 
 @(private = "file")
@@ -191,6 +226,7 @@ parse_scene_item :: proc(owner: string, value: json.Value, library: Material_Lib
 	if shape_name, problem = scene_string_field(owner, "shape", fields); problem != "" {
 		return {}, problem
 	}
+	item.scale = 1
 	switch shape_name {
 	case "box":
 		item.shape = .Box
@@ -207,8 +243,13 @@ parse_scene_item :: proc(owner: string, value: json.Value, library: Material_Lib
 		if item.radius, item.height, item.segments, problem = parse_scene_cylinder(owner, fields); problem != "" {
 			return {}, problem
 		}
+	case "mesh":
+		item.shape = .Mesh
+		if item.file, item.scale, problem = parse_scene_mesh(owner, fields); problem != "" {
+			return {}, problem
+		}
 	case:
-		return {}, fmt.tprintf("%s: shape %s is neither box, cylinder nor room", owner, shape_name)
+		return {}, fmt.tprintf("%s: shape %s is neither box, cylinder, room nor mesh", owner, shape_name)
 	}
 	if item.position, problem = scene_vector_field(owner, "position", fields); problem != "" {
 		return {}, problem
@@ -271,6 +312,26 @@ parse_scene_cylinder :: proc(owner: string, fields: json.Object) -> (radius, hei
 		return 0, 0, 0, problem
 	}
 	return radius, height, segments, ""
+}
+
+// The file points into the parsed SJSON until parse_scene clones it; scale
+// is optional, above 0, 1 when absent.
+@(private = "file")
+parse_scene_mesh :: proc(owner: string, fields: json.Object) -> (file: string, scale: f32, problem: string) {
+	if problem = scene_check_keys(owner, fields, {"shape", "file", "scale", "position", "material"}); problem != "" {
+		return "", 0, problem
+	}
+	if file, problem = scene_string_field(owner, "file", fields); problem != "" {
+		return "", 0, problem
+	}
+	if "scale" not_in fields do return file, 1, ""
+	if scale, problem = scene_number_field(owner, "scale", fields); problem != "" {
+		return "", 0, problem
+	}
+	if scale <= 0 {
+		return "", 0, fmt.tprintf("%s: scale %v must be above 0", owner, scale)
+	}
+	return file, scale, ""
 }
 
 @(private = "file")
