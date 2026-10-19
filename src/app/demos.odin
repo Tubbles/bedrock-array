@@ -14,6 +14,9 @@ Demo :: struct {
 MATERIAL_LIBRARY :: #load("../../data/materials/library.sjson")
 material_textures := #load_directory("../../data/materials/textures")
 
+// The decimation demo's levels, embedded once for it and the LOD demo.
+decimation_meshes := #load_directory("../../data/demos/decimation/meshes")
+
 DEMOS := [?]Demo {
 	{
 		name = "light",
@@ -40,7 +43,13 @@ DEMOS := [?]Demo {
 		name = "decimation",
 		description = #load("../demos/decimation/description.txt", string),
 		scene = #load("../../data/demos/decimation/scene.sjson"),
-		meshes = #load_directory("../../data/demos/decimation/meshes"),
+		meshes = decimation_meshes,
+	},
+	{
+		name = "lod",
+		description = #load("../../data/demos/lod/description.txt", string),
+		scene = #load("../../data/demos/lod/scene.sjson"),
+		meshes = decimation_meshes,
 	},
 }
 

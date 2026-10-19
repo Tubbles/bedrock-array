@@ -1,0 +1,1 @@
+A field of a hundred smelters out to 76 m, each choosing its level of detail by its size on screen and crossfading between levels, in the app only. Walk with the left stick or WASD, look with the right stick or the mouse. T tints each furnace by its level, F freezes the levels to walk up and check them.

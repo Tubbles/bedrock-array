@@ -146,6 +146,7 @@ smoke_app() {
 	build_app -debug
 	smoke_run --frames 3
 	smoke_run --demo models --frames 3
+	smoke_run --demo lod --frames 3
 }
 
 build_web() {

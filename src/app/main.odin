@@ -255,7 +255,7 @@ main :: proc() {
 	options, ok := parse_options(os.args[1:])
 	demo, known := demo_by_name(options.demo)
 	if !ok || (options.demo != "" && !known) {
-		fmt.eprintln("usage: bedrock-array [--demo light|surface|cave|models|decimation] [--frames <n>] [--windowed]")
+		fmt.eprintln("usage: bedrock-array [--demo light|surface|cave|models|decimation|lod] [--frames <n>] [--windowed]")
 		os.exit(2)
 	}
 	rl.SetConfigFlags({.WINDOW_RESIZABLE, .WINDOW_HIGHDPI, .VSYNC_HINT})
