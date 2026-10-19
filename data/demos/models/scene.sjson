@@ -1,33 +1,33 @@
-// The models demo in three rows on a slab: the two base models behind (full and the 700000 face limit), the five low poly base models in the middle (the 24000 run on the left, the 12000 run on the right, each by triangle count falling), Blender's four decimations in front (from the full model, then from the 700000 one, each 24000 then 10700). The camera's pitch, the row depths and the plaque heights come from a projection of the rows at 16:9 (tmp/models_layout.py in the session that made them): no plaque covers a model or a plaque of the row behind. A phone in portrait is too narrow for the dense rows, whose plaques overlap there until one walks closer.
-camera = { target = [0, 0.5, 0], yaw = 0, pitch = 0.6, distance = 9, fit_width = 13 }
+// The models demo in three clusters on a slab. Back left, the base models in a row by triangle count: full, then the 700000 face limit. Centre, Tripo's low poly models, one column per technique (the face limit, then the smart low poly mode), each column by triangle count falling toward the front. Front right, Blender's decimations: columns by the base model (from full, then from the 700000 one), rows by the target (24000, then 10700). The nearest plaque of each column names it; the others carry the count. The camera, the row depths and the plaque heights come from a projection of every model as a box at 16:9 (tmp/models_clusters.py in the session that made them): nothing is cut off and no plaque covers a model or another plaque. A phone in portrait is too narrow for the clusters until one walks closer.
+camera = { target = [0.25, 0.5, -1], yaw = 0, pitch = 0.7, distance = 9, fit_width = 22.7 }
 sun = { direction = [0.4, -1, -0.3], colour = [1, 0.96, 0.9], intensity = 1 }
 exposure = 1
 ambient = 0.15
 items = [
-	{ shape = "box", size = [13, 0.1, 12.5], position = [0, -0.05, -1], material = "concrete" }
-	{ shape = "mesh", file = "full.mesh", scale = 1, position = [-2, 0, -6], material = "painted_steel" }
-	{ shape = "mesh", file = "faces700000.mesh", scale = 1, position = [2, 0, -6], material = "painted_steel" }
-	{ shape = "mesh", file = "faces20000_smart.mesh", scale = 1, position = [-5, 0, 0], material = "painted_steel" }
-	{ shape = "mesh", file = "faces24000.mesh", scale = 1, position = [-2.5, 0, 0], material = "painted_steel" }
-	{ shape = "mesh", file = "smart.mesh", scale = 1, position = [0, 0, 0], material = "painted_steel" }
-	{ shape = "mesh", file = "faces12000.mesh", scale = 1, position = [2.5, 0, 0], material = "painted_steel" }
-	{ shape = "mesh", file = "faces12000_smart.mesh", scale = 1, position = [5, 0, 0], material = "painted_steel" }
-	{ shape = "mesh", file = "blender_full_24000.mesh", scale = 1, position = [-3.75, 0, 4], material = "painted_steel" }
-	{ shape = "mesh", file = "blender_full_10700.mesh", scale = 1, position = [-1.25, 0, 4], material = "painted_steel" }
-	{ shape = "mesh", file = "blender_700000_24000.mesh", scale = 1, position = [1.25, 0, 4], material = "painted_steel" }
-	{ shape = "mesh", file = "blender_700000_10700.mesh", scale = 1, position = [3.75, 0, 4], material = "painted_steel" }
+	{ shape = "box", size = [17, 0.1, 10.5], position = [-0.75, -0.05, -1], material = "concrete" }
+	{ shape = "mesh", file = "full.mesh", scale = 1, position = [-8, 0, -5], material = "painted_steel" }
+	{ shape = "mesh", file = "faces700000.mesh", scale = 1, position = [-4.5, 0, -5], material = "painted_steel" }
+	{ shape = "mesh", file = "faces24000.mesh", scale = 1, position = [-1.25, 0, -5], material = "painted_steel" }
+	{ shape = "mesh", file = "faces12000.mesh", scale = 1, position = [-1.25, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", file = "faces20000_smart.mesh", scale = 1, position = [1.25, 0, -5], material = "painted_steel" }
+	{ shape = "mesh", file = "smart.mesh", scale = 1, position = [1.25, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", file = "faces12000_smart.mesh", scale = 1, position = [1.25, 0, 3], material = "painted_steel" }
+	{ shape = "mesh", file = "blender_full_24000.mesh", scale = 1, position = [4, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", file = "blender_full_10700.mesh", scale = 1, position = [4, 0, 3], material = "painted_steel" }
+	{ shape = "mesh", file = "blender_700000_24000.mesh", scale = 1, position = [6.5, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", file = "blender_700000_10700.mesh", scale = 1, position = [6.5, 0, 3], material = "painted_steel" }
 ]
-// Short texts, two lines on a plaque: "limit" is Tripo's face limit, "smart" its smart low poly mode, "Blender <source>" a decimation of that model.
+// "limit" is Tripo's face limit, "smart" its smart low poly mode (the smart column is limit 20000, no limit, limit 12000 from the back), "from" a Blender decimation of that base model.
 labels = [
-	{ text = "full, 1.46 M triangles", position = [-2, 1.3, -6] }
-	{ text = "limit 700000, 654548 triangles", position = [2, 1.3, -6] }
-	{ text = "smart 20000, 29476 triangles", position = [-5, 1.6, 0] }
-	{ text = "limit 24000, 20824 triangles", position = [-2.5, 1.6, 0] }
-	{ text = "smart, 10796 triangles", position = [0, 1.6, 0] }
-	{ text = "limit 12000, 10700 triangles", position = [2.5, 1.6, 0] }
-	{ text = "smart 12000, 10409 triangles", position = [5, 1.6, 0] }
-	{ text = "Blender full, 23984 triangles", position = [-3.75, 1.9, 4] }
-	{ text = "Blender full, 10680 triangles", position = [-1.25, 1.9, 4] }
-	{ text = "Blender 700000, 23990 triangles", position = [1.25, 1.9, 4] }
-	{ text = "Blender 700000, 10688 triangles", position = [3.75, 1.9, 4] }
+	{ text = "full, 1.46 M triangles", position = [-8, 1.3, -5] }
+	{ text = "limit 700000, 654548 triangles", position = [-4.5, 1.3, -5] }
+	{ text = "20824 triangles", position = [-1.25, 1.3, -5] }
+	{ text = "limit 12000, 10700 triangles", position = [-1.25, 1.6, 0] }
+	{ text = "29476 triangles", position = [1.25, 1.3, -5] }
+	{ text = "10796 triangles", position = [1.25, 1.6, 0] }
+	{ text = "smart 12000, 10409 triangles", position = [1.25, 1.9, 3] }
+	{ text = "23984 triangles", position = [4, 1.6, 0] }
+	{ text = "from full, 10680 triangles", position = [4, 1.9, 3] }
+	{ text = "23990 triangles", position = [6.5, 1.6, 0] }
+	{ text = "from 700000, 10688 triangles", position = [6.5, 1.9, 3] }
 ]
