@@ -80,21 +80,6 @@ test_orbit_camera_rises_with_pitch :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_orbit_drag_turns_and_clamps :: proc(t: ^testing.T) {
-	turned := orbit_drag(Orbit{distance = 5}, {100, 0}, 0.01)
-	expect_near(t, turned.yaw, -1)
-	expect_near(t, turned.pitch, 0)
-	raised := orbit_drag(Orbit{distance = 5}, {0, 1000}, 0.01)
-	testing.expect_value(t, raised.pitch, ORBIT_PITCH_LIMIT)
-}
-
-@(test)
-test_orbit_zoom_scales_and_clamps :: proc(t: ^testing.T) {
-	testing.expect_value(t, orbit_zoom(Orbit{distance = 5}, 2, 2, 20).distance, 10)
-	testing.expect_value(t, orbit_zoom(Orbit{distance = 15}, 2, 2, 20).distance, 20)
-}
-
-@(test)
 test_orbit_fit_width :: proc(t: ^testing.T) {
 	orbit := Orbit{distance = 7.5}
 	expect_near(t, orbit_fit_width(orbit, 10, math.PI / 3, 0.5, 40).distance, 10 * math.sqrt(f32(3)), 1e-4)
@@ -143,38 +128,6 @@ test_fly_walk_moves_along_the_ground_and_up :: proc(t: ^testing.T) {
 	expect_near(t, up.x, 0)
 	expect_near(t, up.y, 1)
 	expect_near(t, up.z, 0)
-}
-
-@(test)
-test_orbit_pan_moves_the_target_in_the_view_plane :: proc(t: ^testing.T) {
-	orbit := Orbit{distance = 5}
-	sideways := orbit_pan(orbit, {10, 0}, 0.1).target
-	testing.expect(t, math.abs(sideways.x - -1) < 1e-5)
-	testing.expect(t, math.abs(sideways.y) < 1e-5)
-	testing.expect(t, math.abs(sideways.z) < 1e-5)
-	upwards := orbit_pan(orbit, {0, 10}, 0.1).target
-	testing.expect(t, math.abs(upwards.x) < 1e-5)
-	testing.expect(t, math.abs(upwards.y - 1) < 1e-5)
-	testing.expect(t, math.abs(upwards.z) < 1e-5)
-}
-
-@(test)
-test_orbit_metres_per_pixel :: proc(t: ^testing.T) {
-	metres_per_pixel := orbit_metres_per_pixel(Orbit{distance = 5}, math.PI / 2, 1000)
-	testing.expect(t, math.abs(metres_per_pixel - 0.01) < 1e-5)
-}
-
-@(test)
-test_orbit_walk_moves_along_the_ground :: proc(t: ^testing.T) {
-	orbit := Orbit{yaw = 0, pitch = 0.5, distance = 5}
-	forward := orbit_walk(orbit, {0, 0, 1}, 1)
-	testing.expect(t, math.abs(forward.target.x) < 1e-5)
-	testing.expect(t, math.abs(forward.target.y) < 1e-5)
-	testing.expect(t, math.abs(forward.target.z + 1) < 1e-5)
-	right := orbit_walk(orbit, {1, 0, 0}, 1)
-	testing.expect(t, math.abs(right.target.x - 1) < 1e-5)
-	testing.expect(t, math.abs(right.target.y) < 1e-5)
-	testing.expect(t, math.abs(right.target.z) < 1e-5)
 }
 
 @(test)

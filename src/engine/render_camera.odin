@@ -35,21 +35,6 @@ orbit_camera :: proc(orbit: Orbit, vertical_fov_radians, near, far: f32) -> Came
 // Radians of pitch either way, short of the poles where the up vector fails.
 ORBIT_PITCH_LIMIT :: f32(1.5)
 
-// A drag turns the orbit: right lowers yaw, down raises pitch, pitch limited.
-orbit_drag :: proc(orbit: Orbit, delta_pixels: [2]f32, radians_per_pixel: f32) -> Orbit {
-	result := orbit
-	result.yaw -= delta_pixels.x * radians_per_pixel
-	result.pitch = clamp(orbit.pitch + delta_pixels.y * radians_per_pixel, -ORBIT_PITCH_LIMIT, ORBIT_PITCH_LIMIT)
-	return result
-}
-
-// A zoom scales the distance by a factor, kept within minimum and maximum.
-orbit_zoom :: proc(orbit: Orbit, factor: f32, minimum, maximum: f32) -> Orbit {
-	result := orbit
-	result.distance = clamp(orbit.distance * factor, minimum, maximum)
-	return result
-}
-
 // A fit moves the camera back until fit_width metres span the canvas at the
 // target's depth, never closer than the orbit and never past the maximum.
 // A width of 0 leaves the orbit.
@@ -110,44 +95,10 @@ fly_walk :: proc(fly: Fly, input: [3]f32, metres: f32) -> Fly {
 	return result
 }
 
-// A pan moves the target in the view plane so the world follows the drag.
-orbit_pan :: proc(orbit: Orbit, delta_pixels: [2]f32, metres_per_pixel: f32) -> Orbit {
-	right, up := orbit_right_and_up(orbit)
-	result := orbit
-	result.target += (-delta_pixels.x * right + delta_pixels.y * up) * metres_per_pixel
-	return result
-}
-
-// The width of one pixel at the target's depth.
-orbit_metres_per_pixel :: proc(orbit: Orbit, vertical_fov_radians: f32, canvas_height_pixels: f32) -> f32 {
-	return 2 * orbit.distance * math.tan(vertical_fov_radians / 2) / canvas_height_pixels
-}
-
-// A walk moves the target: x along the right, y along world up, z along the horizontal forward.
-orbit_walk :: proc(orbit: Orbit, input: [3]f32, metres: f32) -> Orbit {
-	right, _ := orbit_right_and_up(orbit)
-	camera := orbit_camera(orbit, 0, 0, 0)
-	forward := camera.target - camera.position
-	forward.y = 0
-	forward = linalg.normalize(forward)
-	result := orbit
-	result.target += (input.x * right + input.y * [3]f32{0, 1, 0} + input.z * forward) * metres
-	return result
-}
-
 // A stick axis with its dead zone removed: 0 inside it, the rest rescaled to 0..1 with the sign kept.
 stick_dead_zone :: proc(value, dead: f32) -> f32 {
 	if math.abs(value) <= dead do return 0
 	return math.sign(value) * (math.abs(value) - dead) / (1 - dead)
-}
-
-@(private = "file")
-orbit_right_and_up :: proc(orbit: Orbit) -> (right, up: [3]f32) {
-	camera := orbit_camera(orbit, 0, 0, 0)
-	forward := linalg.normalize(camera.target - camera.position)
-	right = linalg.normalize(linalg.cross(forward, [3]f32{0, 1, 0}))
-	up = linalg.cross(right, forward)
-	return right, up
 }
 
 view_matrix :: proc(camera: Camera) -> matrix[4, 4]f32 {
