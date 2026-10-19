@@ -1,7 +1,7 @@
 #+build js wasm32
 // The GL names the renderer draws through, so one renderer compiles for
-// the browser and natively. This file maps them to WebGL2, the native
-// file comes with item 0072.
+// the browser and natively. This file maps them to WebGL2,
+// api_native.odin to desktop OpenGL.
 package glapi
 
 import webgl "vendor:wasm/WebGL"

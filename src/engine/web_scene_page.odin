@@ -26,7 +26,7 @@ Scene_Page_Pointer :: struct {
 // A scene drawn on a canvas, seen through the fly camera: the mouse or a finger looks, the keys or a gamepad walk.
 Scene_Page :: struct {
 	canvas_id:                   string,
-	renderer:                    Webgl_Renderer,
+	renderer:                    Gl_Renderer,
 	library:                     Material_Library,
 	scene:                       Scene,
 	item_mesh_ids:               []Mesh_Id,
@@ -62,7 +62,7 @@ scene_page_init :: proc(page: ^Scene_Page, canvas_id: string, library_data, scen
 	page.scene, problem = parse_scene(scene_data, page.library)
 	if problem != "" do return fmt.tprintf("scene: %s", problem)
 	page.fly = fly_from_orbit(orbit_fit_width(page.scene.camera, page.scene.fit_width, SCENE_PAGE_VERTICAL_FOV, page.aspect, SCENE_PAGE_DISTANCE_MAXIMUM))
-	if !webgl_renderer_init(&page.renderer) do return "the WebGL2 shaders did not compile"
+	if !gl_renderer_init(&page.renderer) do return "the WebGL2 shaders did not compile"
 	problem = scene_page_upload_meshes(page, meshes)
 	if problem != "" do return fmt.tprintf("meshes: %s", problem)
 	problem = scene_page_upload_textures(page, textures)
@@ -91,7 +91,7 @@ scene_page_step :: proc(page: ^Scene_Page, delta_time: f32) {
 		transform := linalg.matrix4_translate_f32(item.position) * linalg.matrix4_scale_f32({item.scale, item.scale, item.scale})
 		draw_list_add(&page.draw_list, page.item_mesh_ids[index], item.material, transform, page.item_half_extents[index])
 	}
-	webgl_renderer_draw(&page.renderer, page.draw_list, page.library, page.canvas_width, page.canvas_height)
+	gl_renderer_draw(&page.renderer, page.draw_list, page.library, page.canvas_width, page.canvas_height)
 }
 
 @(private = "file")
@@ -207,7 +207,7 @@ scene_page_upload_meshes :: proc(page: ^Scene_Page, meshes: []runtime.Load_Direc
 	for item, index in page.scene.items {
 		mesh: Mesh_Data
 		if mesh, problem = scene_item_mesh(item, meshes); problem != "" do return problem
-		page.item_mesh_ids[index] = webgl_renderer_upload_mesh(&page.renderer, mesh)
+		page.item_mesh_ids[index] = gl_renderer_upload_mesh(&page.renderer, mesh)
 		page.item_half_extents[index] = scene_item_half_extents(item, mesh)
 		mesh_data_destroy(&mesh)
 	}
@@ -222,7 +222,7 @@ scene_page_upload_textures :: proc(page: ^Scene_Page, textures: []runtime.Load_D
 		set: Texture_Set_Data
 		set, problem = texture_set_from_files(textures, material.textures, context.temp_allocator)
 		if problem != "" do return problem
-		webgl_renderer_upload_texture_set(&page.renderer, Material_Id(index), set)
+		gl_renderer_upload_texture_set(&page.renderer, Material_Id(index), set)
 	}
 	return ""
 }

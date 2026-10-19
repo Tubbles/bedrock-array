@@ -4,7 +4,8 @@
 #                        -strict-style (default), natively and again for
 #                        -target:js_wasm32, then src/app natively, then
 #                        every src/demos/*/ for -target:js_wasm32, then
-#                        every src/engine/shaders/ file with glslangValidator
+#                        every src/engine/shaders/ file with glslangValidator,
+#                        as it is and with "#version 330 core" for its version line
 #   ./build.sh test      odin test src/engine -all-packages -vet -strict-style,
 #                        so the tests of the packages under src/engine/ run too
 #   ./build.sh web <demo>
@@ -81,18 +82,25 @@ check_demos() {
 	done
 }
 
-# Parse every shader for the stage its extension names. glslang is
-# optional: without it the check goes on with a note.
+# Parse every shader for the stage its extension names, as it is and
+# once more with a leading "#version 300 es" line swapped for
+# "#version 330 core", the swap the native build makes at load.
+# glslang is optional: without it the check goes on with a note.
 validate_shaders() {
 	if ! command -v glslangValidator >/dev/null; then
 		echo "shader validation skipped: glslangValidator not found (brew install glslang)" >&2
 		return 0
 	fi
-	local file failed=0
+	local file desktop_directory failed=0
+	desktop_directory="$(mktemp -d)"
 	for file in src/engine/shaders/*.vert src/engine/shaders/*.frag; do
 		[ -f "$file" ] || continue
 		glslangValidator "$file" || failed=1
+		# The copy keeps the extension, which names the stage.
+		sed "1s/^#version 300 es$/#version 330 core/" "$file" > "$desktop_directory/$(basename "$file")"
+		glslangValidator "$desktop_directory/$(basename "$file")" || failed=1
 	done
+	rm -rf "$desktop_directory"
 	if [ "$failed" -ne 0 ]; then
 		exit 1
 	fi
