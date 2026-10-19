@@ -172,6 +172,33 @@ gl_renderer_init :: proc(renderer: ^Gl_Renderer) -> bool {
 	return true
 }
 
+// Deletes every GL object the renderer made, frees its lists and zeroes it.
+gl_renderer_destroy :: proc(renderer: ^Gl_Renderer) {
+	gl.DeleteProgram(renderer.program)
+	gl.DeleteProgram(renderer.tonemap_program)
+	gl.DeleteProgram(renderer.downsample_program)
+	gl.DeleteProgram(renderer.upsample_program)
+	for mesh in renderer.meshes {
+		gl.DeleteVertexArray(mesh.vertex_array)
+		gl.DeleteBuffer(mesh.vertex_buffer)
+		gl.DeleteBuffer(mesh.index_buffer)
+	}
+	for set in renderer.texture_sets {
+		if !set.present do continue
+		gl.DeleteTexture(set.albedo)
+		gl.DeleteTexture(set.normal)
+		gl.DeleteTexture(set.surface)
+	}
+	gl_renderer_target_destroy(&renderer.target)
+	for &target in renderer.bloom_targets {
+		gl_renderer_target_destroy(&target)
+	}
+	gl.DeleteVertexArray(renderer.fullscreen_vertex_array)
+	delete(renderer.meshes)
+	delete(renderer.texture_sets)
+	renderer^ = {}
+}
+
 gl_renderer_upload_mesh :: proc(renderer: ^Gl_Renderer, mesh: Mesh_Data) -> Mesh_Id {
 	uploaded := Gl_Mesh {
 		vertex_array  = gl.CreateVertexArray(),
@@ -224,12 +251,8 @@ gl_renderer_upload_image :: proc(image: Image_Data, srgb: bool) -> gl.Texture {
 	return texture
 }
 
-// (Re)creates the target when the size differs, deleting the old handles.
-// The depth renderbuffer exists only with_depth; linear picks LINEAR over NEAREST filtering.
-gl_renderer_target_ensure :: proc(target: ^Gl_Target, width, height: i32, with_depth, linear: bool) {
-	if target.framebuffer != 0 && target.width == width && target.height == height {
-		return
-	}
+// Deletes the target's handles, if it was ever created, and zeroes it.
+gl_renderer_target_destroy :: proc(target: ^Gl_Target) {
 	if target.framebuffer != 0 {
 		gl.DeleteTexture(target.colour)
 		if target.depth != 0 {
@@ -237,6 +260,16 @@ gl_renderer_target_ensure :: proc(target: ^Gl_Target, width, height: i32, with_d
 		}
 		gl.DeleteFramebuffer(target.framebuffer)
 	}
+	target^ = {}
+}
+
+// (Re)creates the target when the size differs, deleting the old handles.
+// The depth renderbuffer exists only with_depth; linear picks LINEAR over NEAREST filtering.
+gl_renderer_target_ensure :: proc(target: ^Gl_Target, width, height: i32, with_depth, linear: bool) {
+	if target.framebuffer != 0 && target.width == width && target.height == height {
+		return
+	}
+	gl_renderer_target_destroy(target)
 	target^ = Gl_Target {
 		framebuffer = gl.CreateFramebuffer(),
 		colour      = gl.CreateTexture(),

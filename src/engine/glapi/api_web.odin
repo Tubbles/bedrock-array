@@ -33,9 +33,12 @@ CreateProgramFromStrings :: webgl.CreateProgramFromStrings
 CreateRenderbuffer :: webgl.CreateRenderbuffer
 CreateTexture :: webgl.CreateTexture
 CreateVertexArray :: webgl.CreateVertexArray
+DeleteBuffer :: webgl.DeleteBuffer
 DeleteFramebuffer :: webgl.DeleteFramebuffer
+DeleteProgram :: webgl.DeleteProgram
 DeleteRenderbuffer :: webgl.DeleteRenderbuffer
 DeleteTexture :: webgl.DeleteTexture
+DeleteVertexArray :: webgl.DeleteVertexArray
 DepthFunc :: webgl.DepthFunc
 Disable :: webgl.Disable
 DrawArrays :: webgl.DrawArrays

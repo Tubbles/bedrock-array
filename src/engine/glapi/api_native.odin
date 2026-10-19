@@ -78,9 +78,18 @@ CreateVertexArray :: proc() -> VertexArrayObject {
 	return vertex_array
 }
 
+DeleteBuffer :: proc(buffer: Buffer) {
+	handle := buffer
+	gl.DeleteBuffers(1, &handle)
+}
+
 DeleteFramebuffer :: proc(framebuffer: Framebuffer) {
 	handle := framebuffer
 	gl.DeleteFramebuffers(1, &handle)
+}
+
+DeleteProgram :: proc(program: Program) {
+	gl.DeleteProgram(program)
 }
 
 DeleteRenderbuffer :: proc(renderbuffer: Renderbuffer) {
@@ -91,6 +100,11 @@ DeleteRenderbuffer :: proc(renderbuffer: Renderbuffer) {
 DeleteTexture :: proc(texture: Texture) {
 	handle := texture
 	gl.DeleteTextures(1, &handle)
+}
+
+DeleteVertexArray :: proc(vertex_array: VertexArrayObject) {
+	handle := vertex_array
+	gl.DeleteVertexArrays(1, &handle)
 }
 
 DepthFunc :: gl.DepthFunc

@@ -80,8 +80,9 @@ scene_view_label_screen :: proc(view: ^Scene_View, index: int, canvas: [2]f32) -
 	return world_to_screen(scene_view_camera(view), aspect, canvas, view.scene.labels[index].position)
 }
 
-// Frees the parsed data and the draw list; the GL objects live as long as the context.
+// Frees the GL objects, the parsed data and the draw list.
 scene_view_destroy :: proc(view: ^Scene_View) {
+	gl_renderer_destroy(&view.renderer)
 	draw_list_destroy(&view.draw_list)
 	delete(view.item_mesh_ids)
 	delete(view.item_half_extents)
