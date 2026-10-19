@@ -156,3 +156,31 @@ test_scene_view_choose_levels_by_distance :: proc(t: ^testing.T) {
 	testing.expect_value(t, view.item_levels[0].current, 2)
 	testing.expect_value(t, view.item_levels[1].current, 0)
 }
+
+@(test)
+test_scene_view_level_fade_advances_and_settles :: proc(t: ^testing.T) {
+	view: Scene_View
+	view.lod = LOD_SETTINGS_DEFAULT
+	view.lod.crossfade_seconds = 0.4
+	view.scene.items = []Scene_Item{{shape = .Mesh, scale = 1}}
+	triangle_counts := []int{10000, 1000, 100}
+	view.item_levels = []Scene_Item_Levels{{triangle_counts = triangle_counts, half_extents = {0.5, 0.5, 0.5}, fade = 1}}
+	view.fly = Fly{position = {0, 0.5, 200}}
+	scene_view_choose_levels(&view, 1080)
+	levels := &view.item_levels[0]
+	testing.expect_value(t, levels.current, 2)
+	testing.expect_value(t, levels.previous, 0)
+	testing.expect_value(t, levels.fade, 0)
+	scene_view_step(&view, {}, 0.1)
+	testing.expect(t, abs(levels.fade - 0.25) < 1e-5, "a quarter of the crossfade after a quarter of its time")
+	scene_view_choose_levels(&view, 1080)
+	testing.expect(t, abs(levels.fade - 0.25) < 1e-5, "an unchanged level keeps fading")
+	for _ in 0 ..< 10 do scene_view_step(&view, {}, 0.1)
+	testing.expect_value(t, levels.fade, 1)
+	view.lod.crossfade_seconds = 0
+	view.fly = Fly{position = {0, 0.5, 1}}
+	scene_view_choose_levels(&view, 1080)
+	testing.expect_value(t, levels.fade, 0)
+	scene_view_step(&view, {}, 0.01)
+	testing.expect_value(t, levels.fade, 1)
+}

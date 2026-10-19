@@ -30,12 +30,14 @@ Scene_Input :: struct {
 	focus_step:             int,
 }
 
-// An item's levels of detail, finest first, with each level's triangle count, the finest level's half extents and the level drawn now.
+// An item's levels of detail, finest first, with each level's triangle count, the finest level's half extents and the level drawn now. Fade runs from 0 to 1 after a switch from the previous level, 1 meaning settled.
 Scene_Item_Levels :: struct {
 	mesh_ids:        []Mesh_Id,
 	triangle_counts: []int,
 	half_extents:    [3]f32,
 	current:         int,
+	previous:        int,
+	fade:            f32,
 }
 
 // A scene drawn from its data through the fly or the orbit camera, by the scene's camera mode, with no window or canvas of its own. The item arrays hold one entry per item and configuration, at item_index * count + configuration, item_levels one per item, empty for an item without levels.
@@ -90,6 +92,16 @@ scene_view_step :: proc(view: ^Scene_View, input: Scene_Input, delta_time: f32) 
 	count := scene_configuration_count(view.scene)
 	if input.cycle_configuration do view.configuration = (view.configuration + 1) % count
 	if input.previous_configuration do view.configuration = (view.configuration + count - 1) % count
+	for &levels in view.item_levels {
+		levels.fade = scene_view_fade_advance(levels.fade, delta_time, view.lod.crossfade_seconds)
+	}
+}
+
+// The fade after delta_time of a crossfade lasting crossfade_seconds, settled at once when that is 0.
+@(private = "file")
+scene_view_fade_advance :: proc(fade, delta_time, crossfade_seconds: f32) -> f32 {
+	if crossfade_seconds <= 0 do return 1
+	return min(fade + delta_time / crossfade_seconds, 1)
 }
 
 // The turn first, so the walk follows this frame's facing.
@@ -169,13 +181,24 @@ scene_view_draw :: proc(view: ^Scene_View, width, height: i32) {
 		transform := linalg.matrix4_translate_f32(item.position) * linalg.matrix4_scale_f32({item.scale, item.scale, item.scale})
 		levels := view.item_levels[index]
 		if len(levels.mesh_ids) > 0 {
-			draw_list_add(&view.draw_list, levels.mesh_ids[levels.current], item.material, transform, levels.half_extents)
+			scene_view_add_levels(&view.draw_list, levels, item.material, transform)
 			continue
 		}
 		entry := index * count + view.configuration
 		draw_list_add(&view.draw_list, view.item_mesh_ids[entry], item.material, transform, view.item_half_extents[entry])
 	}
 	gl_renderer_draw(&view.renderer, view.draw_list, view.library, width, height)
+}
+
+// The current level, and while fading the previous one too, each keeping the pixels the other discards.
+@(private = "file")
+scene_view_add_levels :: proc(list: ^Draw_List, levels: Scene_Item_Levels, material: Material_Id, transform: matrix[4, 4]f32) {
+	if levels.fade >= 1 {
+		draw_list_add(list, levels.mesh_ids[levels.current], material, transform, levels.half_extents)
+		return
+	}
+	append(&list.items, Draw_Item{mesh = levels.mesh_ids[levels.current], material = material, transform = transform, half_extents = levels.half_extents, dither_skip = {levels.fade, 1}})
+	append(&list.items, Draw_Item{mesh = levels.mesh_ids[levels.previous], material = material, transform = transform, half_extents = levels.half_extents, dither_skip = {0, levels.fade}})
 }
 
 // Each item with levels takes the level lod_choose gives the screen pixels of the sphere around its middle, none while the lod is frozen.
@@ -188,7 +211,9 @@ scene_view_choose_levels :: proc(view: ^Scene_View, canvas_height: f32) {
 		centre := item.position + {0, levels.half_extents.y * item.scale, 0}
 		radius := linalg.length(levels.half_extents) * item.scale
 		pixels := lod_screen_pixels(camera, canvas_height, centre, radius)
-		levels.current = lod_choose(levels.current, levels.triangle_counts, pixels, view.lod.pixels_per_triangle, view.lod.hysteresis)
+		chosen := lod_choose(levels.current, levels.triangle_counts, pixels, view.lod.pixels_per_triangle, view.lod.hysteresis)
+		if chosen != levels.current do levels.previous, levels.fade = levels.current, 0
+		levels.current = chosen
 	}
 }
 
@@ -268,6 +293,7 @@ scene_view_upload_meshes :: proc(view: ^Scene_View, meshes: []runtime.Load_Direc
 scene_view_upload_levels :: proc(view: ^Scene_View, index: int, blob_by_file: ^map[string]Scene_View_Blob, meshes: []runtime.Load_Directory_File) -> (problem: string) {
 	level_files := view.scene.items[index].levels
 	levels := &view.item_levels[index]
+	levels.fade = 1
 	levels.mesh_ids = make([]Mesh_Id, len(level_files))
 	levels.triangle_counts = make([]int, len(level_files))
 	for file_name, level in level_files {

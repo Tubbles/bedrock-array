@@ -29,6 +29,8 @@ uniform float wear_edge_width;
 uniform float wear_chip_threshold;
 uniform float wear_amount;
 uniform vec3 wear_metal;
+// The range of the dither threshold, from x up to but not including y, whose fragments are discarded.
+uniform vec2 dither_skip;
 in vec3 world_normal;
 in vec3 world_position;
 in vec3 local_position;
@@ -126,7 +128,19 @@ Surface surface_at(vec3 p, vec3 blend) {
 	return Surface(textured_albedo, textured_roughness, mix(metallic, 1.0, wear));
 }
 
+// The 4 by 4 ordered (Bayer) threshold at the fragment, from 0 up to but not including 1.
+float dither_threshold(vec2 fragment) {
+	const int bayer[16] = int[16](0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5);
+	int x = int(fragment.x) & 3;
+	int y = int(fragment.y) & 3;
+	return float(bayer[y * 4 + x]) / 16.0;
+}
+
 void main() {
+	float threshold = dither_threshold(gl_FragCoord.xy);
+	if (dither_skip.x <= threshold && threshold < dither_skip.y) {
+		discard;
+	}
 	vec3 geometric_normal = normalize(world_normal);
 	vec3 p = world_position / texture_metres;
 	vec3 blend = triplanar_blend(geometric_normal);

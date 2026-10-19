@@ -21,6 +21,8 @@ Draw_Item :: struct {
 	transform:    matrix[4, 4]f32,
 	// The primitive's half extents in its local space, for the edge distance of the wear rule.
 	half_extents: [3]f32,
+	// The range of the dither threshold, from x up to but not including y, whose pixels the item discards; the zero value keeps every pixel.
+	dither_skip:  [2]f32,
 }
 
 // What a demo or module fills each frame and the renderer only reads.

@@ -19,6 +19,7 @@ Gl_Uniforms :: struct {
 	texture_metres:                                              i32,
 	half_extents, wear_edge_width, wear_chip_threshold:          i32,
 	wear_amount, wear_metal:                                     i32,
+	dither_skip:                                                 i32,
 }
 
 Gl_Tonemap_Uniforms :: struct {
@@ -119,6 +120,7 @@ gl_renderer_init :: proc(renderer: ^Gl_Renderer) -> bool {
 		wear_chip_threshold  = gl.GetUniformLocation(program, "wear_chip_threshold"),
 		wear_amount          = gl.GetUniformLocation(program, "wear_amount"),
 		wear_metal           = gl.GetUniformLocation(program, "wear_metal"),
+		dither_skip          = gl.GetUniformLocation(program, "dither_skip"),
 	}
 	// Set once: the texture units the material's maps bind to, and the near scale.
 	gl.UseProgram(program)
@@ -438,6 +440,7 @@ gl_renderer_draw :: proc(renderer: ^Gl_Renderer, list: Draw_List, library: Mater
 		gl.Uniform3f(uniforms.emissive, emissive.r, emissive.g, emissive.b)
 		gl_renderer_bind_material_textures(renderer, uniforms, item.material)
 		gl_renderer_upload_wear(uniforms, item, material)
+		gl.Uniform2f(uniforms.dither_skip, item.dither_skip.x, item.dither_skip.y)
 		gl.UniformMatrix4fv(uniforms.model, item.transform)
 		gl.BindVertexArray(mesh.vertex_array)
 		gl.DrawElements(gl.TRIANGLES, mesh.index_count, gl.UNSIGNED_INT, nil)
