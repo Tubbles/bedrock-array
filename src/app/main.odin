@@ -1,11 +1,11 @@
 package app
 
 // The native app: a tech demo's scene through the engine's renderer, first
-// person from the keyboard and the mouse, the plaques and the build stamp
-// drawn by raylib. --demo <name> picks the demo (models, the default),
-// --frames <n> stops after n frames (0, the default, runs until the window
-// closes or Escape), --windowed keeps the window and the cursor instead of
-// going borderless over the monitor with the cursor captured.
+// person from the keyboard, the mouse and the gamepad, the plaques and the
+// build stamp drawn by raylib. --demo <name> picks the demo (models, the
+// default), --frames <n> stops after n frames (0, the default, runs until
+// the window closes or Escape), --windowed keeps the window and the cursor
+// instead of going borderless over the monitor with the cursor captured.
 
 import "core:fmt"
 import "core:os"
@@ -215,6 +215,9 @@ main :: proc() {
 	}
 	rl.SetExitKey(.KEY_NULL)
 	print_gl_info()
+	gamepad_ready, gamepad_problem := gamepad_init()
+	if !gamepad_ready do fmt.eprintfln("bedrock-array: no gamepad input: %s", gamepad_problem)
+	gamepad_state: Gamepad_State
 	view: engine.Scene_View
 	size := render_size()
 	problem := engine.scene_view_init(&view, MATERIAL_LIBRARY, demo.scene, material_textures, demo.meshes, f32(size.x) / f32(max(size.y, 1)))
@@ -226,12 +229,21 @@ main :: proc() {
 	free_all(context.temp_allocator)
 	frames_drawn := 0
 	for should_continue(options, frames_drawn) {
-		engine.scene_view_step(&view, frame_input(), rl.GetFrameTime())
+		delta_time := rl.GetFrameTime()
+		input := frame_input()
+		if gamepad_ready {
+			// The turn is scaled here, so the step's limit on a long frame applies here too.
+			gamepad_input := gamepad_scene_input(gamepad_poll(&gamepad_state), min(delta_time, engine.SCENE_VIEW_STEP_LIMIT))
+			input.walk += gamepad_input.walk
+			input.turn += gamepad_input.turn
+		}
+		engine.scene_view_step(&view, input, delta_time)
 		draw_frame(&view)
 		if frames_drawn == 0 do exit_on_gl_error()
 		frames_drawn += 1
 		free_all(context.temp_allocator)
 	}
 	engine.scene_view_destroy(&view)
+	if gamepad_ready do gamepad_quit(&gamepad_state)
 	rl.CloseWindow()
 }
