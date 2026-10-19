@@ -27,6 +27,10 @@ Scene_Page :: struct {
 	gamepad_index:               int,
 	// The primary pointer's turn in radians since the last step.
 	turn_pending:                [2]f32,
+	// A press of the C key or the pad's North button since the last step.
+	cycle_pending:               bool,
+	// North was down on the last step, so a held button cycles once.
+	north_held:                  bool,
 	ready:                       bool,
 }
 
@@ -60,6 +64,8 @@ scene_page_step :: proc(page: ^Scene_Page, delta_time: f32) {
 	}
 	page.turn_pending = {}
 	scene_page_gamepad(page, &input, min(delta_time, SCENE_VIEW_STEP_LIMIT))
+	input.cycle_configuration = page.cycle_pending
+	page.cycle_pending = false
 	scene_view_step(&page.view, input, delta_time)
 	scene_view_draw(&page.view, page.canvas_width, page.canvas_height)
 }
@@ -118,6 +124,39 @@ label_visible :: proc "contextless" (index: i32) -> bool {
 	return visible
 }
 
+// The registered page's current configuration name, "" without a page.
+@(private = "file")
+scene_page_configuration_name :: proc "contextless" () -> string {
+	if registered_page == nil do return ""
+	context = runtime.default_context()
+	return scene_view_configuration_name(&registered_page.view)
+}
+
+@(export)
+configuration_count :: proc "contextless" () -> i32 {
+	if registered_page == nil || !registered_page.ready do return 0
+	context = runtime.default_context()
+	return i32(scene_view_configuration_count(&registered_page.view))
+}
+
+@(export)
+configuration_name_pointer :: proc "contextless" () -> rawptr {
+	return raw_data(scene_page_configuration_name())
+}
+
+@(export)
+configuration_name_length :: proc "contextless" () -> i32 {
+	return i32(len(scene_page_configuration_name()))
+}
+
+// Cycles at once, so the button's text does not wait for a frame.
+@(export)
+cycle_configuration :: proc "contextless" () {
+	if registered_page == nil || !registered_page.ready do return
+	context = runtime.default_context()
+	scene_view_step(&registered_page.view, {cycle_configuration = true}, 0)
+}
+
 // Held keys walk the fly; opposite keys cancel.
 @(private = "file")
 scene_page_walk :: proc(keys: bit_set[Scene_Page_Key]) -> [3]f32 {
@@ -138,6 +177,9 @@ scene_page_gamepad :: proc(page: ^Scene_Page, input: ^Scene_Input, delta_time: f
 	vertical := f32(int(state.buttons[12].pressed) - int(state.buttons[13].pressed))
 	input.walk += {left.x, vertical, -left.y}
 	input.turn += right * SCENE_PAGE_STICK_TURN_RADIANS_PER_SECOND * delta_time
+	north := state.buttons[3].pressed
+	if north && !page.north_held do page.cycle_pending = true
+	page.north_held = north
 }
 
 @(private = "file")
@@ -178,9 +220,10 @@ on_scene_page_resize :: proc(event: js.Event) {
 @(private = "file")
 on_scene_page_key_down :: proc(event: js.Event) {
 	if event.data.key.repeat do return
+	page := (^Scene_Page)(event.user_data)
+	if event.data.key.code == "KeyC" do page.cycle_pending = true
 	key, known := scene_page_key_from_code(event.data.key.code)
 	if !known do return
-	page := (^Scene_Page)(event.user_data)
 	page.keys_held += {key}
 }
 

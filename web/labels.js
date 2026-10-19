@@ -1,9 +1,12 @@
 // Runs the demo and keeps one plaque per scene label over its projected
-// point. The Odin runtime has no DOM writer, so the plaques live here.
+// point, and on a scene that names more than one configuration a button
+// showing the current one that cycles it. The Odin runtime has no DOM
+// writer, so the plaques and the button live here.
 (function () {
 	const memory = new odin.WasmMemoryInterface();
 	const plaques = [];
 	let created = false;
+	let button = null;
 
 	function createPlaques(exports) {
 		const count = exports.label_count();
@@ -25,11 +28,33 @@
 		});
 	}
 
+	function refreshButton(exports) {
+		const name = memory.loadString(exports.configuration_name_pointer(), exports.configuration_name_length());
+		if (button.textContent !== name) button.textContent = name;
+	}
+
+	function createButton(exports) {
+		if (exports.configuration_count() <= 1) return;
+		button = document.createElement("button");
+		button.className = "configuration";
+		button.addEventListener("click", function () {
+			exports.cycle_configuration();
+			refreshButton(exports);
+			// A focused button would also take Space, the rise key.
+			button.blur();
+		});
+		document.body.appendChild(button);
+	}
+
 	function frame() {
 		const exports = memory.exports;
 		if (exports && exports.label_count) {
-			if (!created) createPlaques(exports);
+			if (!created) {
+				createPlaques(exports);
+				createButton(exports);
+			}
 			placePlaques(exports);
+			if (button) refreshButton(exports);
 		}
 		window.requestAnimationFrame(frame);
 	}
