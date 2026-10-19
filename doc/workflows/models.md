@@ -1,6 +1,6 @@
 # The modelling workflow
 
-The third asset workflow (definition.md, lesson 3, pipeline 5): how a machine's finished model is made from its concept turnaround, and how it is judged. Decided 2026-10-18 with item 0038, the research behind it in `doc/log/2026-10-18.md`. Waits for the Tripo account (SUGGESTIONS.md).
+The third asset workflow (definition.md, lesson 3, pipeline 5): how a machine's finished model is made from its concept turnaround, and how it is judged. Decided 2026-10-18 with item 0038, the research behind it in `doc/log/2026-10-18.md`.
 
 ## The pipeline
 
@@ -15,7 +15,7 @@ What was not verified: no generator output of a squat drum machine was seen, and
 
 ## The steps
 
-1. `tools/models/generate.py <id>`: the multiview request with the four kept views, the poll, the download into `work/models/<id>/`.
+1. `tools/models/generate.py <id> [--seed 7] [--dry-run]`: the multiview request with the four kept views of the turnaround under `data/art/<id>/turnaround/`, the poll, the download to `work/models/<id>/model_<seed>.glb` with its sidecar `model_<seed>.txt`. `--dry-run` prints the views, the request body and the output path and sends nothing.
 2. `flatpak run org.blender.Blender -b --python "$PWD/tools/models/finish.py" -- <id>`: import, apply transforms, scale to the brief's height with the origin at the footprint's bottom centre, map the generated parts to the brief's parts (a part id pass from the hero camera, each part's median colour against the concept's pixels, the nearest brief part, an override table in the brief for the rest), merge by distance, delete loose geometry, recalculate normals, weighted normals, decimate to the brief's budget, cut the lid by a plane at the brief's height when it was not separated and set its origin on the hinge, smart project and pack the UVs per part, bake ambient occlusion and curvature to colour attributes, the emissive mask from the part role graded by the concept's glow, the socket empties, the export.
 3. Review sheet: `work/models/<id>_review.png`, the hero and four orthographic renders in library materials under the material sheet's light beside the concept at the same camera, the figure, the wireframe, the parts and each mask in false colour, and the idle, working and venting frames. The checks: the bounding box against the footprint and height within a few percent, the triangles within budget, every brief part present with an existing library preset, no non manifold or loose geometry, UVs inside 0 to 1 without overlap, the mask ranges, the silhouette overlap of the orthographic renders against the turnaround, a pivot or socket for every cue of the brief. The user's eye decides.
 
