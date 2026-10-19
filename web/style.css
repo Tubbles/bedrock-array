@@ -34,7 +34,8 @@ canvas {
 	color: #eee;
 	font-family: sans-serif;
 	font-size: 0.85rem;
-	white-space: nowrap;
+	max-width: 9rem;
+	text-align: center;
 	border-radius: 4px;
 	pointer-events: none;
 }

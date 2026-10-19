@@ -168,6 +168,7 @@ test_shipped_scenes_parse :: proc(t: ^testing.T) {
 		#load("../../data/demos/light/scene.sjson"),
 		#load("../../data/demos/cave/scene.sjson"),
 		#load("../../data/demos/surface/scene.sjson"),
+		#load("../../data/demos/models/scene.sjson"),
 	}
 	for data in scenes {
 		scene, problem := parse_scene(data, library)
