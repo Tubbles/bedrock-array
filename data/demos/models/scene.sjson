@@ -1,28 +1,33 @@
-// The models demo, both sets in two rows: Tripo's parts mode from the full model down behind, the smart low poly ones and Blender's decimations in front, each row by triangle count falling, on a slab.
-camera = { target = [0, 0.5, 0], yaw = 0, pitch = 0.55, distance = 9, fit_width = 13 }
+// The models demo in three rows on a slab: the two base models behind (full and the 700000 face limit), the five low poly base models in the middle (the 24000 run on the left, the 12000 run on the right, each by triangle count falling), Blender's four decimations in front (from the full model, then from the 700000 one, each 24000 then 10700). The camera's pitch, the row depths and the plaque heights come from a projection of the rows at 16:9 (tmp/models_layout.py in the session that made them): no plaque covers a model or a plaque of the row behind. A phone in portrait is too narrow for the dense rows, whose plaques overlap there until one walks closer.
+camera = { target = [0, 0.5, 0], yaw = 0, pitch = 0.6, distance = 9, fit_width = 13 }
 sun = { direction = [0.4, -1, -0.3], colour = [1, 0.96, 0.9], intensity = 1 }
 exposure = 1
 ambient = 0.15
 items = [
-	{ shape = "box", size = [13, 0.1, 8.5], position = [0, -0.05, 0], material = "concrete" }
-	{ shape = "mesh", file = "full.mesh", scale = 1, position = [-4.5, 0, -2.5], material = "painted_steel" }
-	{ shape = "mesh", file = "faces700000.mesh", scale = 1, position = [-1.5, 0, -2.5], material = "painted_steel" }
-	{ shape = "mesh", file = "faces24000.mesh", scale = 1, position = [1.5, 0, -2.5], material = "painted_steel" }
-	{ shape = "mesh", file = "faces12000.mesh", scale = 1, position = [4.5, 0, -2.5], material = "painted_steel" }
-	{ shape = "mesh", file = "faces20000_smart.mesh", scale = 1, position = [-5, 0, 2.5], material = "painted_steel" }
-	{ shape = "mesh", file = "smart.mesh", scale = 1, position = [-2.5, 0, 2.5], material = "painted_steel" }
-	{ shape = "mesh", file = "faces12000_smart.mesh", scale = 1, position = [0, 0, 2.5], material = "painted_steel" }
-	{ shape = "mesh", file = "decimate24000.mesh", scale = 1, position = [2.5, 0, 2.5], material = "painted_steel" }
-	{ shape = "mesh", file = "decimate.mesh", scale = 1, position = [5, 0, 2.5], material = "painted_steel" }
+	{ shape = "box", size = [13, 0.1, 12.5], position = [0, -0.05, -1], material = "concrete" }
+	{ shape = "mesh", file = "full.mesh", scale = 1, position = [-2, 0, -6], material = "painted_steel" }
+	{ shape = "mesh", file = "faces700000.mesh", scale = 1, position = [2, 0, -6], material = "painted_steel" }
+	{ shape = "mesh", file = "faces20000_smart.mesh", scale = 1, position = [-5, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", file = "faces24000.mesh", scale = 1, position = [-2.5, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", file = "smart.mesh", scale = 1, position = [0, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", file = "faces12000.mesh", scale = 1, position = [2.5, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", file = "faces12000_smart.mesh", scale = 1, position = [5, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", file = "blender_full_24000.mesh", scale = 1, position = [-3.75, 0, 4], material = "painted_steel" }
+	{ shape = "mesh", file = "blender_full_10700.mesh", scale = 1, position = [-1.25, 0, 4], material = "painted_steel" }
+	{ shape = "mesh", file = "blender_700000_24000.mesh", scale = 1, position = [1.25, 0, 4], material = "painted_steel" }
+	{ shape = "mesh", file = "blender_700000_10700.mesh", scale = 1, position = [3.75, 0, 4], material = "painted_steel" }
 ]
+// Short texts, two lines on a plaque: "limit" is Tripo's face limit, "smart" its smart low poly mode, "Blender <source>" a decimation of that model.
 labels = [
-	{ text = "full, 29 parts, 1.46 M triangles, 40 credits", position = [-4.5, 1.3, -2.5] }
-	{ text = "face limit 700000, 20 parts, 654548 triangles, 40 credits", position = [-1.5, 1.3, -2.5] }
-	{ text = "face limit 24000, 37 parts, 20824 triangles, 40 credits", position = [1.5, 1.3, -2.5] }
-	{ text = "face limit 12000, 16 parts, 10700 triangles, 40 credits", position = [4.5, 1.3, -2.5] }
-	{ text = "face limit 20000 and smart low poly, 1 part, 29476 triangles, 30 credits", position = [-5, 1.3, 2.5] }
-	{ text = "smart low poly, 1 part, 10796 triangles, 30 credits", position = [-2.5, 1.3, 2.5] }
-	{ text = "face limit 12000 and smart low poly, 1 part, 10409 triangles, 30 credits", position = [0, 1.3, 2.5] }
-	{ text = "Blender decimate of full, 29 parts, 23984 triangles, no credits", position = [2.5, 1.3, 2.5] }
-	{ text = "Blender decimate of full, 29 parts, 10680 triangles, no credits", position = [5, 1.3, 2.5] }
+	{ text = "full, 1.46 M triangles", position = [-2, 1.3, -6] }
+	{ text = "limit 700000, 654548 triangles", position = [2, 1.3, -6] }
+	{ text = "smart 20000, 29476 triangles", position = [-5, 1.6, 0] }
+	{ text = "limit 24000, 20824 triangles", position = [-2.5, 1.6, 0] }
+	{ text = "smart, 10796 triangles", position = [0, 1.6, 0] }
+	{ text = "limit 12000, 10700 triangles", position = [2.5, 1.6, 0] }
+	{ text = "smart 12000, 10409 triangles", position = [5, 1.6, 0] }
+	{ text = "Blender full, 23984 triangles", position = [-3.75, 1.9, 4] }
+	{ text = "Blender full, 10680 triangles", position = [-1.25, 1.9, 4] }
+	{ text = "Blender 700000, 23990 triangles", position = [1.25, 1.9, 4] }
+	{ text = "Blender 700000, 10688 triangles", position = [3.75, 1.9, 4] }
 ]
