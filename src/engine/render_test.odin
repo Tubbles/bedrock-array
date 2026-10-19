@@ -104,6 +104,48 @@ test_orbit_fit_width :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_fly_from_orbit_looks_at_the_target :: proc(t: ^testing.T) {
+	orbit := Orbit{target = {1, 2, 3}, yaw = 0.7, pitch = 0.4, distance = 5}
+	orbit_position := orbit_camera(orbit, 0, 0, 0).position
+	fly := fly_from_orbit(orbit)
+	expect_near(t, fly.position.x, orbit_position.x, 1e-4)
+	expect_near(t, fly.position.y, orbit_position.y, 1e-4)
+	expect_near(t, fly.position.z, orbit_position.z, 1e-4)
+	camera := fly_camera(fly, math.PI / 3, 0.1, 100)
+	expected := fly.position + (orbit.target - fly.position) / orbit.distance
+	expect_near(t, camera.target.x, expected.x, 1e-4)
+	expect_near(t, camera.target.y, expected.y, 1e-4)
+	expect_near(t, camera.target.z, expected.z, 1e-4)
+}
+
+@(test)
+test_fly_turn_turns_and_clamps :: proc(t: ^testing.T) {
+	fly := Fly{yaw = 0, pitch = 0}
+	turned := fly_turn(fly, {10, 10}, 0.01)
+	expect_near(t, turned.yaw, -0.1)
+	expect_near(t, turned.pitch, 0.1)
+	expect_near(t, fly_turn(fly, {0, 1000}, 0.01).pitch, ORBIT_PITCH_LIMIT)
+	expect_near(t, fly_turn(fly, {0, -1000}, 0.01).pitch, -ORBIT_PITCH_LIMIT)
+}
+
+@(test)
+test_fly_walk_moves_along_the_ground_and_up :: proc(t: ^testing.T) {
+	fly := Fly{yaw = 0, pitch = 0.5}
+	forward := fly_walk(fly, {0, 0, 1}, 1).position
+	expect_near(t, forward.x, 0)
+	expect_near(t, forward.y, 0)
+	expect_near(t, forward.z, -1)
+	right := fly_walk(fly, {1, 0, 0}, 1).position
+	expect_near(t, right.x, 1)
+	expect_near(t, right.y, 0)
+	expect_near(t, right.z, 0)
+	up := fly_walk(fly, {0, 1, 0}, 1).position
+	expect_near(t, up.x, 0)
+	expect_near(t, up.y, 1)
+	expect_near(t, up.z, 0)
+}
+
+@(test)
 test_orbit_pan_moves_the_target_in_the_view_plane :: proc(t: ^testing.T) {
 	orbit := Orbit{distance = 5}
 	sideways := orbit_pan(orbit, {10, 0}, 0.1).target

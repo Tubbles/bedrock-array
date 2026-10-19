@@ -63,6 +63,53 @@ orbit_fit_width :: proc(orbit: Orbit, fit_width, vertical_fov_radians, aspect, m
 	return result
 }
 
+// A first person camera. It looks the opposite way of the orbit's offset, so
+// an orbit's yaw and pitch carry over and a positive pitch looks down.
+Fly :: struct {
+	position:   [3]f32,
+	yaw, pitch: f32,
+}
+
+@(private = "file")
+fly_forward :: proc(yaw, pitch: f32) -> [3]f32 {
+	return -[3]f32{math.cos(pitch) * math.sin(yaw), math.sin(pitch), math.cos(pitch) * math.cos(yaw)}
+}
+
+// A fly standing at the orbit camera's position, looking at the orbit's target.
+fly_from_orbit :: proc(orbit: Orbit) -> Fly {
+	return Fly{position = orbit_camera(orbit, 0, 0, 0).position, yaw = orbit.yaw, pitch = orbit.pitch}
+}
+
+fly_camera :: proc(fly: Fly, vertical_fov_radians, near, far: f32) -> Camera {
+	return Camera {
+		position = fly.position,
+		target = fly.position + fly_forward(fly.yaw, fly.pitch),
+		up = {0, 1, 0},
+		vertical_fov_radians = vertical_fov_radians,
+		near = near,
+		far = far,
+	}
+}
+
+// A move turns the fly: right lowers yaw, down raises pitch, pitch limited.
+fly_turn :: proc(fly: Fly, delta_pixels: [2]f32, radians_per_pixel: f32) -> Fly {
+	result := fly
+	result.yaw -= delta_pixels.x * radians_per_pixel
+	result.pitch = clamp(fly.pitch + delta_pixels.y * radians_per_pixel, -ORBIT_PITCH_LIMIT, ORBIT_PITCH_LIMIT)
+	return result
+}
+
+// A walk moves the position: x along the right, y along world up, z along the horizontal forward.
+fly_walk :: proc(fly: Fly, input: [3]f32, metres: f32) -> Fly {
+	forward := fly_forward(fly.yaw, fly.pitch)
+	forward.y = 0
+	forward = linalg.normalize(forward)
+	right := linalg.cross(forward, [3]f32{0, 1, 0})
+	result := fly
+	result.position += (input.x * right + input.y * [3]f32{0, 1, 0} + input.z * forward) * metres
+	return result
+}
+
 // A pan moves the target in the view plane so the world follows the drag.
 orbit_pan :: proc(orbit: Orbit, delta_pixels: [2]f32, metres_per_pixel: f32) -> Orbit {
 	right, up := orbit_right_and_up(orbit)
