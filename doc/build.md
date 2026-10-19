@@ -51,6 +51,22 @@ A demo is one package under `src/demos/<name>/`. `odin.js` runs its `main` once 
 
 `tools/bedrock-array-web.service` is a systemd user unit that serves `bin/web/current` with `python3 -m http.server` on port 8080, bound to every address. Enable it once, from the repository root: `ln -sfn "$PWD/tools/bedrock-array-web.service" ~/.config/systemd/user/`, then `systemctl --user daemon-reload`, then `systemctl --user enable --now bedrock-array-web.service`. The pages are at `http://192.168.1.7:8080/`, or `http://bazzite:8080/` where the name resolves. The firewalld zone (FedoraWorkstation) already opens TCP 1025 to 65535, so the port needs no firewall change. A user service runs while the user is logged in. `loginctl enable-linger` would keep it up without a login.
 
+## Play build
+
+`tools/install_play_build.sh [commit]` builds a commit (default HEAD) in release mode from a `git archive` into `bin/play/builds/<install time>-<commit>/`, switches `bin/play/current` to it in one rename, and writes the launcher `bin/bedrock-array`, which resolves the link at launch and passes its arguments to the binary. The archive has no `.git`, so the script passes the commit in `BEDROCK_ARRAY_COMMIT` for the build stamp. A build directory holds only the binary and `COMMIT`, since the binary embeds its scenes, meshes and textures with `#load`.
+
+- The install never waits for the game: a running game keeps its build directory and the next launch takes the newest. The two newest builds stay; older ones go unless a game still runs from them.
+- The installed game never reads the working tree, so edits to `src/` and `data/` cannot break a couch session.
+- The launcher unsets `SDL_GAMECONTROLLER_IGNORE_DEVICES` and sets `SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD=0`: in Game Mode Steam hands the game a virtual pad and tells SDL to ignore the real one.
+- `BEDROCK_ARRAY_X11=1 bin/bedrock-array` makes GLFW take X11: the launcher unsets `WAYLAND_DISPLAY` and sets `XDG_SESSION_TYPE=x11`. Unsetting alone is not enough, since GLFW's Wayland connection falls back to the `wayland-0` socket. `BEDROCK_ARRAY_GAMESCOPE` holds gamescope's own arguments and runs the game inside gamescope: `BEDROCK_ARRAY_GAMESCOPE="-f -W 2880 -H 1920" bin/bedrock-array`. Without gamescope on the path it prints one line to stderr and runs the game directly.
+- `--target user@host:path` (the Steam Deck) builds here exactly as a local install, copies the build directory and the launcher with `rsync` over `ssh`, switches the remote `current` link in one rename and removes older remote builds by the same rule. Nothing installs locally. The path after the colon takes the place of `bin/` (absolute, or relative to the remote home). `--help` prints the usage.
+
+## Steam shortcut
+
+- `tools/add_steam_shortcut.py` adds or updates the "Bedrock Array" non-Steam shortcut in `~/.steam/steam/userdata/<user>/config/shortcuts.vdf`, pointing at `bin/bedrock-array` beside its own `tools/` directory. `--user-id` picks the Steam user, `--dry-run` shows what would be written.
+- It parses the binary VDF and refuses to write unless the existing file round trips through its parser byte for byte; other shortcuts stay untouched.
+- Steam must be closed while it runs (`pgrep -x steam`), or Steam overwrites the file on exit.
+
 ## Large files
 
 Binaries under the extensions `.gitattributes` lists (images, audio, models, fonts) are Git LFS objects on GitHub, text formats stay plain (DESIGN.md, Asset storage). `.gitattributes` is the one place the routing lives.
