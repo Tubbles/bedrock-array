@@ -11,7 +11,7 @@ import gl "vendor:wasm/WebGL"
 SCENE_PAGE_DRAG_RADIANS_PER_PIXEL :: f32(0.005)
 SCENE_PAGE_WHEEL_ZOOM_STEP :: f32(1.1)
 SCENE_PAGE_DISTANCE_MINIMUM :: f32(2)
-SCENE_PAGE_DISTANCE_MAXIMUM :: f32(30) // Enough for the models page's 13 m row on a phone in portrait.
+SCENE_PAGE_DISTANCE_MAXIMUM :: f32(30) // Enough for the models page's row on a phone in portrait.
 SCENE_PAGE_VERTICAL_FOV :: f32(math.PI / 3)
 // Orbit distances per second a held key walks the target.
 SCENE_PAGE_WALK_SPEED :: f32(0.6)

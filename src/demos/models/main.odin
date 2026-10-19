@@ -1,5 +1,5 @@
 // The models demo: the scene of data/demos/models/scene.sjson, the smelter's
-// generated model and its three reductions as mesh blobs in a row, a label
+// generated model and its reductions as mesh blobs in a row, a label
 // over each, drawn through the engine's WebGL2 renderer.
 package models
 

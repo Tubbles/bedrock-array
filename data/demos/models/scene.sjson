@@ -1,20 +1,22 @@
-// The models demo: the smelter's four generated variants and Blender's decimation in a row on a slab.
-camera = { target = [0, 0.5, 0], yaw = 0, pitch = 0.35, distance = 9, fit_width = 13 }
+// The models demo, the second set: the smelter's full model, Tripo's reductions at half and at 24000 faces, and Blender's decimation in a row on a slab.
+camera = { target = [0, 0.5, 0], yaw = 0, pitch = 0.35, distance = 9, fit_width = 15.5 }
 sun = { direction = [0.4, -1, -0.3], colour = [1, 0.96, 0.9], intensity = 1 }
 exposure = 1
 ambient = 0.15
 items = [
-	{ shape = "box", size = [13, 0.1, 4], position = [0, -0.05, 0], material = "concrete" }
-	{ shape = "mesh", file = "full.mesh", scale = 1, position = [-5, 0, 0], material = "painted_steel" }
-	{ shape = "mesh", file = "faces12000.mesh", scale = 1, position = [-2.5, 0, 0], material = "painted_steel" }
-	{ shape = "mesh", file = "faces12000_smart.mesh", scale = 1, position = [0, 0, 0], material = "painted_steel" }
-	{ shape = "mesh", file = "smart.mesh", scale = 1, position = [2.5, 0, 0], material = "painted_steel" }
-	{ shape = "mesh", file = "decimate.mesh", scale = 1, position = [5, 0, 0], material = "painted_steel" }
+	{ shape = "box", size = [15.5, 0.1, 4], position = [0, -0.05, 0], material = "concrete" }
+	{ shape = "mesh", file = "full.mesh", scale = 1, position = [-6.25, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", file = "faces700000.mesh", scale = 1, position = [-3.75, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", file = "faces24000.mesh", scale = 1, position = [-1.25, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", file = "faces20000_smart.mesh", scale = 1, position = [1.25, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", file = "smart.mesh", scale = 1, position = [3.75, 0, 0], material = "painted_steel" }
+	{ shape = "mesh", file = "decimate24000.mesh", scale = 1, position = [6.25, 0, 0], material = "painted_steel" }
 ]
 labels = [
-	{ text = "full, 29 parts, 1.46 M triangles, 40 credits", position = [-5, 1.3, 0] }
-	{ text = "face limit 12000, 16 parts, 10700 triangles, 40 credits", position = [-2.5, 1.3, 0] }
-	{ text = "face limit 12000 and smart low poly, 1 part, 10409 triangles, 30 credits", position = [0, 1.3, 0] }
-	{ text = "smart low poly, 1 part, 10796 triangles, 30 credits", position = [2.5, 1.3, 0] }
-	{ text = "Blender decimate of full, 29 parts, 10680 triangles, no credits", position = [5, 1.3, 0] }
+	{ text = "full, 29 parts, 1.46 M triangles, 40 credits", position = [-6.25, 1.3, 0] }
+	{ text = "face limit 700000, 20 parts, 654548 triangles, 40 credits", position = [-3.75, 1.3, 0] }
+	{ text = "face limit 24000, 37 parts, 20824 triangles, 40 credits", position = [-1.25, 1.3, 0] }
+	{ text = "face limit 20000 and smart low poly, 1 part, 29476 triangles, 30 credits", position = [1.25, 1.3, 0] }
+	{ text = "smart low poly, 1 part, 10796 triangles, 30 credits", position = [3.75, 1.3, 0] }
+	{ text = "Blender decimate of full, 29 parts, 23984 triangles, no credits", position = [6.25, 1.3, 0] }
 ]
