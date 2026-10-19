@@ -161,6 +161,7 @@ build_web() {
 	sed "s/__DEMO__/$demo/g" web/index.html > "$out/index.html"
 	cp web/style.css "$out/style.css"
 	cp web/labels.js "$out/labels.js"
+	cp web/pointer_lock.js "$out/pointer_lock.js"
 }
 
 case "$mode" in

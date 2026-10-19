@@ -5,6 +5,8 @@
 // plaques and the buttons live here.
 (function () {
 	const memory = new odin.WasmMemoryInterface();
+	// pointer_lock.js reads the exports through it.
+	window.bedrockMemory = memory;
 	const plaques = [];
 	let created = false;
 	let button = null;

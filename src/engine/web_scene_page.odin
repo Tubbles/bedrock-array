@@ -188,6 +188,22 @@ previous_configuration :: proc "contextless" () {
 	scene_view_step(&registered_page.view, {previous_configuration = true}, 0)
 }
 
+// Whether a click in full screen should lock the pointer: only a fly turns
+// by the bare mouse.
+@(export)
+pointer_lock_wanted :: proc "contextless" () -> bool {
+	if registered_page == nil || !registered_page.ready do return false
+	return registered_page.view.scene.camera_mode == .Fly
+}
+
+// Turns by a locked mouse's movement, which pointer_lock.js reads, since
+// under a lock the client position stays put.
+@(export)
+turn_by_mouse :: proc "contextless" (delta_x, delta_y: f32) {
+	if registered_page == nil || !registered_page.ready do return
+	registered_page.turn_pending += [2]f32{delta_x, delta_y} * SCENE_PAGE_DRAG_RADIANS_PER_PIXEL
+}
+
 // Held keys walk the fly; opposite keys cancel.
 @(private = "file")
 scene_page_walk :: proc(keys: bit_set[Scene_Page_Key]) -> [3]f32 {
