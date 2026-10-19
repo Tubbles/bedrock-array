@@ -3,10 +3,11 @@
 
     tools/art/sheet.py <id> --round <n>
 
-Rows: the blockout hero and four views, the round's repaints, the turnaround views that exist, and
-the squint row (every repaint as a 64 pixel greyscale thumbnail, scaled up bilinear). A line at the hero mask's top row
-runs across the first two rows. Writes work/art/<id>/round-<n>/review.png and prints one line per
-check: <CHECK> <image> <value> ok|warn.
+Rows: the blockout hero and four views, the round's repaints, the turnaround views that exist, one
+row per collage output's panels, and the squint row (every repaint, view and panel as a 64 pixel
+greyscale thumbnail, scaled up bilinear), empty rows dropped. A line at the hero mask's top row runs
+across the blockout row and the repaints row. Writes work/art/<id>/round-<n>/review.png and prints
+one line per check: <CHECK> <image> <value> ok|warn.
 """
 import argparse
 import os
@@ -75,6 +76,27 @@ def turnaround_views(round_directory):
     """(view, path) for each turnaround view that exists."""
     by_stem = {os.path.splitext(os.path.basename(path))[0]: path for path in images_in(os.path.join(round_directory, "turnaround"))}
     return [(view, by_stem[view]) for view in VIEWS if view in by_stem]
+
+
+def stem(path):
+    return os.path.splitext(os.path.basename(path))[0]
+
+
+def collage_sets(round_directory):
+    """(output stem, panels) for each collage output <model>_<index>, panels the (name, path) pairs that exist."""
+    collage = os.path.join(round_directory, "collage")
+    names = ["hero"] + VIEWS
+    output_stems = [stem(path) for path in images_in(collage) if is_collage_output(stem(path), names)]
+    return [(output_stem, panel_paths(collage, names, output_stem)) for output_stem in output_stems]
+
+
+def is_collage_output(file_stem, names):
+    return "_" in file_stem and file_stem.partition("_")[0] not in names
+
+
+def panel_paths(collage, names, output_stem):
+    paths = [(name, os.path.join(collage, f"{name}_{output_stem}.png")) for name in names]
+    return [(name, path) for name, path in paths if os.path.isfile(path)]
 
 
 def open_rgb(path, size=None):
@@ -200,13 +222,13 @@ def height_line(draw, row_index, width, mask_top, mask_side):
     draw.line([(0, y), (width, y)], fill=LINE_COLOUR, width=LINE_WIDTH)
 
 
-def build_sheet(rows, mask_top, mask_side):
+def build_sheet(rows, line_rows, mask_top, mask_side):
     width = CELL * max(1, max(len(cells) for cells in rows))
     sheet = Image.new("RGB", (width, len(rows) * (CELL + LABEL)), (24, 24, 24))
     draw = ImageDraw.Draw(sheet)
     for row_index, cells in enumerate(rows):
         place_row(sheet, draw, row_index, cells)
-    for row_index in (0, 1):
+    for row_index in line_rows:
         height_line(draw, row_index, width, mask_top, mask_side)
     return sheet
 
@@ -231,14 +253,21 @@ def main():
         print(*check_lines(os.path.basename(path), path, os.path.join(blockout, "hero_mask.png"), palette), sep="\n")
     for view, path in views:
         print(*check_lines(f"turnaround/{os.path.basename(path)}", path, os.path.join(blockout, f"{view}_mask.png"), palette), sep="\n")
+    sets = collage_sets(round_directory)
+    panels = [pair for _, pairs in sets for pair in pairs]
+    for name, path in panels:
+        print(*check_lines(f"collage/{os.path.basename(path)}", path, os.path.join(blockout, f"{name}_mask.png"), palette), sep="\n")
     rows = [
         [(name, cell_image(os.path.join(blockout, f"{name}.png"))) for name in blockout_names],
         [(os.path.basename(path), cell_image(path)) for path in repaints],
         [(view, cell_image(path)) for view, path in views],
-        [(os.path.basename(path), squint_image(path)) for path in repaints + [path for _, path in views]],
+        *[[(stem(path), cell_image(path)) for _, path in pairs] for _, pairs in sets],
+        [(os.path.basename(path), squint_image(path)) for path in repaints + [path for _, path in views] + [path for _, path in panels]],
     ]
+    line_rows = [0, 1] if repaints else [0]
+    rows = [cells for cells in rows if cells]
     hero_mask = open_mask(os.path.join(blockout, "hero_mask.png"))
-    sheet = build_sheet(rows, hero_mask.getbbox()[1], hero_mask.height)
+    sheet = build_sheet(rows, line_rows, hero_mask.getbbox()[1], hero_mask.height)
     out = os.path.join(round_directory, "review.png")
     sheet.save(out)
     print(os.path.relpath(out, ROOT))

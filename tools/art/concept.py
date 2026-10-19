@@ -13,7 +13,7 @@ reference, with the hero's wording into work/art/<id>/round-<n>/turnaround/<view
 paints a page of the art book from data/art/book.sjson and the brief's entry into the kept template
 data/art/page.png, its one reference, once per seed into work/art/<id>/entry-<n>/. The collage round
 repaints the five renders on one sheet in one call per seed and splits the output into
-work/art/<id>/round-<n>/collage/<view>.png.
+work/art/<id>/round-<n>/collage/<view>_<model>_<index>.png, named after its output.
 --dry-run prints the prompt and the calls without calling the API.
 """
 import argparse
@@ -292,13 +292,13 @@ def split_panels(image):
     return [image.crop(box).resize((1024, 1024), Image.LANCZOS) for box in boxes]
 
 
-def write_panels(out, image_data, suffix):
-    """The collage output split into <name><suffix>.png beside it."""
+def write_panels(out, image_data, output_stem):
+    """The collage output split into <name>_<output_stem>.png beside it."""
     from PIL import Image
     import io
     panels = split_panels(Image.open(io.BytesIO(image_data)).convert("RGB"))
     for name, panel in zip(COLLAGE_NAMES, panels):
-        path = os.path.join(out, f"{name}{suffix}.png")
+        path = os.path.join(out, f"{name}_{output_stem}.png")
         panel.save(path)
         print(path)
 
@@ -317,7 +317,7 @@ def collage_round(machine, round_number, model, seeds, dry_run):
         if result:
             written, cost_text = generate.write_images(out, model, prompt, COLLAGE_RATIO, *result)
             print(cost_text, *written)
-            write_panels(out, result[0][0], f"_{seed}" if len(seeds) > 1 else "")
+            write_panels(out, result[0][0], os.path.splitext(os.path.basename(written[0]))[0])
 
 
 def main():
