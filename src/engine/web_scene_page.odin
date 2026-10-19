@@ -9,24 +9,21 @@ import "core:sys/wasm/js"
 import gl "vendor:wasm/WebGL"
 
 SCENE_PAGE_DRAG_RADIANS_PER_PIXEL :: f32(0.005)
-SCENE_PAGE_WHEEL_ZOOM_STEP :: f32(1.1)
-SCENE_PAGE_DISTANCE_MINIMUM :: f32(2)
 SCENE_PAGE_DISTANCE_MAXIMUM :: f32(30) // Enough for the models page's row on a phone in portrait.
 SCENE_PAGE_VERTICAL_FOV :: f32(math.PI / 3)
-// Orbit distances per second a held key walks the target.
-SCENE_PAGE_WALK_SPEED :: f32(0.6)
+// Metres per second a held key or the stick walks the fly.
+SCENE_PAGE_FLY_SPEED :: f32(5)
 SCENE_PAGE_STEP_LIMIT :: f32(0.1)
 SCENE_PAGE_STICK_DEAD_ZONE :: f32(0.15)
 SCENE_PAGE_STICK_TURN_RADIANS_PER_SECOND :: f32(2)
-SCENE_PAGE_TRIGGER_ZOOM_PER_SECOND :: f32(0.8)
 
-// A pointer on the canvas: one drags the orbit, two pinch the distance.
+// A pointer on the canvas: the mouse over it or a finger down, the primary one turning the fly.
 Scene_Page_Pointer :: struct {
 	pointer_id: int,
 	client:     [2]f32,
 }
 
-// A scene drawn on a canvas, orbited by drag, pinch and wheel.
+// A scene drawn on a canvas, seen through the fly camera: the mouse or a finger looks, the keys or a gamepad walk.
 Scene_Page :: struct {
 	canvas_id:                   string,
 	renderer:                    Webgl_Renderer,
@@ -35,9 +32,8 @@ Scene_Page :: struct {
 	item_mesh_ids:               []Mesh_Id,
 	item_half_extents:           [][3]f32,
 	draw_list:                   Draw_List,
-	orbit:                       Orbit,
+	fly:                         Fly,
 	canvas_width, canvas_height: i32,
-	client_height:               f32,
 	aspect, pixel_ratio:         f32,
 	active_pointers:             [2]Scene_Page_Pointer,
 	active_pointer_count:        int,
@@ -65,7 +61,7 @@ scene_page_init :: proc(page: ^Scene_Page, canvas_id: string, library_data, scen
 	if problem != "" do return fmt.tprintf("material library: %s", problem)
 	page.scene, problem = parse_scene(scene_data, page.library)
 	if problem != "" do return fmt.tprintf("scene: %s", problem)
-	page.orbit = orbit_fit_width(page.scene.camera, page.scene.fit_width, SCENE_PAGE_VERTICAL_FOV, page.aspect, SCENE_PAGE_DISTANCE_MAXIMUM)
+	page.fly = fly_from_orbit(orbit_fit_width(page.scene.camera, page.scene.fit_width, SCENE_PAGE_VERTICAL_FOV, page.aspect, SCENE_PAGE_DISTANCE_MAXIMUM))
 	if !webgl_renderer_init(&page.renderer) do return "the WebGL2 shaders did not compile"
 	problem = scene_page_upload_meshes(page, meshes)
 	if problem != "" do return fmt.tprintf("meshes: %s", problem)
@@ -100,7 +96,7 @@ scene_page_step :: proc(page: ^Scene_Page, delta_time: f32) {
 
 @(private = "file")
 scene_page_camera :: proc(page: ^Scene_Page) -> Camera {
-	return orbit_camera(page.orbit, SCENE_PAGE_VERTICAL_FOV, 0.1, 100)
+	return fly_camera(page.fly, SCENE_PAGE_VERTICAL_FOV, 0.1, 100)
 }
 
 // The registered page's label at index, found false out of range.
@@ -158,7 +154,7 @@ label_visible :: proc "contextless" (index: i32) -> bool {
 	return visible
 }
 
-// Held keys walk the target at a pace proportional to the orbit distance; opposite keys cancel.
+// Held keys walk the fly; opposite keys cancel.
 @(private = "file")
 scene_page_walk :: proc(page: ^Scene_Page, delta_time: f32) {
 	keys := page.keys_held
@@ -168,10 +164,10 @@ scene_page_walk :: proc(page: ^Scene_Page, delta_time: f32) {
 		f32(int(.Forward in keys) - int(.Back in keys)),
 	}
 	if input == {} do return
-	page.orbit = orbit_walk(page.orbit, input, page.orbit.distance * SCENE_PAGE_WALK_SPEED * delta_time)
+	page.fly = fly_walk(page.fly, input, SCENE_PAGE_FLY_SPEED * delta_time)
 }
 
-// The standard mapping: the left stick walks, the right stick turns, the triggers zoom, the d-pad moves up and down.
+// The standard mapping: the left stick walks, the right stick turns, the d-pad moves up and down.
 @(private = "file")
 scene_page_gamepad :: proc(page: ^Scene_Page, delta_time: f32) {
 	state: js.Gamepad_State
@@ -181,14 +177,10 @@ scene_page_gamepad :: proc(page: ^Scene_Page, delta_time: f32) {
 	vertical := f32(int(state.buttons[12].pressed) - int(state.buttons[13].pressed))
 	walk_input := [3]f32{left.x, vertical, -left.y}
 	if walk_input != {} {
-		page.orbit = orbit_walk(page.orbit, walk_input, page.orbit.distance * SCENE_PAGE_WALK_SPEED * delta_time)
+		page.fly = fly_walk(page.fly, walk_input, SCENE_PAGE_FLY_SPEED * delta_time)
 	}
 	if right != {} {
-		page.orbit = orbit_drag(page.orbit, right * SCENE_PAGE_STICK_TURN_RADIANS_PER_SECOND * delta_time, 1)
-	}
-	trigger := f32(state.buttons[7].value) - f32(state.buttons[6].value)
-	if trigger != 0 {
-		page.orbit = orbit_zoom(page.orbit, 1 - trigger * SCENE_PAGE_TRIGGER_ZOOM_PER_SECOND * delta_time, SCENE_PAGE_DISTANCE_MINIMUM, SCENE_PAGE_DISTANCE_MAXIMUM)
+		page.fly = fly_turn(page.fly, right * SCENE_PAGE_STICK_TURN_RADIANS_PER_SECOND * delta_time, 1)
 	}
 }
 
@@ -204,8 +196,7 @@ scene_page_listen :: proc(page: ^Scene_Page) {
 	js.add_event_listener(page.canvas_id, .Pointer_Move, page, on_scene_page_pointer_move)
 	js.add_event_listener(page.canvas_id, .Pointer_Up, page, on_scene_page_pointer_up)
 	js.add_event_listener(page.canvas_id, .Pointer_Cancel, page, on_scene_page_pointer_up)
-	js.add_event_listener(page.canvas_id, .Wheel, page, on_scene_page_wheel)
-	js.add_event_listener(page.canvas_id, .Context_Menu, page, on_scene_page_context_menu)
+	js.add_event_listener(page.canvas_id, .Pointer_Leave, page, on_scene_page_pointer_up)
 }
 
 // The half extents are kept from the parsed mesh, which is freed once uploaded.
@@ -240,7 +231,6 @@ scene_page_upload_textures :: proc(page: ^Scene_Page, textures: []runtime.Load_D
 scene_page_resize :: proc(page: ^Scene_Page) {
 	pixel_ratio := js.device_pixel_ratio()
 	client_height := js.get_element_key_f64(page.canvas_id, "clientHeight")
-	page.client_height = f32(client_height)
 	width := js.get_element_key_f64(page.canvas_id, "clientWidth") * pixel_ratio
 	height := client_height * pixel_ratio
 	js.set_element_key_f64(page.canvas_id, "width", width)
@@ -324,52 +314,28 @@ scene_page_pointer_client :: proc(event: js.Event) -> [2]f32 {
 }
 
 @(private = "file")
-scene_page_pointer_spread :: proc(page: ^Scene_Page) -> f32 {
-	return linalg.length(page.active_pointers[1].client - page.active_pointers[0].client)
-}
-
-@(private = "file")
-scene_page_pointer_midpoint :: proc(page: ^Scene_Page) -> [2]f32 {
-	return (page.active_pointers[0].client + page.active_pointers[1].client) / 2
-}
-
-// The orbit panned by a drag in CSS pixels, a pixel moving the target a pixel at its depth.
-@(private = "file")
-scene_page_pan :: proc(page: ^Scene_Page, delta_pixels: [2]f32) -> Orbit {
-	return orbit_pan(page.orbit, delta_pixels, orbit_metres_per_pixel(page.orbit, SCENE_PAGE_VERTICAL_FOV, max(page.client_height, 1)))
-}
-
-@(private = "file")
 on_scene_page_pointer_down :: proc(event: js.Event) {
 	page := (^Scene_Page)(event.user_data)
 	scene_page_add_pointer(page, event.data.mouse.pointer.pointer_id, scene_page_pointer_client(event))
 }
 
+// The primary pointer turns the fly; a mouse joins on its first move over the canvas, a finger on its down.
 @(private = "file")
 on_scene_page_pointer_move :: proc(event: js.Event) {
 	page := (^Scene_Page)(event.user_data)
-	slot, found := scene_page_find_pointer(page, event.data.mouse.pointer.pointer_id)
-	if !found do return
-	if page.active_pointer_count == 1 {
-		// The client delta, not the event's movement: odin.js stores the
-		// browser's fractional movement as i64, and a value in (-1, 0) breaks.
-		client := scene_page_pointer_client(event)
-		movement := client - page.active_pointers[slot].client
-		page.active_pointers[slot].client = client
-		if 1 in event.data.mouse.buttons {
-			page.orbit = scene_page_pan(page, movement)
-			return
-		}
-		page.orbit = orbit_drag(page.orbit, movement, SCENE_PAGE_DRAG_RADIANS_PER_PIXEL)
+	pointer := event.data.mouse.pointer
+	if !pointer.is_primary do return
+	client := scene_page_pointer_client(event)
+	slot, found := scene_page_find_pointer(page, pointer.pointer_id)
+	if !found {
+		if pointer.pointer_type == .Mouse do scene_page_add_pointer(page, pointer.pointer_id, client)
 		return
 	}
-	spread_before := scene_page_pointer_spread(page)
-	midpoint_before := scene_page_pointer_midpoint(page)
-	page.active_pointers[slot].client = scene_page_pointer_client(event)
-	spread_after := scene_page_pointer_spread(page)
-	page.orbit = scene_page_pan(page, scene_page_pointer_midpoint(page) - midpoint_before)
-	if spread_before == 0 || spread_after == 0 do return
-	page.orbit = orbit_zoom(page.orbit, spread_before / spread_after, SCENE_PAGE_DISTANCE_MINIMUM, SCENE_PAGE_DISTANCE_MAXIMUM)
+	// The client delta, not the event's movement: odin.js stores the
+	// browser's fractional movement as i64, and a value in (-1, 0) breaks.
+	movement := client - page.active_pointers[slot].client
+	page.active_pointers[slot].client = client
+	page.fly = fly_turn(page.fly, movement, SCENE_PAGE_DRAG_RADIANS_PER_PIXEL)
 }
 
 @(private = "file")
@@ -377,19 +343,4 @@ on_scene_page_pointer_up :: proc(event: js.Event) {
 	page := (^Scene_Page)(event.user_data)
 	slot, found := scene_page_find_pointer(page, event.data.mouse.pointer.pointer_id)
 	if found do scene_page_remove_pointer(page, slot)
-}
-
-@(private = "file")
-on_scene_page_wheel :: proc(event: js.Event) {
-	page := (^Scene_Page)(event.user_data)
-	delta := event.data.wheel.delta.y
-	if delta == 0 do return
-	factor := delta > 0 ? SCENE_PAGE_WHEEL_ZOOM_STEP : 1 / SCENE_PAGE_WHEEL_ZOOM_STEP
-	page.orbit = orbit_zoom(page.orbit, factor, SCENE_PAGE_DISTANCE_MINIMUM, SCENE_PAGE_DISTANCE_MAXIMUM)
-}
-
-// The right button pans, so the browser's menu stays shut over the canvas.
-@(private = "file")
-on_scene_page_context_menu :: proc(event: js.Event) {
-	js.event_prevent_default()
 }
