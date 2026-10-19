@@ -12,6 +12,7 @@ What was not verified: no generator output of a squat drum machine was seen, and
 
 - `work/models/<id>/`: the generated GLB with a sidecar (task id, seed, versions, cost), untracked.
 - `data/models/<id>.glb`: the finished model, glTF 2.0, metres, Y up, through Git LFS, with `data/models/<id>.sjson` beside it (the source task, seeds, generator versions, the triangle count). It holds one node and mesh per part named by the part, each part's material named by its library preset id with no textures, `TEXCOORD_0`, `COLOR_0` with R curvature, G ambient occlusion, B the emissive mask, A reserved for a wear bias, node extras `{ part, material, cue }`, pivot nodes for the cues with `{ cue, axis, range_deg }`, and socket empties with `{ socket, cue }`. The engine decides how a cue drives these; the model only names them.
+- `data/demos/<demo>/meshes/<name>.mesh`: the engine's flat mesh for a demo page, made from a GLB by `tools/models/mesh_blob.py <glb> <out.mesh> [--height <metres>]` with the bottom centre of the bounding box at the origin, through Git LFS. The format: the magic `BAMESH01`, u32 vertex count, u32 index count, per vertex six little endian f32 (position then normal), then the indices as u32.
 
 ## The steps
 
