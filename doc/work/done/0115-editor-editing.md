@@ -1,6 +1,6 @@
 # 0115: Editing in the editor
 
-Status: implementing (2026-10-20)
+Status: landed (2026-10-20, 405229c)
 
 Goal: the user corrects any step in game: brush paint on assign steps, key editing in a panel, steps inserted, deleted, moved, enabled and disabled, saved, rerun from the edited step.
 
