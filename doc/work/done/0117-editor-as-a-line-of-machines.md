@@ -1,6 +1,6 @@
 # 0117: The editor as a line of machines
 
-Status: implementing (2026-10-20)
+Status: landed (2026-10-20, 327d902)
 
 Goal: the pipeline editor becomes a world like the LOD demo: every step's output is its own machine standing in a line, the base model first and the finished one last, each machine the input of the next, walked along with the fly camera (user, 2026-10-20: "a long line of machines where the first machine is the 1.4M base model, then next to it the first step output, and so on ... i can then orient around them using the fly camera"). Replaces 0114's grid of four views.
 
