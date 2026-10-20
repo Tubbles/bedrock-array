@@ -40,6 +40,8 @@ Options :: struct {
 	shot:          string,
 	view:          Maybe(engine.Orbit),
 	configuration: int,
+	// A scene and its meshes read from this directory instead of an embedded demo.
+	scene_directory: string,
 }
 
 // Six numbers separated by commas: yaw, pitch, distance, then the target's x, y and z.
@@ -61,6 +63,12 @@ parse_options :: proc(arguments: []string) -> (options: Options, ok: bool) {
 		switch arguments[index] {
 		case "--windowed":
 			options.windowed = true
+		case "--scene-directory":
+			index += 1
+			if index >= len(arguments) {
+				return options, false
+			}
+			options.scene_directory = arguments[index]
 		case "--demo":
 			index += 1
 			if index >= len(arguments) {
@@ -315,8 +323,12 @@ exit_on_gl_error :: proc() {
 main :: proc() {
 	options, ok := parse_options(os.args[1:])
 	demo, known := demo_by_name(options.demo)
-	if !ok || (options.demo != "" && !known) || (options.shot != "" && !known) {
-		fmt.eprintln("usage: bedrock-array [--demo light|surface|cave|models|decimation|parts|lod] [--frames <n>] [--windowed] [--view yaw,pitch,distance,x,y,z] [--configuration <n>] [--shot <path> (with --demo)]")
+	if options.scene_directory != "" {
+		demo, known = demo_from_directory(options.scene_directory)
+		if !known do fmt.eprintfln("bedrock-array: no scene.sjson and meshes/ under %s", options.scene_directory)
+	}
+	if !ok || ((options.demo != "" || options.scene_directory != "") && !known) || (options.shot != "" && !known) {
+		fmt.eprintln("usage: bedrock-array [--demo light|surface|cave|models|decimation|parts|lod] [--frames <n>] [--windowed] [--view yaw,pitch,distance,x,y,z] [--configuration <n>] [--scene-directory <dir>] [--shot <path> (with a demo)]")
 		os.exit(2)
 	}
 	if options.shot != "" do options.frames = max(options.frames, 3)
