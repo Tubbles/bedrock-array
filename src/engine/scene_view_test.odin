@@ -83,7 +83,7 @@ test_scene_view_orbit_mode_turns_and_zooms :: proc(t: ^testing.T) {
 	scene_view_step(&view, {zoom = -100}, 0)
 	testing.expect_value(t, view.orbit.distance, SCENE_VIEW_DISTANCE_MAXIMUM)
 	camera := scene_view_camera(&view)
-	testing.expect_value(t, camera.position, orbit_camera(view.orbit, SCENE_VIEW_VERTICAL_FOV, 0.1, 100).position)
+	testing.expect_value(t, camera.position, orbit_camera(view.orbit, SCENE_VIEW_VERTICAL_FOV, SCENE_VIEW_NEAR, 100).position)
 	// Fly mode zooms nothing.
 	fly_view: Scene_View
 	fly_view.orbit = Orbit{distance = 4}

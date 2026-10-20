@@ -10,7 +10,9 @@ SCENE_VIEW_VERTICAL_FOV :: f32(math.PI / 3)
 // Metres per second a held key or the stick walks the fly.
 SCENE_VIEW_FLY_SPEED :: f32(5)
 SCENE_VIEW_STEP_LIMIT :: f32(0.1)
-SCENE_VIEW_DISTANCE_MINIMUM :: f32(1)
+// Close enough to inspect a 3 cm fitting; the near plane sits inside it.
+SCENE_VIEW_DISTANCE_MINIMUM :: f32(0.15)
+SCENE_VIEW_NEAR :: f32(0.02)
 // Radians per second a held key or the stick turns the orbit.
 SCENE_VIEW_ORBIT_TURN_RADIANS_PER_SECOND :: f32(2)
 // Zoom per second a held key or the stick applies, the distance scaled by exp(-zoom).
@@ -242,8 +244,8 @@ scene_view_level_counts :: proc(view: ^Scene_View) -> (triangles: int, items_per
 }
 
 scene_view_camera :: proc(view: ^Scene_View) -> Camera {
-	if view.scene.camera_mode == .Orbit do return orbit_camera(view.orbit, SCENE_VIEW_VERTICAL_FOV, 0.1, 100)
-	return fly_camera(view.fly, SCENE_VIEW_VERTICAL_FOV, 0.1, 100)
+	if view.scene.camera_mode == .Orbit do return orbit_camera(view.orbit, SCENE_VIEW_VERTICAL_FOV, SCENE_VIEW_NEAR, 100)
+	return fly_camera(view.fly, SCENE_VIEW_VERTICAL_FOV, SCENE_VIEW_NEAR, 100)
 }
 
 // The label's point in the canvas's units from its top left, not visible out of range.
