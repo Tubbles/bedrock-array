@@ -1,6 +1,6 @@
 # 0116: The smelter's pipeline
 
-Status: designed (2026-10-20)
+Status: landed (2026-10-20, 211970f)
 
 Goal: today's manual finish of the smelter written as its `pipeline.sjson`: import, transform `+x` to 1 m, weld, the assigns of 0102's mapping and overrides (by pieces), the screw cuts of 0108 as stroke assigns, the three copies, then the editor shows it and the user corrects from there.
 
@@ -9,4 +9,4 @@ Verify:
 
 ## Specification
 
-Written once 0115 lands, from `data/machines/smelter/generated.sjson` and the 0108 spots.
+- `data/machines/smelter/pipeline.sjson`: after 0114's starter, two assigns of the fused screws to `fittings` by strokes (skirt and body, each `within_part`, the 0108 spots and cut radii) and three copies for the empty holes (a sphere on the source screw within `fittings`, from the source's panel point to the target's, the panel level the median height of the 13 to 16 mm ring).
