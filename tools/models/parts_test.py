@@ -50,6 +50,13 @@ class PartsTest(unittest.TestCase):
         self.assertIn("element face 2", header)
         self.assertEqual(len(data) - header_end, 4 * 6 * 4 + 2 * (1 + 3 * 4))
 
+    def test_closing_defaults_to_poisson(self):
+        closings = {"fittings": "none"}
+        self.assertEqual(parts.closing_for(closings, "body"), "poisson")
+        self.assertEqual(parts.closing_for(closings, "fittings"), "none")
+        with self.assertRaises(SystemExit):
+            parts.closing_for({"body": "voxel"}, "body")
+
 
 if __name__ == "__main__":
     unittest.main()

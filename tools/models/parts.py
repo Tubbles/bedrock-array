@@ -2,6 +2,7 @@
 """Map a generated model's parts onto its brief's parts and write one mesh blob per brief part (doc/workflows/models.md, the finish step).
 
     python3 -I tools/models/parts.py <machine> [--ply-directory <dir>]
+    python3 -I tools/models/parts.py <machine> --closings
 
 Reads data/machines/<machine>/brief.sjson and generated.sjson, gathers each root node's mesh, moves the
 whole model's bounding box bottom centre to the origin, scales it to the brief's height and turns the
@@ -10,7 +11,8 @@ the largest share of its vertices inside one of that part's blockout boxes grown
 shares to the smaller blockout), else to the brief part with the box centre nearest its bounding box
 centre. Writes data/demos/parts/meshes/<brief part>.mesh in the brief's frame and prints one line per
 generated part. With --ply-directory each brief part's merged mesh is also written there as <brief part>.ply,
-for the closing by reconstruct.py.
+for the closing by reconstruct.py. --closings prints one "<brief part> <closing>" line per brief part with a
+blob, the closing from generated.sjson ("poisson" when the part is not listed, or "none"), and exits.
 """
 import argparse
 import math
@@ -26,6 +28,8 @@ import mesh_blob  # noqa: E402
 import sjson  # noqa: E402
 
 OUTPUT_DIRECTORY = os.path.join(ROOT, "data", "demos", "parts", "meshes")
+CLOSINGS = ("poisson", "none")
+DEFAULT_CLOSING = "poisson"
 TURNS = {
     "+z": lambda x, y, z: (x, y, z),
     "+x": lambda x, y, z: (-z, y, x),
@@ -155,10 +159,36 @@ def write_ply(path, vertices, indices):
             output.write(struct.pack("<B3i", 3, *indices[start:start + 3]))
 
 
+def closing_for(closings, brief_name):
+    """Return the brief part's closing, the default when it is not listed; an unknown closing is an error."""
+    closing = closings.get(brief_name, DEFAULT_CLOSING)
+    if closing not in CLOSINGS:
+        fail("closing of {!r}: {!r} is none of {}".format(brief_name, closing, ", ".join(CLOSINGS)))
+    return closing
+
+
+def fail(message):
+    """Exit with the message and status 1."""
+    sys.exit(message)
+
+
+def print_closings(brief, generated):
+    """Print one line per brief part with a blob: its name and its closing."""
+    closings = generated.get("closing", {})
+    brief_names = [brief_part["name"] for brief_part in brief["parts"]]
+    for name in closings:
+        if name not in brief_names:
+            fail("closing: {!r} is no part of the brief".format(name))
+    for name in brief_names:
+        if os.path.exists(os.path.join(OUTPUT_DIRECTORY, name + ".mesh")):
+            print(name, closing_for(closings, name))
+
+
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Map a generated model's parts onto its brief's parts.")
     parser.add_argument("machine")
     parser.add_argument("--ply-directory", help="also write each brief part's merged mesh here as <brief part>.ply")
+    parser.add_argument("--closings", action="store_true", help="print each brief part's closing and exit")
     return parser.parse_args()
 
 
@@ -167,6 +197,9 @@ def main():
     machine_directory = os.path.join(ROOT, "data", "machines", arguments.machine)
     brief = read_sjson(os.path.join(machine_directory, "brief.sjson"))
     generated = read_sjson(os.path.join(machine_directory, "generated.sjson"))
+    if arguments.closings:
+        print_closings(brief, generated)
+        return
     with open(os.path.join(ROOT, generated["source"]), "rb") as source:
         document, binary = mesh_blob.read_glb(source.read())
     parts = ground_scale_turn(gather_parts(document, binary), brief["height_metres"], generated["front"])

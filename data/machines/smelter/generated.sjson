@@ -22,3 +22,5 @@ overrides = {
 	tripo_part_27 = "fittings"
 	tripo_part_28 = "fittings"
 }
+// closing: brief part to "poisson" (the default for a part not listed) or "none" (decimation only), read by tools/models/finish_parts.sh. The small parts skip Poisson, which left copper lips on the steel around the fittings even at a 1 cm trim (user, 2026-10-20).
+closing = { fittings = "none", vents = "none", louvre = "none" }
