@@ -2,13 +2,15 @@
 # Check, test, build natively or build for the web. See doc/build.md.
 #   ./build.sh [check]   odin check src/engine -no-entry-point -vet
 #                        -strict-style (default), natively and again for
-#                        -target:js_wasm32, then src/app natively, then
+#                        -target:js_wasm32, then src/app and src/pipeline
+#                        natively, then
 #                        every src/demos/*/ for -target:js_wasm32, then
 #                        every src/engine/shaders/ file with glslangValidator,
 #                        as it is and with "#version 330 core" for its version line
 #   ./build.sh test      odin test src/engine -all-packages -vet -strict-style,
 #                        so the tests of the packages under src/engine/ run too,
-#                        then odin test src/app with the app's flags
+#                        then odin test src/app with the app's flags,
+#                        then odin test src/pipeline
 #   ./build.sh web <demo>
 #                        builds src/demos/<demo> to build/web/<demo>/ with
 #                        odin.js and the page shell from web/
@@ -170,6 +172,7 @@ case "$mode" in
 		"$odin" check src/engine -no-entry-point -vet -strict-style -define:BUILD_INFO="$build_info"
 		"$odin" check src/engine -no-entry-point -target:js_wasm32 -vet -strict-style -define:BUILD_INFO="$build_info"
 		"$odin" check src/app "$collection" -vet -strict-style -define:BUILD_INFO="$build_info"
+		"$odin" check src/pipeline -no-entry-point -vet -strict-style
 		check_demos
 		validate_shaders
 		;;
@@ -177,6 +180,7 @@ case "$mode" in
 		"$odin" test src/engine -all-packages -vet -strict-style -define:BUILD_INFO="$build_info"
 		create_linker_shims
 		"$odin" test src/app "$collection" -vet -strict-style -define:BUILD_INFO="$build_info" -extra-linker-flags:"-L$shim_directory"
+		"$odin" test src/pipeline -vet -strict-style
 		;;
 	web)
 		ensure_wasm_linker
