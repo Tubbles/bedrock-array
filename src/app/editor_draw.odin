@@ -7,6 +7,8 @@ package app
 // scale before it draws them.
 
 import "core:fmt"
+import "core:math/linalg"
+import "core:slice"
 import "core:strings"
 import engine "../engine"
 import pipeline "../pipeline"
@@ -19,7 +21,8 @@ EDITOR_ROW_GAP :: 4
 EDITOR_FRAME_WIDTH :: 3
 EDITOR_FRAME_COLOR :: rl.Color{255, 200, 60, 255}
 EDITOR_STATUS_COLOR :: rl.Color{255, 140, 120, 255}
-EDITOR_HEADER_LINES :: 2
+EDITOR_HEADER_LINES :: 3
+EDITOR_STROKES_PER_LINE :: 3
 
 Editor_Rectangle :: struct {
 	x, y, width, height: i32,
@@ -62,13 +65,13 @@ editor_select_text :: proc(select: pipeline.Select) -> string {
 editor_keys_text :: proc(step: pipeline.Step) -> string {
 	switch step.op {
 	case .Import: return ""
-	case .Transform: return fmt.tprintf("%s, height %v", pipeline.FRONT_NAMES[step.front], step.height)
-	case .Weld: return fmt.tprintf("metres %v", step.metres)
+	case .Transform: return fmt.tprintf("%s, height %.4g", pipeline.FRONT_NAMES[step.front], step.height)
+	case .Weld: return fmt.tprintf("metres %.4g", step.metres)
 	case .Assign: return fmt.tprintf("%s, %s", step.part, editor_select_text(step.select))
 	case .Delete: return editor_select_text(step.select)
 	case .Copy: return fmt.tprintf("turn %d, %s", step.turn, editor_select_text(step.select))
 	case .Decimate: return fmt.tprintf("triangles %d", step.triangles)
-	case .Close: return fmt.tprintf("%s, %s, trim %v", step.part, pipeline.TECHNIQUE_NAMES[step.technique], step.trim)
+	case .Close: return fmt.tprintf("%s, %s, trim %.4g", step.part, pipeline.TECHNIQUE_NAMES[step.technique], step.trim)
 	}
 	return ""
 }
@@ -107,8 +110,69 @@ editor_text :: proc(text: string, x, y: f32, size: f32, color: rl.Color) {
 	rl.DrawText(strings.clone_to_cstring(text, context.temp_allocator), i32(x), i32(y), i32(size), color)
 }
 
+// The value of one key as the panel shows it.
+editor_key_text :: proc(step: pipeline.Step, key: Editor_Key) -> string {
+	value: string
+	switch key {
+	case .Front: value = pipeline.FRONT_NAMES[step.front]
+	case .Height: value = fmt.tprintf("%.2f m", step.height)
+	case .Metres: value = fmt.tprintf("%.4g m", step.metres)
+	case .Part: value = step.part
+	case .From_X, .From_Y, .From_Z: value = fmt.tprintf("%.2f m", step.from[int(key) - int(Editor_Key.From_X)])
+	case .To_X, .To_Y, .To_Z: value = fmt.tprintf("%.2f m", step.to[int(key) - int(Editor_Key.To_X)])
+	case .Turn: value = fmt.tprintf("%d", step.turn)
+	case .Triangles: value = fmt.tprintf("%d", step.triangles)
+	case .Technique: value = pipeline.TECHNIQUE_NAMES[step.technique]
+	case .Trim: value = fmt.tprintf("%.3f m", step.trim)
+	}
+	return fmt.tprintf("%s %s", EDITOR_KEY_NAMES[key], value)
+}
+
+// The triangles each stroke takes, three strokes to a line.
+editor_stroke_lines :: proc(counts: []int) -> []string {
+	lines := make([dynamic]string, context.temp_allocator)
+	for start := 0; start < len(counts); start += EDITOR_STROKES_PER_LINE {
+		line := ""
+		for index in start ..< min(start + EDITOR_STROKES_PER_LINE, len(counts)) {
+			line = fmt.tprintf("%s%s#%d %d", line, "  " if index > start else "", index, counts[index])
+		}
+		append(&lines, line)
+	}
+	return lines[:]
+}
+
+// The key panel's or the insert menu's lines, the chosen row marked, none
+// while both are closed.
+editor_footer_lines :: proc(editor: ^Editor) -> []string {
+	lines := make([dynamic]string, context.temp_allocator)
+	if editor.op_menu_open {
+		append(&lines, fmt.tprintf("insert after %d", editor.selected))
+		for op, index in EDITOR_INSERTABLE_OPS {
+			append(&lines, fmt.tprintf("%s%s", "> " if index == editor.op_menu_row else "  ", pipeline.OP_NAMES[op]))
+		}
+	} else if editor.panel_open {
+		step := editor.run.pipeline.steps[editor.selected]
+		keys := EDITOR_OP_KEYS[step.op]
+		append(&lines, fmt.tprintf("keys of %d %s", editor.selected, pipeline.OP_NAMES[step.op]))
+		if len(keys) == 0 do append(&lines, "  none to change")
+		for key, index in keys {
+			append(&lines, fmt.tprintf("%s%s", "> " if index == editor.panel_row else "  ", editor_key_text(step, key)))
+		}
+	}
+	return lines[:]
+}
+
+// The header's third line: the message, else the brush's radius and part.
+editor_status_line :: proc(editor: ^Editor) -> string {
+	if editor.message != "" do return editor.message
+	if !editor.brush.on do return ""
+	return fmt.tprintf("brush %.0f mm, part %s", editor.brush.radius * 1000, editor.run.pipeline.steps[editor.selected].part)
+}
+
 // In reference points of a 720 point high screen, scaled like the menu,
-// clipped to the list's column.
+// clipped to the list's column: the header, the rows with the strokes'
+// counts under the selected one in brush mode, the panel or the insert
+// menu on a plaque at the bottom.
 editor_draw_list :: proc(editor: ^Editor, screen: [2]i32) {
 	scale := f32(screen.y) / MENU_REFERENCE_HEIGHT
 	width := screen.x / EDITOR_LIST_FRACTION
@@ -118,22 +182,56 @@ editor_draw_list :: proc(editor: ^Editor, screen: [2]i32) {
 	rl.BeginScissorMode(0, 0, width, screen.y)
 	defer rl.EndScissorMode()
 	colours := "false colour" if editor.false_colour else "brief materials"
-	editor_text(editor.machine, padding, padding, font, TEXT_COLOR)
+	editor_text(fmt.tprintf("%s%s", editor.machine, "  unsaved" if editor.unsaved else ""), padding, padding, font, TEXT_COLOR)
 	editor_text(colours, padding, padding + font, font, TEXT_COLOR)
+	editor_text(editor_status_line(editor), padding, padding + 2 * font, font, EDITOR_STATUS_COLOR)
 	top := padding + f32(EDITOR_HEADER_LINES) * font + padding
+	footer := editor_footer_lines(editor)
+	footer_height := f32(len(footer)) * font + (2 * padding if len(footer) > 0 else 0)
+	strokes := editor_stroke_lines(editor.brush.counts) if editor.brush.on else nil
+	extra := f32(len(strokes)) * font
 	count := len(editor.run.pipeline.steps)
-	visible := max(int((f32(screen.y) - top) / row_height), 1)
+	visible := max(int((f32(screen.y) - top - footer_height - extra) / row_height), 1)
 	first := editor_first_row(editor.selected, visible, count)
+	y := top
 	for index in first ..< min(first + visible, count) {
-		y := top + f32(index - first) * row_height
-		if index == editor.selected do rl.DrawRectangle(0, i32(y), width, i32(row_height), MENU_HIGHLIGHT_COLOR)
-		shown := false
-		for step in editor.shown do shown = shown || step == index
-		line, keys := editor_step_lines(editor.run, index, shown)
+		height := row_height + (extra if index == editor.selected else 0)
+		if index == editor.selected do rl.DrawRectangle(0, i32(y), width, i32(height), MENU_HIGHLIGHT_COLOR)
+		line, keys := editor_step_lines(editor.run, index, slice.contains(editor.shown[:], index))
 		failed := editor.run.status[index].state == .Failed
 		editor_text(line, padding, y, font, EDITOR_STATUS_COLOR if failed else TEXT_COLOR)
 		editor_text(keys, padding + 2 * font, y + font, font, TEXT_COLOR)
+		if index == editor.selected {
+			for stroke_line, line_index in strokes do editor_text(stroke_line, padding + 2 * font, y + f32(2 + line_index) * font, font, EDITOR_FRAME_COLOR)
+		}
+		y += height
 	}
+	if len(footer) == 0 do return
+	footer_top := f32(screen.y) - footer_height
+	rl.DrawRectangle(0, i32(footer_top), width, i32(footer_height), LABEL_BACKGROUND_COLOR)
+	for line, index in footer do editor_text(line, padding, footer_top + padding + f32(index) * font, font, TEXT_COLOR)
+}
+
+// The ring of the brush's radius round the hit and a cross at the cursor,
+// in the selected step's view.
+editor_draw_brush :: proc(editor: ^Editor, cells: [EDITOR_VIEWS_MAXIMUM]Editor_Rectangle, pixels_per_point: f32) {
+	brush := editor.brush
+	if !brush.on do return
+	cross := f32(6)
+	rl.DrawLineV({brush.cursor.x - cross, brush.cursor.y}, {brush.cursor.x + cross, brush.cursor.y}, EDITOR_FRAME_COLOR)
+	rl.DrawLineV({brush.cursor.x, brush.cursor.y - cross}, {brush.cursor.x, brush.cursor.y + cross}, EDITOR_FRAME_COLOR)
+	slot := editor_view_of_step(editor, editor.selected)
+	if !brush.hit || slot < 0 do return
+	rectangle := editor_points(cells[slot], pixels_per_point)
+	camera := editor_camera(editor)
+	canvas := [2]f32{rectangle.width, rectangle.height}
+	aspect := canvas.x / max(canvas.y, 1)
+	centre, visible := engine.world_to_screen(camera, aspect, canvas, brush.position)
+	if !visible do return
+	right := linalg.normalize(linalg.cross(camera.target - camera.position, camera.up))
+	edge, _ := engine.world_to_screen(camera, aspect, canvas, brush.position + right * brush.radius)
+	origin := [2]f32{rectangle.x, rectangle.y}
+	rl.DrawCircleLinesV(origin + centre, max(linalg.length(edge - centre), 2), EDITOR_FRAME_COLOR)
 }
 
 // A cell in points from a rectangle in pixels.
@@ -174,6 +272,7 @@ draw_editor_frame :: proc(editor: ^Editor, in_shot: bool, capture_path: string) 
 	pixels_per_point := f32(size.x) / f32(max(screen.x, 1))
 	editor_draw_list(editor, screen)
 	editor_draw_view_titles(editor, cells, pixels_per_point, screen)
+	editor_draw_brush(editor, cells, pixels_per_point)
 	if !in_shot do rl.DrawText(BUILD_INFO, 16, screen.y - 16 - LABEL_FONT_SIZE, LABEL_FONT_SIZE, TEXT_COLOR)
 	written = true
 	// raylib draws its batch at EndDrawing, after the capture would read the screen.
@@ -181,24 +280,4 @@ draw_editor_frame :: proc(editor: ^Editor, in_shot: bool, capture_path: string) 
 	if capture_path != "" do written = capture_screen(capture_path)
 	rl.EndDrawing()
 	return written
-}
-
-// The mouse turns while its left button is down and the wheel zooms; A and
-// D go round, E and Q rise and sink, W and S zoom, as the orbit demos do.
-// The pad's right stick turns, its left stick goes round and zooms, and
-// its d-pad is left to the step list.
-editor_camera_input :: proc(input: ^Editor_Input, snapshot: Gamepad_Snapshot, delta_time: f32) {
-	step_time := min(delta_time, engine.SCENE_VIEW_STEP_LIMIT)
-	if rl.IsMouseButtonDown(.LEFT) {
-		mouse := rl.GetMouseDelta()
-		input.turn += [2]f32{mouse.x, mouse.y} * APP_MOUSE_RADIANS_PER_PIXEL
-	}
-	input.zoom += rl.GetMouseWheelMove() * APP_WHEEL_ZOOM_PER_NOTCH
-	pad := gamepad_scene_input(snapshot, step_time)
-	walk := keyboard_walk(false, false)
-	walk.x += pad.walk.x
-	walk.z += pad.walk.z
-	input.turn += pad.turn
-	input.turn += [2]f32{-walk.x, walk.y} * engine.SCENE_VIEW_ORBIT_TURN_RADIANS_PER_SECOND * step_time
-	input.zoom += walk.z * engine.SCENE_VIEW_ZOOM_PER_SECOND * step_time
 }

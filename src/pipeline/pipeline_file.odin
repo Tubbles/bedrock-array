@@ -426,7 +426,7 @@ pipeline_parse :: proc(data: []byte) -> (pipeline: Pipeline, problem: string) {
 }
 
 write_vector :: proc(builder: ^strings.Builder, vector: [3]f32) {
-	fmt.sbprintf(builder, "[%v, %v, %v]", vector.x, vector.y, vector.z)
+	fmt.sbprintf(builder, "[%.6g, %.6g, %.6g]", vector.x, vector.y, vector.z)
 }
 
 write_select :: proc(builder: ^strings.Builder, select: Select) {
@@ -449,14 +449,14 @@ write_select :: proc(builder: ^strings.Builder, select: Select) {
 	case .Sphere:
 		strings.write_string(builder, "sphere = { centre = ")
 		write_vector(builder, select.centre)
-		fmt.sbprintf(builder, ", radius = %v }", select.radius)
+		fmt.sbprintf(builder, ", radius = %.6g }", select.radius)
 	case .Strokes:
 		// One stroke per line, since a brush paints many.
 		strings.write_string(builder, "strokes = [\n")
 		for stroke in select.strokes {
 			strings.write_string(builder, "\t\t{ position = ")
 			write_vector(builder, stroke.position)
-			fmt.sbprintf(builder, ", radius = %v }\n", stroke.radius)
+			fmt.sbprintf(builder, ", radius = %.6g }\n", stroke.radius)
 		}
 		strings.write_string(builder, "\t]")
 	}
@@ -471,9 +471,9 @@ write_step :: proc(builder: ^strings.Builder, step: Step) {
 	switch step.op {
 	case .Import:
 	case .Transform:
-		fmt.sbprintf(builder, ", front = %q, height = %v", FRONT_NAMES[step.front], step.height)
+		fmt.sbprintf(builder, ", front = %q, height = %.6g", FRONT_NAMES[step.front], step.height)
 	case .Weld:
-		fmt.sbprintf(builder, ", metres = %v", step.metres)
+		fmt.sbprintf(builder, ", metres = %.6g", step.metres)
 	case .Assign:
 		fmt.sbprintf(builder, ", part = %q", step.part)
 		write_select(builder, step.select)
@@ -489,7 +489,7 @@ write_step :: proc(builder: ^strings.Builder, step: Step) {
 	case .Decimate:
 		fmt.sbprintf(builder, ", triangles = %d", step.triangles)
 	case .Close:
-		fmt.sbprintf(builder, ", part = %q, technique = %q, trim = %v", step.part, TECHNIQUE_NAMES[step.technique], step.trim)
+		fmt.sbprintf(builder, ", part = %q, technique = %q, trim = %.6g", step.part, TECHNIQUE_NAMES[step.technique], step.trim)
 	}
 	if !step.enabled {
 		strings.write_string(builder, ", enabled = false")

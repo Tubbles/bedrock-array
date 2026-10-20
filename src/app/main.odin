@@ -395,6 +395,7 @@ main :: proc() {
 	view: engine.Scene_View
 	lod_panel: Lod_Panel
 	editor: Editor
+	editor_triggers: [2]f32
 	menu_rows := make([dynamic]Demo)
 	defer delete(menu_rows)
 	append(&menu_rows, ..DEMOS[:])
@@ -422,6 +423,7 @@ main :: proc() {
 		dpad_down_pressed := .Dpad_Down in snapshot.buttons && .Dpad_Down not_in edge_state.buttons
 		back_pressed := .Back in snapshot.buttons && .Back not_in edge_state.buttons
 		south_pressed := .South in snapshot.buttons && .South not_in edge_state.buttons
+		pad_pressed := snapshot.buttons - edge_state.buttons
 		menu_input := menu_input_merge(keyboard_menu_input(), menu_edges(&edge_state, snapshot))
 		if screen == .Menu {
 			command := menu_step(&menu, len(menu_rows), menu_input)
@@ -433,9 +435,6 @@ main :: proc() {
 				enter_demo(&view, DEMOS[menu.row], options)
 				screen = .Demo
 			}
-		} else if screen == .Editor && (menu_input.back || start_pressed) {
-			leave_editor(&editor, options)
-			screen = .Menu
 		} else if screen == .Demo && (menu_input.back || start_pressed) {
 			leave_demo(&view, options)
 			lod_panel.open = false
@@ -445,16 +444,11 @@ main :: proc() {
 		if screen == .Menu {
 			draw_menu_frame(menu, menu_rows[:])
 		} else if screen == .Editor {
-			editor_input := Editor_Input {
-				up = dpad_up_pressed || rl.IsKeyPressed(.UP),
-				down = dpad_down_pressed || rl.IsKeyPressed(.DOWN),
-				add = right_shoulder_pressed || rl.IsKeyPressed(.PAGE_UP),
-				drop = left_shoulder_pressed || rl.IsKeyPressed(.PAGE_DOWN),
-				toggle_colour = north_pressed || rl.IsKeyPressed(.F),
-			}
-			editor_camera_input(&editor_input, snapshot, delta_time)
-			editor_step(&editor, editor_input)
-			if !draw_editor_frame(&editor, options.shot != "", capture_path) {
+			editor_input := editor_read_input(editor.brush.on, snapshot, pad_pressed, &editor_triggers, delta_time)
+			if editor_step(&editor, editor_input) == .Leave {
+				leave_editor(&editor, options)
+				screen = .Menu
+			} else if !draw_editor_frame(&editor, options.shot != "", capture_path) {
 				fmt.eprintfln("bedrock-array: the shot could not be written to %s", options.shot)
 				os.exit(1)
 			}

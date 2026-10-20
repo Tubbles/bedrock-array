@@ -86,17 +86,22 @@ Editor :: struct {
 	uploads:       [dynamic]Editor_Upload,
 	orbit:         engine.Orbit,
 	false_colour:  bool,
-	// Raised by every editor_run_from, so a view of a step rerun rebuilds.
+	// Raised by every editor_run_from. generations[n] is its value at the
+	// last rerun that reached step n, so a view of a step rerun rebuilds.
 	generation:    int,
+	generations:   [dynamic]int,
 	draw_list:     engine.Draw_List,
-}
-
-// One frame's presses and the camera's movement, turn in radians and zoom
-// as orbit_zoom takes it, both already scaled by the frame time.
-Editor_Input :: struct {
-	up, down, add, drop, toggle_colour: bool,
-	turn:                               [2]f32,
-	zoom:                               f32,
+	// Set by every edit, cleared by a save. A first leave with unsaved
+	// edits only warns.
+	unsaved:       bool,
+	leave_warned:  bool,
+	// The header's last line: a warning, a save's result. Owned.
+	message:       string,
+	panel_open:    bool,
+	panel_row:     int,
+	op_menu_open:  bool,
+	op_menu_row:   int,
+	brush:         Editor_Brush,
 }
 
 // Needs a current GL context. Reads data/machines/<machine>/pipeline.sjson
@@ -117,6 +122,7 @@ editor_open :: proc(editor: ^Editor, machine: string, aspect: f32) -> (problem: 
 	parsed, parse_problem := pipeline.pipeline_parse(data)
 	if parse_problem != "" do return fmt.tprintf("%s: %s", editor.pipeline_path, parse_problem)
 	editor.brief_parts = editor_read_brief(fmt.tprintf("%s/data/machines/%s/brief.sjson", root, machine))
+	editor.brush.radius = EDITOR_BRUSH_RADIUS_DEFAULT
 	editor.run = pipeline.run_make(parsed, root, machine)
 	editor_run_from(editor, 0)
 	editor.orbit = editor.scene.orbit
@@ -131,6 +137,9 @@ editor_destroy :: proc(editor: ^Editor) {
 	for &upload in editor.uploads do delete(upload.meshes)
 	delete(editor.uploads)
 	delete(editor.shown)
+	delete(editor.generations)
+	delete(editor.message)
+	delete(editor.brush.counts)
 	for part in editor.brief_parts {
 		delete(part.name)
 		delete(part.material)
@@ -145,9 +154,20 @@ editor_destroy :: proc(editor: ^Editor) {
 }
 
 // Every rerun goes through here, so the views of the steps it drops rebuild.
+// Call it after any change of the steps, with the first step changed.
 editor_run_from :: proc(editor: ^Editor, index: int) {
 	editor.generation += 1
+	resize(&editor.generations, len(editor.run.pipeline.steps))
+	for &generation in editor.generations[clamp(index, 0, len(editor.generations)):] do generation = editor.generation
 	pipeline.run_from(&editor.run, index)
+}
+
+// The steps' part names from the brief, in its order, valid until the
+// brief changes.
+editor_part_names :: proc(editor: ^Editor) -> []string {
+	names := make([]string, len(editor.brief_parts), context.temp_allocator)
+	for part, index in editor.brief_parts do names[index] = part.name
+	return names
 }
 
 // The parts' names and materials, none when the brief is missing or
@@ -207,23 +227,6 @@ editor_shown_drop :: proc(shown: ^[dynamic]int, step: int) {
 	if position, found := slice.linear_search(shown[:], step); found do ordered_remove(shown, position)
 }
 
-// The selection moves first, wrapping, then the grid and the colours change.
-editor_step :: proc(editor: ^Editor, input: Editor_Input) {
-	count := len(editor.run.pipeline.steps)
-	if count > 0 {
-		movement := int(input.down) - int(input.up)
-		editor.selected = ((editor.selected + movement) % count + count) % count
-	}
-	if input.add do editor_shown_add(&editor.shown, editor.selected)
-	if input.drop do editor_shown_drop(&editor.shown, editor.selected)
-	if input.toggle_colour do editor.false_colour = !editor.false_colour
-	editor.orbit = engine.orbit_turn(editor.orbit, input.turn, 1)
-	editor.orbit = engine.orbit_zoom(editor.orbit, input.zoom, engine.SCENE_VIEW_DISTANCE_MINIMUM, engine.SCENE_VIEW_DISTANCE_MAXIMUM)
-	pipeline.run_poll(&editor.run)
-	editor_sync_uploads(editor)
-	editor_refresh_uploads(editor)
-}
-
 // The uploads follow shown: a step still shown keeps its upload, a new one
 // gets an empty upload, a dropped one's meshes are released.
 editor_sync_uploads :: proc(editor: ^Editor) {
@@ -254,8 +257,9 @@ editor_release_upload :: proc(editor: ^Editor, upload: ^Editor_Upload) {
 }
 
 editor_upload_key :: proc(editor: ^Editor, step: int) -> Editor_Upload_Key {
-	if step >= len(editor.run.outputs) do return {generation = editor.generation}
-	return {generation = editor.generation, triangles = len(editor.run.outputs[step].triangles), present = true}
+	generation := editor.generations[step] if step < len(editor.generations) else editor.generation
+	if step >= len(editor.run.outputs) do return {generation = generation}
+	return {generation = generation, triangles = len(editor.run.outputs[step].triangles), present = true}
 }
 
 // Rebuilds the meshes of each view whose step changed since it was built.
