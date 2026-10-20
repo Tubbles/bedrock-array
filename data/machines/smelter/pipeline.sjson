@@ -1,0 +1,15 @@
+// The smelter's asset pipeline (doc/workflows/pipeline_editor.md), edited in game with --edit smelter. The starter of item 0114: the turn, the weld and the part mapping of 0102 by pieces; the screw repairs of 0108 follow in 0116.
+source = "work/models/smelter/model_7.glb"
+steps = [
+	{ op = "import" }
+	{ op = "transform", front = "+x", height = 1 }
+	{ op = "weld", metres = 0.00001 }
+	{ op = "assign", part = "skirt", select = { pieces = ["tripo_part_1", "tripo_part_2", "tripo_part_6", "tripo_part_9", "tripo_part_13"] } }
+	{ op = "assign", part = "body", select = { pieces = ["tripo_part_0", "tripo_part_3"] } }
+	{ op = "assign", part = "lid", select = { pieces = ["tripo_part_7"] } }
+	{ op = "assign", part = "hearth_frame", select = { pieces = ["tripo_part_5"] } }
+	{ op = "assign", part = "hearth", select = { pieces = ["tripo_part_4"] } }
+	{ op = "assign", part = "vents", select = { pieces = ["tripo_part_14", "tripo_part_17", "tripo_part_18"] } }
+	{ op = "assign", part = "louvre", select = { pieces = ["tripo_part_8", "tripo_part_10", "tripo_part_11", "tripo_part_12", "tripo_part_15", "tripo_part_16"] } }
+	{ op = "assign", part = "fittings", select = { pieces = ["tripo_part_19", "tripo_part_20", "tripo_part_21", "tripo_part_22", "tripo_part_23", "tripo_part_24", "tripo_part_25", "tripo_part_26", "tripo_part_27", "tripo_part_28"] } }
+]
