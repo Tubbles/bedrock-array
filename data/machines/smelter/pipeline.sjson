@@ -1,4 +1,4 @@
-// The smelter's asset pipeline (doc/workflows/pipeline_editor.md), edited in game with --edit smelter. The starter of item 0114: the turn, the weld and the part mapping of 0102 by pieces; the screw repairs of 0108 follow in 0116.
+// The smelter's asset pipeline (doc/workflows/pipeline_editor.md), edited in game with --edit smelter. The starter of item 0114: the turn, the weld and the part mapping of 0102 by pieces; then the screw repairs of 0108 as strokes and copies (0116).
 source = "work/models/smelter/model_7.glb"
 steps = [
 	{ op = "import" }
@@ -12,4 +12,23 @@ steps = [
 	{ op = "assign", part = "vents", select = { pieces = ["tripo_part_14", "tripo_part_17", "tripo_part_18"] } }
 	{ op = "assign", part = "louvre", select = { pieces = ["tripo_part_8", "tripo_part_10", "tripo_part_11", "tripo_part_12", "tripo_part_15", "tripo_part_16"] } }
 	{ op = "assign", part = "fittings", select = { pieces = ["tripo_part_19", "tripo_part_20", "tripo_part_21", "tripo_part_22", "tripo_part_23", "tripo_part_24", "tripo_part_25", "tripo_part_26", "tripo_part_27", "tripo_part_28"] } }
+	{ op = "assign", part = "fittings", note = "the screws the generator fused into the skirt (0108's spots 1, 2, 3, 9, 10, 14, 15)", select = { within_part = "skirt", strokes = [
+		{ position = [-0.4442, 0.0676, 0.5448], radius = 0.01 }
+		{ position = [0.4454, 0.0681, 0.546], radius = 0.01 }
+		{ position = [0.2606, 0.2599, 0.5346], radius = 0.005 }
+		{ position = [0.4495, 0.0683, -0.4855], radius = 0.01 }
+		{ position = [-0.4513, 0.0684, -0.4856], radius = 0.0105 }
+		{ position = [-0.506, 0.2938, 0.4641], radius = 0.009 }
+		{ position = [-0.5188, 0.0709, 0.476], radius = 0.01 }
+	] } }
+	{ op = "assign", part = "fittings", note = "the screws fused into the body (0108's spots 4, 5, 6, 11, 12; spot 5 corrected by a circle fit)", select = { within_part = "body", strokes = [
+		{ position = [0.441, 0.8151, 0.2686], radius = 0.011 }
+		{ position = [0.4388, 0.8138, -0.2801], radius = 0.0095 }
+		{ position = [0.4625, 0.4389, -0.2946], radius = 0.0095 }
+		{ position = [-0.4394, 0.8136, 0.2597], radius = 0.011 }
+		{ position = [-0.4632, 0.4407, -0.2434], radius = 0.0105 }
+	] } }
+	{ op = "copy", note = "an empty hole (spot 7) gets spot 9's screw", select = { within_part = "fittings", sphere = { centre = [0.4495, 0.0683, -0.4855], radius = 0.010 } }, from = [0.4495, 0.0683, -0.4826], to = [0.4426, 0.2973, -0.4753], turn = 0 }
+	{ op = "copy", note = "an empty hole (spot 8) gets spot 10's screw", select = { within_part = "fittings", sphere = { centre = [-0.4513, 0.0684, -0.4856], radius = 0.0105 } }, from = [-0.4513, 0.0684, -0.4818], to = [-0.4424, 0.2938, -0.4731], turn = 0 }
+	{ op = "copy", note = "an empty hole (spot 13) gets spot 14's screw", select = { within_part = "fittings", sphere = { centre = [-0.5060, 0.2938, 0.4641], radius = 0.009 } }, from = [-0.5059, 0.2938, 0.4641], to = [-0.5038, 0.2939, -0.4079], turn = 0 }
 ]
