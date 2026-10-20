@@ -109,6 +109,10 @@ write_launcher() {
 # build directory.
 play_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/play" && pwd)"
 build_directory="$(readlink -f "$play_root/current")"
+# The checkout the launcher lives in, for what reads the working tree at
+# run time (the pipeline editor's files and its generated models under
+# work/), since the game runs from its build directory.
+export BEDROCK_ARRAY_ROOT="$(cd "$play_root/../.." && pwd)"
 cd "$build_directory"
 # In Game Mode Steam keeps Steam Input on for the Steam Controller
 # whatever the per game setting says, hands the game a virtual pad and

@@ -10,6 +10,7 @@ import "core:fmt"
 import "core:math/linalg"
 import "core:os"
 import "core:slice"
+import "core:strings"
 import engine "../engine"
 import pipeline "../pipeline"
 
@@ -104,11 +105,20 @@ Editor :: struct {
 	brush:         Editor_Brush,
 }
 
+// The project the pipeline's paths hang off: BEDROCK_ARRAY_ROOT, which the
+// launcher sets since it runs the play build from its own directory, else
+// the working directory (a build run from the checkout).
+editor_project_root :: proc() -> (string, os.Error) {
+	if root := os.get_env("BEDROCK_ARRAY_ROOT", context.temp_allocator); root != "" {
+		return strings.clone(root), nil
+	}
+	return os.get_working_directory(context.allocator)
+}
+
 // Needs a current GL context. Reads data/machines/<machine>/pipeline.sjson
-// and brief.sjson under the working directory, the project root, and runs
-// the native steps.
+// and brief.sjson under the project root and runs the native steps.
 editor_open :: proc(editor: ^Editor, machine: string, aspect: f32) -> (problem: string) {
-	root, root_error := os.get_working_directory(context.allocator)
+	root, root_error := editor_project_root()
 	defer delete(root)
 	if root_error != nil do return fmt.tprintf("the working directory: %v", root_error)
 	scene_data := EDITOR_SCENE
