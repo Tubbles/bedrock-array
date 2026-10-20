@@ -31,4 +31,5 @@ steps = [
 	{ op = "copy", note = "an empty hole (spot 7) gets spot 9's screw", select = { within_part = "fittings", sphere = { centre = [0.4495, 0.0683, -0.4855], radius = 0.010 } }, from = [0.4495, 0.0683, -0.4826], to = [0.4426, 0.2973, -0.4753], turn = 0 }
 	{ op = "copy", note = "an empty hole (spot 8) gets spot 10's screw", select = { within_part = "fittings", sphere = { centre = [-0.4513, 0.0684, -0.4856], radius = 0.0105 } }, from = [-0.4513, 0.0684, -0.4818], to = [-0.4424, 0.2938, -0.4731], turn = 0 }
 	{ op = "copy", note = "an empty hole (spot 13) gets spot 14's screw", select = { within_part = "fittings", sphere = { centre = [-0.5060, 0.2938, 0.4641], radius = 0.009 } }, from = [-0.5059, 0.2938, 0.4641], to = [-0.5038, 0.2939, -0.4079], turn = 0 }
+	{ op = "decimate", note = "each part to its share of the game's top level, 192000 triangles (the closing is left out: the weld alone decimated cleanly in the 2026-10-20 inspection)", triangles = 192000 }
 ]
