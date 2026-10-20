@@ -1,6 +1,6 @@
 # 0119: Messages and text in the editor
 
-Status: designed (2026-10-20)
+Status: implementing (2026-10-20)
 
 Goal: a step's failure message is read in full, and the string keys (a source path, a part name, a note, a selection's pieces and parts) are edited in game (user, 2026-10-20: "i need a way to see the messages and edit strings").
 
