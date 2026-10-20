@@ -1,6 +1,6 @@
 # 0111: The pipeline's files in and out
 
-Status: designed (2026-10-20)
+Status: implementing (2026-10-20)
 
 Goal: the pipeline reads a generated GLB into its mesh (each root node a piece) and writes PLY for the external tools, reads their PLY or GLB back, and writes the engine's mesh blobs per part.
 
