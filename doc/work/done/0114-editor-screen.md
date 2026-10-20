@@ -1,6 +1,6 @@
 # 0114: The editor screen
 
-Status: implementing (2026-10-20)
+Status: landed (2026-10-20, 6ba25f3)
 
 Goal: the app's pipeline editor: an asset's steps listed, up to four step views side by side under one orbit camera, parts in false colour or their brief materials (doc/workflows/pipeline_editor.md, The editor).
 
