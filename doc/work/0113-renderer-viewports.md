@@ -1,6 +1,6 @@
 # 0113: Renderer viewports
 
-Status: designed (2026-10-20)
+Status: implementing (2026-10-20)
 
 Goal: the renderer draws a draw list into a rectangle of the window, so the editor shows several steps side by side.
 
