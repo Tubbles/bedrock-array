@@ -40,6 +40,11 @@ Editor_Brush :: struct {
 	counts:     []int,
 	counts_key: [2]int,
 	counted:    bool,
+	// The pick grid of the geometry the selected step shares, built on its
+	// first pick. grid_key is the owner step and its generation.
+	grid:       pipeline.Pick_Grid,
+	grid_key:   [2]int,
+	grid_built: bool,
 }
 
 // What a binding does (EDITOR_BINDINGS in editor_input.odin).
@@ -326,8 +331,9 @@ editor_camera :: proc(editor: ^Editor) -> engine.Camera {
 
 // The crosshair's ray onto the selected machine's mesh, the step's output
 // (an assign moves no vertex, so it lies where its input does), made
-// again only when the camera or the step changed. The hit is kept in the
-// machine's own frame, where strokes are stored.
+// again only when the camera or the step changed, through the pick grid
+// of the geometry the step shares. The hit is kept in the machine's own
+// frame, where strokes are stored.
 editor_brush_pick :: proc(editor: ^Editor) {
 	brush := &editor.brush
 	step := editor.selected
@@ -338,7 +344,25 @@ editor_brush_pick :: proc(editor: ^Editor) {
 	camera := editor_camera(editor)
 	direction := linalg.normalize(camera.target - camera.position)
 	origin := camera.position - editor_machine_offset(step)
-	brush.position, _, brush.hit = pipeline.ray_pick(editor.run.outputs[step], origin, direction)
+	grid := editor_brush_grid(editor, step)
+	brush.position, _, brush.hit = pipeline.pick_grid_ray(grid, editor.run.outputs[step], origin, direction)
+}
+
+// The pick grid of the step's geometry, built again when the geometry's
+// owner changed. The step must have an output.
+editor_brush_grid :: proc(editor: ^Editor, step: int) -> pipeline.Pick_Grid {
+	brush := &editor.brush
+	owner := editor.run.owners[step]
+	key := [2]int{owner, editor.generations[owner]}
+	if brush.grid_built && brush.grid_key == key do return brush.grid
+	editor_drop_brush_grid(brush)
+	brush.grid, brush.grid_key, brush.grid_built = pipeline.pick_grid_build(editor.run.outputs[owner]), key, true
+	return brush.grid
+}
+
+editor_drop_brush_grid :: proc(brush: ^Editor_Brush) {
+	pipeline.pick_grid_destroy(&brush.grid)
+	brush.grid_built = false
 }
 
 // The triangles each of the selected step's strokes takes in its input,

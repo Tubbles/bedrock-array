@@ -212,6 +212,7 @@ editor_destroy :: proc(editor: ^Editor) {
 	delete(editor.generations)
 	delete(editor.message)
 	delete(editor.brush.counts)
+	editor_drop_brush_grid(&editor.brush)
 	for part in editor.brief_parts {
 		delete(part.name)
 		delete(part.material)
@@ -231,6 +232,7 @@ editor_run_from :: proc(editor: ^Editor, index: int) {
 	editor.generation += 1
 	resize(&editor.generations, len(editor.run.pipeline.steps))
 	for &generation in editor.generations[clamp(index, 0, len(editor.generations)):] do generation = editor.generation
+	if editor.brush.grid_built && editor.brush.grid_key[0] >= index do editor_drop_brush_grid(&editor.brush)
 	pipeline.run_from(&editor.run, index)
 }
 
