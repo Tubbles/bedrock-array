@@ -448,6 +448,10 @@ main :: proc() {
 			if editor_step(&editor, editor_input) == .Leave {
 				leave_editor(&editor, options)
 				screen = .Menu
+				// Drawn in this frame, as leaving a demo is: raylib updates the keys
+				// when a frame ends, so a frame without one would hand the menu the
+				// same Escape again and quit the game.
+				draw_menu_frame(menu, menu_rows[:])
 			} else if !draw_editor_frame(&editor, options.shot != "", capture_path) {
 				fmt.eprintfln("bedrock-array: the shot could not be written to %s", options.shot)
 				os.exit(1)
