@@ -1,6 +1,6 @@
 # 0120: A fast ray pick
 
-Status: designed (2026-10-20)
+Status: landed (2026-10-20, 2d862ce)
 
 Goal: the brush's ray pick in microseconds instead of 19 ms (release) or 300 ms (debug), since the brush picks on every frame the crosshair moves.
 

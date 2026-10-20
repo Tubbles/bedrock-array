@@ -1,6 +1,6 @@
 # 0118: Key hints on screen
 
-Status: designed (2026-10-20)
+Status: implementing (2026-10-20)
 
 Goal: every action the editor offers at a moment is shown on screen with its key and pad button, so nothing has to be remembered (user, 2026-10-20: "all the keybindings need to be visible on screen when they are available").
 
