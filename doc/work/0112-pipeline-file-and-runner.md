@@ -1,6 +1,6 @@
 # 0112: The pipeline file and its runner
 
-Status: designed (2026-10-20)
+Status: implementing (2026-10-20)
 
 Goal: `pipeline.sjson` parsed into steps, run in order with every step's output cached, rerun from an edited step, the heavy steps on a worker thread through the existing tools, saved back.
 
