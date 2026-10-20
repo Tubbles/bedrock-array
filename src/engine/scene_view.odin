@@ -169,6 +169,11 @@ scene_view_configuration_count :: proc(view: ^Scene_View) -> int {
 
 // Each item drawn at its position times its uniform scale, with its mesh of the current configuration or its current level.
 scene_view_draw :: proc(view: ^Scene_View, width, height: i32) {
+	scene_view_draw_viewport(view, 0, 0, width, height)
+}
+
+// Into a rectangle of the window, x and y its bottom left corner in pixels.
+scene_view_draw_viewport :: proc(view: ^Scene_View, x, y, width, height: i32) {
 	draw_list_clear(&view.draw_list)
 	view.draw_list.camera = scene_view_camera(view)
 	scene_view_choose_levels(view, f32(height))
@@ -191,7 +196,7 @@ scene_view_draw :: proc(view: ^Scene_View, width, height: i32) {
 		draw_list_add(&view.draw_list, view.item_mesh_ids[entry], item.material, transform, view.item_half_extents[entry])
 		view.draw_list.items[len(view.draw_list.items) - 1].tint = item.tint
 	}
-	gl_renderer_draw(&view.renderer, view.draw_list, view.library, width, height)
+	gl_renderer_draw_viewport(&view.renderer, view.draw_list, view.library, x, y, width, height)
 }
 
 // The current level, and while fading the previous one too, each keeping the pixels the other discards.

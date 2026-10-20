@@ -300,9 +300,9 @@ gl_renderer_target_ensure :: proc(target: ^Gl_Target, width, height: i32, with_d
 }
 
 // Draws the fullscreen triangle into the framebuffer; the caller sets the program, textures and uniforms.
-gl_renderer_draw_fullscreen :: proc(renderer: ^Gl_Renderer, framebuffer: gl.Framebuffer, width, height: i32) {
+gl_renderer_draw_fullscreen :: proc(renderer: ^Gl_Renderer, framebuffer: gl.Framebuffer, width, height: i32, x: i32 = 0, y: i32 = 0) {
 	gl.BindFramebuffer(gl.FRAMEBUFFER, framebuffer)
-	gl.Viewport(0, 0, width, height)
+	gl.Viewport(x, y, width, height)
 	gl.BindVertexArray(renderer.fullscreen_vertex_array)
 	gl.DrawArrays(gl.TRIANGLES, 0, 3)
 }
@@ -346,7 +346,7 @@ gl_renderer_bloom_passes :: proc(renderer: ^Gl_Renderer) {
 }
 
 // Tone maps the scene colour mixed with the bloom to the canvas.
-gl_renderer_tonemap_pass :: proc(renderer: ^Gl_Renderer, exposure: f32, width, height: i32) {
+gl_renderer_tonemap_pass :: proc(renderer: ^Gl_Renderer, exposure: f32, width, height, x, y: i32) {
 	uniforms := renderer.tonemap_uniforms
 	gl.UseProgram(renderer.tonemap_program)
 	gl.ActiveTexture(gl.TEXTURE0)
@@ -358,7 +358,7 @@ gl_renderer_tonemap_pass :: proc(renderer: ^Gl_Renderer, exposure: f32, width, h
 	gl.Uniform1f(uniforms.exposure, exposure)
 	gl.Uniform1f(uniforms.bloom_strength, GL_RENDERER_BLOOM_STRENGTH)
 	gl.Uniform1f(uniforms.bloom_levels, f32(GL_RENDERER_BLOOM_LEVELS))
-	gl_renderer_draw_fullscreen(renderer, gl.Framebuffer(0), width, height)
+	gl_renderer_draw_fullscreen(renderer, gl.Framebuffer(0), width, height, x, y)
 	// Unbound so the next forward pass never samples its own target.
 	gl.BindTexture(gl.TEXTURE_2D, 0)
 	gl.ActiveTexture(gl.TEXTURE0)
@@ -386,6 +386,13 @@ gl_renderer_upload_point_lights :: proc(uniforms: Gl_Uniforms, lights: []Point_L
 }
 
 gl_renderer_draw :: proc(renderer: ^Gl_Renderer, list: Draw_List, library: Material_Library, width, height: i32) {
+	gl_renderer_draw_viewport(renderer, list, library, 0, 0, width, height)
+}
+
+// The scene drawn at the rectangle's size and composited into that rectangle of
+// the window, x and y its bottom left corner in window pixels, so several views
+// share one window. The targets follow the size of the last rectangle drawn.
+gl_renderer_draw_viewport :: proc(renderer: ^Gl_Renderer, list: Draw_List, library: Material_Library, x, y, width, height: i32) {
 	if width <= 0 || height <= 0 {
 		return
 	}
@@ -449,7 +456,7 @@ gl_renderer_draw :: proc(renderer: ^Gl_Renderer, list: Draw_List, library: Mater
 	}
 	gl.Disable(gl.DEPTH_TEST)
 	gl_renderer_bloom_passes(renderer)
-	gl_renderer_tonemap_pass(renderer, list.exposure, width, height)
+	gl_renderer_tonemap_pass(renderer, list.exposure, width, height, x, y)
 }
 
 // Binds the material's texture set to the units 0 to 2, or tells the shader it has none.
