@@ -16,8 +16,9 @@
 #                        odin.js and the page shell from web/
 #   ./build.sh debug     builds src/app to build/bedrock-array with -debug
 #   ./build.sh release   builds src/app to build/bedrock-array with -o:speed
-#   ./build.sh smoke     debug build, then three frames of the menu and three
-#                        of the models demo under xvfb-run
+#   ./build.sh smoke     debug build, then three frames each of the menu, the
+#                        models and lod demos and the smelter's pipeline
+#                        editor under xvfb-run
 set -euo pipefail
 
 odin="${ODIN:-$HOME/opt/odin/odin}"
@@ -149,6 +150,7 @@ smoke_app() {
 	smoke_run --frames 3
 	smoke_run --demo models --frames 3
 	smoke_run --demo lod --frames 3
+	smoke_run --edit smelter --frames 3
 }
 
 build_web() {

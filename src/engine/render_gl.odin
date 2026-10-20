@@ -223,6 +223,16 @@ gl_renderer_upload_mesh :: proc(renderer: ^Gl_Renderer, mesh: Mesh_Data) -> Mesh
 	return Mesh_Id(len(renderer.meshes) - 1)
 }
 
+// Frees the mesh's GL objects. The id stays taken and must not be drawn again.
+gl_renderer_release_mesh :: proc(renderer: ^Gl_Renderer, mesh: Mesh_Id) {
+	if int(mesh) >= len(renderer.meshes) do return
+	uploaded := &renderer.meshes[mesh]
+	gl.DeleteVertexArray(uploaded.vertex_array)
+	gl.DeleteBuffer(uploaded.vertex_buffer)
+	gl.DeleteBuffer(uploaded.index_buffer)
+	uploaded^ = {}
+}
+
 // Stores the set at the material's index, growing the list to cover it.
 gl_renderer_upload_texture_set :: proc(renderer: ^Gl_Renderer, material: Material_Id, set: Texture_Set_Data) {
 	if int(material) >= len(renderer.texture_sets) {

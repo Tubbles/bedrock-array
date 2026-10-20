@@ -8,7 +8,8 @@ package app
 // --windowed keeps the window and the cursor instead of going borderless over
 // the monitor with the cursor captured in a demo. --view and --configuration
 // set the demo's camera and configuration, --shot <path> writes the scene alone
-// to a PNG on the last frame and exits.
+// to a PNG on the last frame and exits. --edit <machine> starts in the
+// pipeline editor of that machine, whose shot keeps the step list.
 
 import "core:fmt"
 import "core:math/linalg"
@@ -45,6 +46,8 @@ Options :: struct {
 	scene_directory: string,
 	// The sun follows the camera, so whichever face a shot looks at is lit.
 	camera_light: bool,
+	// The machine whose pipeline the editor opens at start.
+	edit: string,
 }
 
 // The direction the camera light travels: along the view, from above and
@@ -82,6 +85,12 @@ parse_options :: proc(arguments: []string) -> (options: Options, ok: bool) {
 				return options, false
 			}
 			options.scene_directory = arguments[index]
+		case "--edit":
+			index += 1
+			if index >= len(arguments) {
+				return options, false
+			}
+			options.edit = arguments[index]
 		case "--demo":
 			index += 1
 			if index >= len(arguments) {
@@ -276,10 +285,10 @@ capture_screen :: proc(path: string) -> bool {
 	return rl.ExportImage(image, strings.clone_to_cstring(path, context.temp_allocator))
 }
 
-draw_menu_frame :: proc(menu: Menu_State) {
+draw_menu_frame :: proc(menu: Menu_State, rows: []Demo) {
 	rl.BeginDrawing()
 	rl.ClearBackground(BACKGROUND_COLOR)
-	menu_draw(menu, DEMOS[:], BUILD_INFO)
+	menu_draw(menu, rows, BUILD_INFO)
 	rl.EndDrawing()
 }
 
@@ -324,6 +333,24 @@ leave_demo :: proc(view: ^engine.Scene_View, options: Options) {
 	}
 }
 
+// The pointer shows, since the mouse drags the views round.
+enter_editor :: proc(editor: ^Editor, machine: string, options: Options) {
+	size := render_size()
+	problem := editor_open(editor, machine, f32(size.x) / f32(max(size.y, 1)))
+	if problem != "" {
+		fmt.eprintfln("bedrock-array: editor: %s", problem)
+		os.exit(1)
+	}
+	free_all(context.temp_allocator)
+	if orbit, has_view := options.view.?; has_view do editor.orbit = orbit
+	rl.ShowCursor()
+}
+
+leave_editor :: proc(editor: ^Editor, options: Options) {
+	editor_destroy(editor)
+	if !options.windowed do rl.HideCursor()
+}
+
 // Read once after the first frame, so the smoke run fails on a GL error.
 exit_on_gl_error :: proc() {
 	error := gl.GetError()
@@ -340,8 +367,9 @@ main :: proc() {
 		demo, known = demo_from_directory(options.scene_directory)
 		if !known do fmt.eprintfln("bedrock-array: no scene.sjson and meshes/ under %s", options.scene_directory)
 	}
-	if !ok || ((options.demo != "" || options.scene_directory != "") && !known) || (options.shot != "" && !known) {
-		fmt.eprintln("usage: bedrock-array [--demo light|surface|cave|models|decimation|parts|lod] [--frames <n>] [--windowed] [--view yaw,pitch,distance,x,y,z] [--configuration <n>] [--scene-directory <dir>] [--camera-light] [--shot <path> (with a demo)]")
+	editing := options.edit != "" && !known
+	if !ok || ((options.demo != "" || options.scene_directory != "") && !known) || (options.shot != "" && !known && !editing) {
+		fmt.eprintln("usage: bedrock-array [--demo light|surface|cave|models|decimation|parts|lod] [--edit <machine>] [--frames <n>] [--windowed] [--view yaw,pitch,distance,x,y,z] [--configuration <n>] [--scene-directory <dir>] [--camera-light] [--shot <path> (with a demo or --edit)]")
 		os.exit(2)
 	}
 	if options.shot != "" do options.frames = max(options.frames, 3)
@@ -366,10 +394,18 @@ main :: proc() {
 	menu: Menu_State
 	view: engine.Scene_View
 	lod_panel: Lod_Panel
+	editor: Editor
+	menu_rows := make([dynamic]Demo)
+	defer delete(menu_rows)
+	append(&menu_rows, ..DEMOS[:])
+	append(&menu_rows, EDITOR_MENU_ENTRY)
 	screen := App_Screen.Menu
 	if known {
 		enter_demo(&view, demo, options)
 		screen = .Demo
+	} else if editing {
+		enter_editor(&editor, options.edit, options)
+		screen = .Editor
 	}
 	frames_drawn := 0
 	for should_continue(options, frames_drawn) {
@@ -388,19 +424,41 @@ main :: proc() {
 		south_pressed := .South in snapshot.buttons && .South not_in edge_state.buttons
 		menu_input := menu_input_merge(keyboard_menu_input(), menu_edges(&edge_state, snapshot))
 		if screen == .Menu {
-			command := menu_step(&menu, len(DEMOS), menu_input)
+			command := menu_step(&menu, len(menu_rows), menu_input)
 			if command == .Leave do break
-			if command == .Enter {
+			if command == .Enter && menu.row == len(DEMOS) {
+				enter_editor(&editor, EDITOR_MENU_MACHINE, options)
+				screen = .Editor
+			} else if command == .Enter {
 				enter_demo(&view, DEMOS[menu.row], options)
 				screen = .Demo
 			}
-		} else if menu_input.back || start_pressed {
+		} else if screen == .Editor && (menu_input.back || start_pressed) {
+			leave_editor(&editor, options)
+			screen = .Menu
+		} else if screen == .Demo && (menu_input.back || start_pressed) {
 			leave_demo(&view, options)
 			lod_panel.open = false
 			screen = .Menu
 		}
+		capture_path := options.shot if options.shot != "" && frames_drawn == options.frames - 1 else ""
 		if screen == .Menu {
-			draw_menu_frame(menu)
+			draw_menu_frame(menu, menu_rows[:])
+		} else if screen == .Editor {
+			editor_input := Editor_Input {
+				up = dpad_up_pressed || rl.IsKeyPressed(.UP),
+				down = dpad_down_pressed || rl.IsKeyPressed(.DOWN),
+				add = right_shoulder_pressed || rl.IsKeyPressed(.PAGE_UP),
+				drop = left_shoulder_pressed || rl.IsKeyPressed(.PAGE_DOWN),
+				toggle_colour = north_pressed || rl.IsKeyPressed(.F),
+			}
+			editor_camera_input(&editor_input, snapshot, delta_time)
+			editor_step(&editor, editor_input)
+			if !draw_editor_frame(&editor, options.shot != "", capture_path) {
+				fmt.eprintfln("bedrock-array: the shot could not be written to %s", options.shot)
+				os.exit(1)
+			}
+			if capture_path != "" do fmt.printfln("shot: %s", capture_path)
 		} else {
 			if lod_panel_available(&view) {
 				lod_panel_step(&lod_panel, &view.lod, {
@@ -426,7 +484,6 @@ main :: proc() {
 			if rl.IsKeyPressed(.F) do view.lod.freeze = !view.lod.freeze
 			engine.scene_view_step(&view, input, delta_time)
 			if options.camera_light do view.scene.sun.direction = camera_light_direction(engine.scene_view_camera(&view))
-			capture_path := options.shot if options.shot != "" && frames_drawn == options.frames - 1 else ""
 			if !draw_frame(&view, lod_panel, options.shot != "", capture_path) {
 				fmt.eprintfln("bedrock-array: the shot could not be written to %s", options.shot)
 				os.exit(1)
@@ -438,6 +495,7 @@ main :: proc() {
 		free_all(context.temp_allocator)
 	}
 	engine.scene_view_destroy(&view)
+	if screen == .Editor do editor_destroy(&editor)
 	if gamepad_ready do gamepad_quit(&gamepad_state)
 	rl.CloseWindow()
 }

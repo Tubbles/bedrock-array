@@ -22,6 +22,7 @@ MENU_GLYPH_LINE :: "A enter, B quit"
 App_Screen :: enum {
 	Menu,
 	Demo,
+	Editor,
 }
 
 Menu_State :: struct {
@@ -104,17 +105,36 @@ menu_row_lines :: proc(demo: Demo, width: i32) -> []string {
 	return wrap_words(first_sentence(strings.trim_space(demo.description)), int(width), measure_label_text)
 }
 
+// How far the rows move up so the selected row ends above bottom, the rows
+// starting at top with heights each followed by MENU_ROW_GAP.
+menu_scroll :: proc(heights: []i32, selected: int, top, bottom: i32) -> i32 {
+	end := top
+	for height in heights[:min(selected + 1, len(heights))] do end += height + MENU_ROW_GAP
+	return max(end - MENU_ROW_GAP - bottom, 0)
+}
+
 // The descriptions are wrapped with the label measure at LABEL_FONT_SIZE in
-// reference points, which scales with the text.
+// reference points, which scales with the text. The rows scroll to keep the
+// selected one above the glyph line and are clipped to the space between
+// the title and that line.
 menu_draw :: proc(state: Menu_State, demos: []Demo, stamp: string) {
 	screen := screen_size()
 	scale := f32(screen.y) / MENU_REFERENCE_HEIGHT
 	width := i32(f32(screen.x) / scale) - 2 * MENU_MARGIN
 	draw_scaled_text("Bedrock Array", MENU_MARGIN, MENU_MARGIN, MENU_TITLE_SIZE, scale, TEXT_COLOR)
-	y := i32(MENU_MARGIN + MENU_TITLE_SIZE + 2 * MENU_ROW_GAP)
+	top := i32(MENU_MARGIN + MENU_TITLE_SIZE + 2 * MENU_ROW_GAP)
+	rows_bottom := i32(MENU_REFERENCE_HEIGHT) - MENU_MARGIN / 2 - LABEL_FONT_SIZE - MENU_ROW_GAP
+	row_lines := make([][]string, len(demos), context.temp_allocator)
+	heights := make([]i32, len(demos), context.temp_allocator)
 	for demo, index in demos {
-		lines := menu_row_lines(demo, width - 2 * MENU_ROW_PADDING)
-		height := MENU_NAME_SIZE + i32(len(lines)) * LABEL_FONT_SIZE + 2 * MENU_ROW_PADDING
+		row_lines[index] = menu_row_lines(demo, width - 2 * MENU_ROW_PADDING)
+		heights[index] = MENU_NAME_SIZE + i32(len(row_lines[index])) * LABEL_FONT_SIZE + 2 * MENU_ROW_PADDING
+	}
+	y := top - menu_scroll(heights, state.row, top, rows_bottom)
+	rl.BeginScissorMode(0, i32(f32(top) * scale), screen.x, i32(f32(rows_bottom - top) * scale))
+	for demo, index in demos {
+		lines := row_lines[index]
+		height := heights[index]
 		if index == state.row {
 			rl.DrawRectangle(i32(f32(MENU_MARGIN) * scale), i32(f32(y) * scale), i32(f32(width) * scale), i32(f32(height) * scale), MENU_HIGHLIGHT_COLOR)
 		}
@@ -125,6 +145,7 @@ menu_draw :: proc(state: Menu_State, demos: []Demo, stamp: string) {
 		}
 		y += height + MENU_ROW_GAP
 	}
+	rl.EndScissorMode()
 	bottom := i32(MENU_REFERENCE_HEIGHT) - MENU_MARGIN / 2 - LABEL_FONT_SIZE
 	draw_scaled_text(MENU_GLYPH_LINE, MENU_MARGIN, bottom, LABEL_FONT_SIZE, scale, TEXT_COLOR)
 	stamp_width := measure_label_text(stamp)

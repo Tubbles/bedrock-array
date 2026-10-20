@@ -41,3 +41,12 @@ test_menu_edges :: proc(t: ^testing.T) {
 	testing.expect_value(t, menu_edges(&state, {connected = true, left = {0, -0.9}}), Menu_Input{up = true})
 	testing.expect_value(t, menu_edges(&state, {connected = true, buttons = {.Dpad_Down}, left = {0, -0.9}}), Menu_Input{down = true})
 }
+
+@(test)
+test_menu_scroll :: proc(t: ^testing.T) {
+	heights := []i32{50, 50, 50}
+	testing.expect_value(t, menu_scroll(heights, 0, 100, 400), i32(0))
+	// The third row ends at 100 + 3 * 50 + 2 * MENU_ROW_GAP.
+	testing.expect_value(t, menu_scroll(heights, 2, 100, 200), i32(50 + 2 * MENU_ROW_GAP))
+	testing.expect_value(t, menu_scroll(heights, 5, 100, 1000), i32(0))
+}

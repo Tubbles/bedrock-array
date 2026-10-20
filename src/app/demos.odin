@@ -66,3 +66,10 @@ demo_by_name :: proc(name: string) -> (demo: Demo, ok: bool) {
 	}
 	return {}, false
 }
+
+// The menu's last row, after the demos: the pipeline editor of this machine.
+EDITOR_MENU_MACHINE :: "smelter"
+EDITOR_MENU_ENTRY := Demo {
+	name        = "editor",
+	description = "The smelter's asset pipeline: its steps listed, up to four of their meshes side by side.",
+}
