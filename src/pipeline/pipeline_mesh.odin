@@ -71,13 +71,21 @@ pipeline_mesh_bounds :: proc(mesh: Pipeline_Mesh) -> (minimum, maximum: [3]f32) 
 	return
 }
 
-// The index of the named part. With add set, a missing name is added
-// and its new index returned.
-pipeline_mesh_part_index :: proc(mesh: ^Pipeline_Mesh, name: string, add := false) -> (u16, bool) {
+// The index of the named part, PART_NONE when absent.
+find_part :: proc(mesh: Pipeline_Mesh, name: string) -> (u16, bool) {
 	for part_name, index in mesh.part_names {
 		if part_name == name {
 			return u16(index), true
 		}
+	}
+	return PART_NONE, false
+}
+
+// The index of the named part. With add set, a missing name is added
+// and its new index returned.
+pipeline_mesh_part_index :: proc(mesh: ^Pipeline_Mesh, name: string, add := false) -> (u16, bool) {
+	if index, found := find_part(mesh^, name); found {
+		return index, true
 	}
 	if !add || len(mesh.part_names) >= int(PART_NONE) {
 		return PART_NONE, false

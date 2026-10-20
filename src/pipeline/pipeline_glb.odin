@@ -371,3 +371,57 @@ read_glb :: proc(data: []byte) -> (mesh: Pipeline_Mesh, problem: string) {
 	}
 	return mesh, ""
 }
+
+// The selected triangles as a GLB of one node named by node_name, with
+// float POSITION and NORMAL and u32 indices, for the Blender tools that
+// read only glTF (tools/models/close.py).
+glb_bytes :: proc(mesh: Pipeline_Mesh, selected: []bool, node_name: string, allocator := context.allocator) -> []byte {
+	subset := gather_triangles(mesh, selected)
+	defer triangle_subset_destroy(&subset)
+	binary := make([dynamic]byte)
+	defer delete(binary)
+	for position in subset.positions {
+		for value in position {
+			append_f32le(&binary, value)
+		}
+	}
+	for normal in subset.normals {
+		for value in normal {
+			append_f32le(&binary, value)
+		}
+	}
+	for triangle in subset.triangles {
+		for vertex in triangle {
+			append_u32le(&binary, vertex)
+		}
+	}
+	vertex_bytes := 12 * len(subset.positions)
+	minimum, maximum := pipeline_mesh_bounds({positions = subset.positions})
+	document := fmt.tprintf(
+		`{{"asset":{{"version":"2.0"}},"scene":0,"scenes":[{{"nodes":[0]}}],"nodes":[{{"name":%q,"mesh":0}}],` +
+		`"meshes":[{{"primitives":[{{"attributes":{{"POSITION":0,"NORMAL":1}},"indices":2}}]}}],` +
+		`"accessors":[{{"bufferView":0,"componentType":5126,"count":%d,"type":"VEC3","min":[%v,%v,%v],"max":[%v,%v,%v]}},` +
+		`{{"bufferView":1,"componentType":5126,"count":%d,"type":"VEC3"}},{{"bufferView":2,"componentType":5125,"count":%d,"type":"SCALAR"}}],` +
+		`"bufferViews":[{{"buffer":0,"byteOffset":0,"byteLength":%d}},{{"buffer":0,"byteOffset":%d,"byteLength":%d}},{{"buffer":0,"byteOffset":%d,"byteLength":%d}}],` +
+		`"buffers":[{{"byteLength":%d}}]}}`,
+		node_name, len(subset.positions), minimum.x, minimum.y, minimum.z, maximum.x, maximum.y, maximum.z,
+		len(subset.positions), 3 * len(subset.triangles),
+		vertex_bytes, vertex_bytes, vertex_bytes, 2 * vertex_bytes, 12 * len(subset.triangles),
+		len(binary),
+	)
+	json_padding := (4 - len(document) % 4) % 4
+	glb := make([dynamic]byte, allocator)
+	append_u32le(&glb, GLB_MAGIC)
+	append_u32le(&glb, 2)
+	append_u32le(&glb, u32(12 + 8 + len(document) + json_padding + 8 + len(binary)))
+	append_u32le(&glb, u32(len(document) + json_padding))
+	append_u32le(&glb, GLB_CHUNK_JSON)
+	append(&glb, document)
+	for _ in 0 ..< json_padding {
+		append(&glb, ' ')
+	}
+	append_u32le(&glb, u32(len(binary)))
+	append_u32le(&glb, GLB_CHUNK_BINARY)
+	append(&glb, ..binary[:])
+	return glb[:]
+}
