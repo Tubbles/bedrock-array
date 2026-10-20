@@ -1,50 +1,93 @@
 #+build !js
 package app
 
+import "core:math/linalg"
 import "core:slice"
 import "core:testing"
 import engine "../engine"
 import pipeline "../pipeline"
 
 @(test)
-test_editor_default_shown :: proc(t: ^testing.T) {
-	eleven := editor_default_shown(11)
-	defer delete(eleven)
-	testing.expect(t, slice.equal(eleven[:], []int{0, 3, 6, 10}))
-	two := editor_default_shown(2)
-	defer delete(two)
-	testing.expect(t, slice.equal(two[:], []int{0, 1}))
-	none := editor_default_shown(0)
-	testing.expect_value(t, len(none), 0)
+test_editor_keep_near :: proc(t: ^testing.T) {
+	testing.expect(t, editor_keep_near(false, 11))
+	testing.expect(t, !editor_keep_near(false, 13))
+	testing.expect(t, editor_keep_near(true, 19))
+	testing.expect(t, !editor_keep_near(true, 21))
 }
 
 @(test)
-test_editor_shown_add_and_drop :: proc(t: ^testing.T) {
-	shown := make([dynamic]int)
-	defer delete(shown)
-	append(&shown, 0, 6)
-	editor_shown_add(&shown, 3)
-	editor_shown_add(&shown, 3)
-	testing.expect(t, slice.equal(shown[:], []int{0, 3, 6}))
-	editor_shown_add(&shown, 9)
-	editor_shown_add(&shown, 1)
-	testing.expect(t, slice.equal(shown[:], []int{0, 3, 6, 9}))
-	editor_shown_drop(&shown, 3)
-	editor_shown_drop(&shown, 4)
-	testing.expect(t, slice.equal(shown[:], []int{0, 6, 9}))
+test_editor_ray_box :: proc(t: ^testing.T) {
+	box := Editor_Bounds{{0, 0, 0}, {1, 1, 1}}
+	distance, met := editor_ray_box({-2, 0.5, 0.5}, {1, 0, 0}, box)
+	testing.expect(t, met)
+	testing.expect_value(t, distance, 2)
+	inside, met_inside := editor_ray_box({0.5, 0.5, 0.5}, {0, 1, 0}, box)
+	testing.expect(t, met_inside)
+	testing.expect_value(t, inside, 0)
+	_, behind := editor_ray_box({2, 0.5, 0.5}, {1, 0, 0}, box)
+	testing.expect(t, !behind)
+	_, beside := editor_ray_box({-2, 2, 0.5}, {1, 0, 0}, box)
+	testing.expect(t, !beside)
+}
+
+// Down the line the first machine is met first, from the side the one in
+// front, and a ray meeting none picks the machine nearest the camera.
+@(test)
+test_editor_pick_box :: proc(t: ^testing.T) {
+	boxes := []Editor_Bounds{editor_world_bounds(EDITOR_DEFAULT_BOUNDS, 0), editor_world_bounds(EDITOR_DEFAULT_BOUNDS, 1)}
+	testing.expect_value(t, editor_pick_box({-3, 0.5, 0}, {1, 0, 0}, boxes), 0)
+	testing.expect_value(t, editor_pick_box({EDITOR_MACHINE_SPACING, 0.5, 5}, {0, 0, -1}, boxes), 1)
+	testing.expect_value(t, editor_pick_box({4, 5, 0}, {0, 1, 0}, boxes), 1)
+	testing.expect_value(t, editor_pick_box({0, 0, 0}, {1, 0, 0}, nil), -1)
 }
 
 @(test)
-test_editor_grid_cells :: proc(t: ^testing.T) {
-	area := Editor_Rectangle{320, 0, 960, 720}
-	testing.expect_value(t, editor_grid_cells(1, area)[0], area)
-	two := editor_grid_cells(2, area)
-	testing.expect_value(t, two[0], Editor_Rectangle{320, 0, 480, 720})
-	testing.expect_value(t, two[1], Editor_Rectangle{800, 0, 480, 720})
-	four := editor_grid_cells(4, area)
-	testing.expect_value(t, four[2], Editor_Rectangle{320, 360, 480, 360})
-	testing.expect_value(t, four[3], Editor_Rectangle{800, 360, 480, 360})
-	testing.expect_value(t, editor_view_area({1280, 720}), area)
+test_editor_floor_bounds :: proc(t: ^testing.T) {
+	floor := editor_floor_bounds(3)
+	testing.expect_value(t, floor.minimum, [3]f32{-EDITOR_FLOOR_MARGIN, -EDITOR_FLOOR_THICKNESS, -EDITOR_FLOOR_MARGIN})
+	testing.expect_value(t, floor.maximum, [3]f32{2 * EDITOR_MACHINE_SPACING + EDITOR_FLOOR_MARGIN, 0, EDITOR_FLOOR_MARGIN})
+}
+
+@(test)
+test_editor_fly_looking_at :: proc(t: ^testing.T) {
+	fly := editor_fly_looking_at({0, 1, 0}, {3, 0, 4})
+	camera := engine.fly_camera(fly, engine.SCENE_VIEW_VERTICAL_FOV, 0.02, 100)
+	forward := linalg.normalize(camera.target - camera.position)
+	expected := linalg.normalize([3]f32{3, -1, 4})
+	testing.expect(t, linalg.length(forward - expected) < 1e-5)
+}
+
+@(test)
+test_editor_project :: proc(t: ^testing.T) {
+	camera := engine.fly_camera(editor_fly_looking_at({0, 0, 0}, {1, 0, 0}), engine.SCENE_VIEW_VERTICAL_FOV, 0.02, 100)
+	point, in_front := editor_project(camera, {200, 100}, {5, 0, 0})
+	testing.expect(t, in_front)
+	testing.expect(t, linalg.length(point - [2]f32{100, 50}) < 1e-3)
+	_, behind := editor_project(camera, {200, 100}, {-5, 0, 0})
+	testing.expect(t, !behind)
+}
+
+@(test)
+test_editor_plaque_lines :: proc(t: ^testing.T) {
+	run: pipeline.Run
+	append(&run.pipeline.steps, pipeline.Step{op = .Import, enabled = true}, pipeline.Step{op = .Weld, metres = 0.001})
+	append(&run.status, pipeline.Step_Status{state = .Done}, pipeline.Step_Status{state = .Failed, message = "no file"})
+	defer {
+		delete(run.pipeline.steps)
+		delete(run.status)
+	}
+	lines := editor_plaque_lines(run, 1)
+	testing.expect_value(t, len(lines), 3)
+	if len(lines) == 3 {
+		testing.expect_value(t, lines[0], "1 weld off")
+		testing.expect_value(t, lines[1], "metres 0.001")
+		testing.expect_value(t, lines[2], "failed: no file")
+	}
+	testing.expect_value(t, len(editor_plaque_lines(run, 0)), 2)
+	far := editor_plaque_title(lines, .Failed)
+	testing.expect_value(t, len(far), 2)
+	if len(far) == 2 do testing.expect_value(t, far[1], "failed: no file")
+	testing.expect_value(t, len(editor_plaque_title(lines, .Done)), 1)
 }
 
 @(test)
@@ -86,14 +129,35 @@ test_editor_part_meshes :: proc(t: ^testing.T) {
 	testing.expect(t, slice.equal(buckets[0][:], []int{2}))
 	testing.expect(t, slice.equal(buckets[1][:], []int{0, 1}))
 	testing.expect(t, slice.equal(buckets[2][:], []int{3}))
-	data := editor_mesh_data(mesh, buckets[1][:])
-	defer engine.mesh_data_destroy(&data)
-	testing.expect_value(t, len(data.vertices), 4)
-	testing.expect(t, slice.equal(data.indices, []u32{0, 1, 2, 1, 3, 2}))
-	lid := editor_mesh_data(mesh, buckets[0][:])
-	defer engine.mesh_data_destroy(&lid)
-	testing.expect_value(t, len(lid.vertices), 3)
-	testing.expect_value(t, lid.vertices[2].position, [3]f32{1, 1, 0})
+	vertices := editor_vertices(mesh)
+	defer delete(vertices)
+	testing.expect_value(t, len(vertices), 4)
+	testing.expect_value(t, vertices[3].position, [3]f32{1, 1, 0})
+	body, body_extents := editor_part_indices(mesh, buckets[1][:])
+	defer delete(body)
+	testing.expect(t, slice.equal(body, []u32{0, 1, 2, 1, 3, 2}))
+	testing.expect_value(t, body_extents, [3]f32{1, 1, 0})
+	lid, lid_extents := editor_part_indices(mesh, buckets[0][:])
+	defer delete(lid)
+	testing.expect(t, slice.equal(lid, []u32{0, 1, 3}))
+	testing.expect_value(t, lid_extents, [3]f32{1, 1, 0})
+}
+
+@(test)
+test_editor_mesh_bounds :: proc(t: ^testing.T) {
+	mesh := test_mesh()
+	defer {
+		delete(mesh.positions)
+		delete(mesh.normals)
+		delete(mesh.triangles)
+		delete(mesh.parts)
+		delete(mesh.pieces)
+		delete(mesh.part_names)
+	}
+	bounds := editor_mesh_bounds(mesh)
+	testing.expect_value(t, bounds.minimum, [3]f32{0, 0, 0})
+	testing.expect_value(t, bounds.maximum, [3]f32{1, 1, 0})
+	testing.expect_value(t, editor_mesh_bounds({}), EDITOR_DEFAULT_BOUNDS)
 }
 
 @(test)

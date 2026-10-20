@@ -57,6 +57,28 @@ pipeline_mesh_destroy :: proc(mesh: ^Pipeline_Mesh) {
 	mesh^ = {}
 }
 
+// A mesh for a step that changes no vertex and no triangle: its geometry
+// (positions, normals, triangles, pieces and piece names) aliases the
+// mesh's, its parts and part names are its own copies. The geometry stays
+// the mesh's, so the result is freed with pipeline_mesh_destroy_parts and
+// only while the mesh lives, and nothing may append to its geometry.
+pipeline_mesh_share_geometry :: proc(mesh: Pipeline_Mesh) -> Pipeline_Mesh {
+	shared := mesh
+	shared.parts = slice.clone_to_dynamic(mesh.parts[:])
+	shared.part_names = clone_names(mesh.part_names[:])
+	return shared
+}
+
+// Frees what pipeline_mesh_share_geometry copied, leaving the geometry.
+pipeline_mesh_destroy_parts :: proc(mesh: ^Pipeline_Mesh) {
+	for name in mesh.part_names {
+		delete(name)
+	}
+	delete(mesh.parts)
+	delete(mesh.part_names)
+	mesh^ = {}
+}
+
 // The axis aligned bounds of every position, zero for an empty mesh.
 pipeline_mesh_bounds :: proc(mesh: Pipeline_Mesh) -> (minimum, maximum: [3]f32) {
 	if len(mesh.positions) == 0 {

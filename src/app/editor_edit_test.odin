@@ -3,7 +3,6 @@ package app
 
 import "core:math"
 import "core:testing"
-import engine "../engine"
 import pipeline "../pipeline"
 
 @(private = "file")
@@ -127,22 +126,6 @@ test_editor_index_after :: proc(t: ^testing.T) {
 	testing.expect_value(t, editor_index_after(swap, 2), 3)
 	testing.expect_value(t, editor_index_after(swap, 3), 2)
 	testing.expect_value(t, editor_index_after(swap, 4), 4)
-}
-
-@(test)
-test_editor_cursor_ray :: proc(t: ^testing.T) {
-	camera := engine.orbit_camera({target = {0, 0.5, 0}, yaw = 0, pitch = 0, distance = 2}, engine.SCENE_VIEW_VERTICAL_FOV, 0.02, 100)
-	cell := Editor_Rectangle{100, 0, 200, 100}
-	origin, direction, inside := editor_cursor_ray(camera, cell, {200, 50})
-	testing.expect(t, inside)
-	testing.expect_value(t, origin, camera.position)
-	testing.expect(t, math.abs(direction.z + 1) < 1e-5)
-	_, right, _ := editor_cursor_ray(camera, cell, {300, 50})
-	testing.expect(t, right.x > 0)
-	_, up, _ := editor_cursor_ray(camera, cell, {200, 0})
-	testing.expect(t, up.y > 0)
-	_, _, outside := editor_cursor_ray(camera, cell, {50, 50})
-	testing.expect(t, !outside)
 }
 
 @(test)

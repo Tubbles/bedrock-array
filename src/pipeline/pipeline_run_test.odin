@@ -207,6 +207,38 @@ test_rerun_from_keeps_earlier_outputs :: proc(t: ^testing.T) {
 	testing.expect(t, run.job == nil)
 }
 
+// Ten assigns in a row and a disabled weld hold the geometry of the
+// transform before them, each with parts of its own.
+@(test)
+test_assigns_share_one_geometry :: proc(t: ^testing.T) {
+	run, directory := make_native_run(t)
+	defer delete(directory)
+	defer os.remove_all(directory)
+	defer run_destroy(&run)
+	for &step in run.pipeline.steps[2:] do step_destroy(&step)
+	resize(&run.pipeline.steps, 2)
+	for _ in 0 ..< 10 {
+		append(&run.pipeline.steps, Step{op = .Assign, enabled = true, part = strings.clone("body"), select = {kind = .Pieces}})
+	}
+	append(&run.pipeline.steps, Step{op = .Weld, metres = 9})
+	run_from(&run, 0)
+	testing.expect_value(t, len(run.outputs), 13)
+	owners := 0
+	for owner, index in run.owners {
+		if owner == index do owners += 1
+		if index >= 2 {
+			testing.expect_value(t, owner, 1)
+			testing.expect(t, raw_data(run.outputs[index].positions) == raw_data(run.outputs[1].positions))
+			testing.expect(t, raw_data(run.outputs[index].parts) != raw_data(run.outputs[1].parts))
+		}
+	}
+	// The import and the transform.
+	testing.expect_value(t, owners, 2)
+	run_from(&run, 5)
+	testing.expect_value(t, len(run.outputs), 13)
+	testing.expect_value(t, run.owners[12], 1)
+}
+
 @(test)
 test_decimate_budgets_share_with_a_floor :: proc(t: ^testing.T) {
 	budgets := decimate_budgets([]int{9000, 1000, 10}, 1000)

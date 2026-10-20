@@ -53,13 +53,19 @@ Heavy_Job :: struct {
 }
 
 // A pipeline being run: outputs[n] is step n's output, every step before
-// it done. root is the project's absolute path and machine the machine's
-// id. The run owns the pipeline and its strings.
+// it done. owners[n] is the step whose output owns output n's geometry:
+// n itself, or for a step that keeps its input's geometry (keeps_geometry)
+// the owner of the step before, whose arrays output n then aliases
+// (pipeline_mesh_share_geometry). An owner always comes before the outputs
+// sharing it, so dropping the outputs from any step on frees no geometry
+// an earlier output holds. root is the project's absolute path and
+// machine the machine's id. The run owns the pipeline and its strings.
 Run :: struct {
 	pipeline: Pipeline,
 	root:     string,
 	machine:  string,
 	outputs:  [dynamic]Pipeline_Mesh,
+	owners:   [dynamic]int,
 	status:   [dynamic]Step_Status,
 	job:      ^Heavy_Job,
 }
@@ -80,10 +86,11 @@ run_destroy :: proc(run: ^Run) {
 		thread.destroy(run.job.worker)
 		heavy_job_destroy(run.job)
 	}
-	for &output in run.outputs {
-		pipeline_mesh_destroy(&output)
+	for index in 0 ..< len(run.outputs) {
+		run_output_destroy(run, index)
 	}
 	delete(run.outputs)
+	delete(run.owners)
 	for status in run.status {
 		delete(status.message)
 	}
@@ -92,6 +99,22 @@ run_destroy :: proc(run: ^Run) {
 	delete(run.root)
 	delete(run.machine)
 	run^ = {}
+}
+
+// Frees output n, its geometry only when it owns it.
+run_output_destroy :: proc(run: ^Run, index: int) {
+	if run.owners[index] == index {
+		pipeline_mesh_destroy(&run.outputs[index])
+	} else {
+		pipeline_mesh_destroy_parts(&run.outputs[index])
+	}
+}
+
+// A step that moves no vertex and changes no triangle, so its output
+// shares its input's geometry: an assign, or any disabled step but the
+// import, which always reads the source.
+keeps_geometry :: proc(step: Step, index: int) -> bool {
+	return index > 0 && step.op != .Import && (step.op == .Assign || !step.enabled)
 }
 
 is_heavy :: proc(step: Step) -> bool {
@@ -109,10 +132,11 @@ run_from :: proc(run: ^Run, index: int) {
 		status = {}
 	}
 	resize(&run.status, len(run.pipeline.steps))
-	for &output in run.outputs[min(first, len(run.outputs)):] {
-		pipeline_mesh_destroy(&output)
+	for dropped in min(first, len(run.outputs)) ..< len(run.outputs) {
+		run_output_destroy(run, dropped)
 	}
 	resize(&run.outputs, min(first, len(run.outputs)))
+	resize(&run.owners, len(run.outputs))
 	if run.job != nil && run.job.step_index >= first {
 		run.job.discard = true
 	}
@@ -151,6 +175,7 @@ run_advance :: proc(run: ^Run) {
 			return
 		}
 		append(&run.outputs, output)
+		append(&run.owners, run.owners[index - 1] if keeps_geometry(run.pipeline.steps[index], index) else index)
 		set_status(run, index, .Done)
 	}
 }
@@ -179,7 +204,8 @@ apply_select_step :: proc(mesh: ^Pipeline_Mesh, step: Step) {
 }
 
 // The output of a native step, or of a disabled step, which passes its
-// input on. The import step always reads the source.
+// input on. The import step always reads the source. A step that keeps
+// its input's geometry shares it and copies only the parts.
 run_native_step :: proc(run: Run, index: int) -> (mesh: Pipeline_Mesh, problem: string) {
 	step := run.pipeline.steps[index]
 	if step.op == .Import {
@@ -188,10 +214,14 @@ run_native_step :: proc(run: Run, index: int) -> (mesh: Pipeline_Mesh, problem: 
 	if index == 0 {
 		return {}, "step 0: must be import"
 	}
-	mesh = pipeline_mesh_clone(run.outputs[index - 1])
-	if !step.enabled {
+	if keeps_geometry(step, index) {
+		mesh = pipeline_mesh_share_geometry(run.outputs[index - 1])
+		if step.enabled {
+			apply_select_step(&mesh, step)
+		}
 		return mesh, ""
 	}
+	mesh = pipeline_mesh_clone(run.outputs[index - 1])
 	#partial switch step.op {
 	case .Transform:
 		step_transform(&mesh, step.front, step.height)
@@ -448,6 +478,7 @@ run_collect :: proc(run: ^Run) {
 		return
 	}
 	append(&run.outputs, job.result)
+	append(&run.owners, job.step_index)
 	job.result = {}
 	set_status(run, job.step_index, .Done)
 }

@@ -9,7 +9,7 @@ package app
 // the monitor with the cursor captured in a demo. --view and --configuration
 // set the demo's camera and configuration, --shot <path> writes the scene alone
 // to a PNG on the last frame and exits. --edit <machine> starts in the
-// pipeline editor of that machine, whose shot keeps the step list.
+// pipeline editor of that machine, whose shot keeps the plaques and the step list.
 
 import "core:fmt"
 import "core:math/linalg"
@@ -333,7 +333,8 @@ leave_demo :: proc(view: ^engine.Scene_View, options: Options) {
 	}
 }
 
-// The pointer shows, since the mouse drags the views round.
+// The cursor is captured, as in a demo, unless the window was asked for.
+// --view places the fly camera.
 enter_editor :: proc(editor: ^Editor, machine: string, options: Options) {
 	size := render_size()
 	problem := editor_open(editor, machine, f32(size.x) / f32(max(size.y, 1)))
@@ -342,13 +343,17 @@ enter_editor :: proc(editor: ^Editor, machine: string, options: Options) {
 		os.exit(1)
 	}
 	free_all(context.temp_allocator)
-	if orbit, has_view := options.view.?; has_view do editor.orbit = orbit
-	rl.ShowCursor()
+	if orbit, has_view := options.view.?; has_view do editor.fly = engine.fly_from_orbit(orbit)
+	if !options.windowed do rl.DisableCursor()
 }
 
+// The pointer stays hidden for the menu, as when leaving a demo.
 leave_editor :: proc(editor: ^Editor, options: Options) {
 	editor_destroy(editor)
-	if !options.windowed do rl.HideCursor()
+	if !options.windowed {
+		rl.EnableCursor()
+		rl.HideCursor()
+	}
 }
 
 // Read once after the first frame, so the smoke run fails on a GL error.
@@ -444,7 +449,7 @@ main :: proc() {
 		if screen == .Menu {
 			draw_menu_frame(menu, menu_rows[:])
 		} else if screen == .Editor {
-			editor_input := editor_read_input(editor.brush.on, snapshot, pad_pressed, &editor_triggers, delta_time)
+			editor_input := editor_read_input(editor.brush.on, editor.panel_open || editor.op_menu_open, editor.frames >= EDITOR_MOUSE_SETTLE_FRAMES, snapshot, pad_pressed, &editor_triggers, delta_time)
 			if editor_step(&editor, editor_input) == .Leave {
 				leave_editor(&editor, options)
 				screen = .Menu

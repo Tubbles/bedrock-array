@@ -3,10 +3,13 @@ package engine
 import "core:math/linalg"
 import gl "glapi"
 
+// shares_vertices marks a mesh of gl_renderer_upload_indices, whose
+// vertex buffer belongs to another mesh.
 Gl_Mesh :: struct {
 	vertex_array:                gl.VertexArrayObject,
 	vertex_buffer, index_buffer: gl.Buffer,
 	index_count:                 int,
+	shares_vertices:             bool,
 }
 
 Gl_Uniforms :: struct {
@@ -183,7 +186,7 @@ gl_renderer_destroy :: proc(renderer: ^Gl_Renderer) {
 	gl.DeleteProgram(renderer.upsample_program)
 	for mesh in renderer.meshes {
 		gl.DeleteVertexArray(mesh.vertex_array)
-		gl.DeleteBuffer(mesh.vertex_buffer)
+		if !mesh.shares_vertices do gl.DeleteBuffer(mesh.vertex_buffer)
 		gl.DeleteBuffer(mesh.index_buffer)
 	}
 	for set in renderer.texture_sets {
@@ -223,13 +226,51 @@ gl_renderer_upload_mesh :: proc(renderer: ^Gl_Renderer, mesh: Mesh_Data) -> Mesh
 	return Mesh_Id(len(renderer.meshes) - 1)
 }
 
-// Frees the mesh's GL objects. The id stays taken and must not be drawn again.
+// Vertices alone, never drawn themselves: the meshes of
+// gl_renderer_upload_indices draw index lists against them. Release those
+// before these.
+gl_renderer_upload_vertices :: proc(renderer: ^Gl_Renderer, vertices: []Vertex) -> Mesh_Id {
+	uploaded := Gl_Mesh {
+		vertex_buffer = gl.CreateBuffer(),
+	}
+	gl.BindBuffer(gl.ARRAY_BUFFER, uploaded.vertex_buffer)
+	gl.BufferDataSlice(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW)
+	gl.BindBuffer(gl.ARRAY_BUFFER, 0)
+	append(&renderer.meshes, uploaded)
+	return Mesh_Id(len(renderer.meshes) - 1)
+}
+
+// A mesh drawn like any other from an index list into the vertices of a
+// gl_renderer_upload_vertices mesh, whose buffer it shares.
+gl_renderer_upload_indices :: proc(renderer: ^Gl_Renderer, vertices: Mesh_Id, indices: []u32) -> Mesh_Id {
+	uploaded := Gl_Mesh {
+		vertex_array    = gl.CreateVertexArray(),
+		vertex_buffer   = renderer.meshes[vertices].vertex_buffer,
+		index_buffer    = gl.CreateBuffer(),
+		index_count     = len(indices),
+		shares_vertices = true,
+	}
+	gl.BindVertexArray(uploaded.vertex_array)
+	gl.BindBuffer(gl.ARRAY_BUFFER, uploaded.vertex_buffer)
+	gl.EnableVertexAttribArray(0)
+	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, size_of(Vertex), 0)
+	gl.EnableVertexAttribArray(1)
+	gl.VertexAttribPointer(1, 3, gl.FLOAT, false, size_of(Vertex), offset_of(Vertex, normal))
+	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, uploaded.index_buffer)
+	gl.BufferDataSlice(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW)
+	gl.BindVertexArray(0)
+	append(&renderer.meshes, uploaded)
+	return Mesh_Id(len(renderer.meshes) - 1)
+}
+
+// Frees the mesh's GL objects, a shared vertex buffer left to its owner.
+// The id stays taken and must not be drawn again.
 gl_renderer_release_mesh :: proc(renderer: ^Gl_Renderer, mesh: Mesh_Id) {
 	if int(mesh) >= len(renderer.meshes) do return
 	uploaded := &renderer.meshes[mesh]
-	gl.DeleteVertexArray(uploaded.vertex_array)
-	gl.DeleteBuffer(uploaded.vertex_buffer)
-	gl.DeleteBuffer(uploaded.index_buffer)
+	if uploaded.vertex_array != 0 do gl.DeleteVertexArray(uploaded.vertex_array)
+	if !uploaded.shares_vertices do gl.DeleteBuffer(uploaded.vertex_buffer)
+	if uploaded.index_buffer != 0 do gl.DeleteBuffer(uploaded.index_buffer)
 	uploaded^ = {}
 }
 

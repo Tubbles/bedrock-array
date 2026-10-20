@@ -1,10 +1,11 @@
 package app
 
-// The pipeline editor's frame: the step views composited into a grid by the
-// engine, then the step list, the views' titles and the selected view's
-// frame drawn by raylib over them. Rectangles are window pixels from the
-// top left; raylib draws in points, so they are divided by the display's
-// scale before it draws them.
+// The pipeline editor's frame: the line of machines drawn by the engine
+// over the whole window, then by raylib over it a plaque above each
+// machine near the camera, the selected machine's bounds as lines, the
+// crosshair with the brush's ring, and on the left the header, the step
+// list and the key panel or the insert menu. Positions are in points from
+// the window's top left, raylib's 2D units.
 
 import "core:fmt"
 import "core:math/linalg"
@@ -15,37 +16,23 @@ import pipeline "../pipeline"
 import rl "shared:raylib"
 import rlgl "shared:raylib/rlgl"
 
-EDITOR_LIST_FRACTION :: 4
+// The overlay on the left takes this fraction of the window's width.
+EDITOR_LIST_FRACTION :: 5
 EDITOR_LIST_PADDING :: 8
 EDITOR_ROW_GAP :: 4
-EDITOR_FRAME_WIDTH :: 3
+EDITOR_FRAME_WIDTH :: 2
 EDITOR_FRAME_COLOR :: rl.Color{255, 200, 60, 255}
 EDITOR_STATUS_COLOR :: rl.Color{255, 140, 120, 255}
+EDITOR_PLAQUE_SELECTED_COLOR :: rl.Color{60, 50, 20, 210}
 EDITOR_HEADER_LINES :: 3
 EDITOR_STROKES_PER_LINE :: 3
-
-Editor_Rectangle :: struct {
-	x, y, width, height: i32,
-}
-
-// The right three quarters of the window, the step list taking the rest.
-editor_view_area :: proc(size: [2]i32) -> Editor_Rectangle {
-	list_width := size.x / EDITOR_LIST_FRACTION
-	return {list_width, 0, size.x - list_width, size.y}
-}
-
-// One cell is the whole area, two sit side by side, three and four fill a
-// two by two grid in reading order.
-editor_grid_cells :: proc(count: int, area: Editor_Rectangle) -> (cells: [EDITOR_VIEWS_MAXIMUM]Editor_Rectangle) {
-	columns := i32(1 if count <= 1 else 2)
-	rows := i32(1 if count <= 2 else 2)
-	width, height := area.width / columns, area.height / rows
-	for index in 0 ..< min(count, EDITOR_VIEWS_MAXIMUM) {
-		column, row := i32(index) % columns, i32(index) / columns
-		cells[index] = {area.x + column * width, area.y + row * height, width, height}
-	}
-	return
-}
+// Points a plaque's text wraps at, and metres it floats above its machine.
+EDITOR_PLAQUE_WIDTH :: 240
+EDITOR_PLAQUE_LIFT :: f32(0.08)
+EDITOR_CROSSHAIR_SIZE :: f32(8)
+// Metres within which a plaque other than the selected one shows every
+// line; beyond, only its title, so the plaques down the line stay legible.
+EDITOR_PLAQUE_FULL_DISTANCE :: f32(4)
 
 // The step's select in a few words.
 editor_select_text :: proc(select: pipeline.Select) -> string {
@@ -79,9 +66,13 @@ editor_keys_text :: proc(step: pipeline.Step) -> string {
 // The triangle count of a done step, its state otherwise.
 editor_result_text :: proc(run: pipeline.Run, index: int) -> string {
 	if index < len(run.outputs) do return fmt.tprintf("%d", len(run.outputs[index].triangles))
-	switch run.status[index].state {
+	return editor_state_text(run.status[index].state)
+}
+
+editor_state_text :: proc(state: pipeline.Step_State) -> string {
+	switch state {
 	case .Stale: return "stale"
-	case .Running: return "running"
+	case .Running: return "computing"
 	case .Done: return "done"
 	case .Failed: return "failed"
 	}
@@ -89,15 +80,28 @@ editor_result_text :: proc(run: pipeline.Run, index: int) -> string {
 }
 
 // The row's two lines: the index, the op and the result, then the keys or
-// the failure. A shown step is marked with an asterisk, a disabled one off.
-editor_step_lines :: proc(run: pipeline.Run, index: int, shown: bool) -> (first, second: string) {
+// the failure. A disabled step is marked off.
+editor_step_lines :: proc(run: pipeline.Run, index: int) -> (first, second: string) {
 	step := run.pipeline.steps[index]
-	marker := "*" if shown else " "
 	disabled := " off" if !step.enabled else ""
-	first = fmt.tprintf("%s%d %s%s  %s", marker, index, pipeline.OP_NAMES[step.op], disabled, editor_result_text(run, index))
+	first = fmt.tprintf("%d %s%s  %s", index, pipeline.OP_NAMES[step.op], disabled, editor_result_text(run, index))
 	second = editor_keys_text(step)
 	if run.status[index].state == .Failed do second = run.status[index].message
 	return
+}
+
+// A machine's plaque: the step's number and op, its keys, its triangles
+// and its state, with the failure's message.
+editor_plaque_lines :: proc(run: pipeline.Run, index: int) -> []string {
+	lines := make([dynamic]string, context.temp_allocator)
+	step := run.pipeline.steps[index]
+	append(&lines, fmt.tprintf("%d %s%s", index, pipeline.OP_NAMES[step.op], " off" if !step.enabled else ""))
+	if keys := editor_keys_text(step); keys != "" do append(&lines, keys)
+	if index < len(run.outputs) do append(&lines, fmt.tprintf("%d triangles", len(run.outputs[index].triangles)))
+	status := run.status[index]
+	state := editor_state_text(status.state)
+	append(&lines, fmt.tprintf("%s: %s", state, status.message) if status.state == .Failed else state)
+	return lines[:]
 }
 
 // The first row drawn, so the selected one stays in view.
@@ -170,10 +174,9 @@ editor_status_line :: proc(editor: ^Editor) -> string {
 }
 
 // In reference points of a 720 point high screen, scaled like the menu,
-// clipped to the list's column: the header, the rows with the strokes'
-// counts under the selected one in brush mode, the panel or the insert
-// menu on a plaque at the bottom.
-editor_draw_list :: proc(editor: ^Editor, screen: [2]i32) {
+// clipped to the overlay's column on a dark plaque: the header, the step
+// rows while the list is open, the panel or the insert menu at the bottom.
+editor_draw_overlay :: proc(editor: ^Editor, screen: [2]i32) {
 	scale := f32(screen.y) / MENU_REFERENCE_HEIGHT
 	width := screen.x / EDITOR_LIST_FRACTION
 	font := f32(LABEL_FONT_SIZE) * scale
@@ -181,98 +184,177 @@ editor_draw_list :: proc(editor: ^Editor, screen: [2]i32) {
 	row_height := 2 * font + f32(EDITOR_ROW_GAP) * scale
 	rl.BeginScissorMode(0, 0, width, screen.y)
 	defer rl.EndScissorMode()
+	top := padding + f32(EDITOR_HEADER_LINES) * font + padding
+	footer := editor_footer_lines(editor)
+	footer_height := f32(len(footer)) * font + (2 * padding if len(footer) > 0 else 0)
+	rl.DrawRectangle(0, 0, width, i32(f32(screen.y) - footer_height) if editor.list_open else i32(top), LABEL_BACKGROUND_COLOR)
 	colours := "false colour" if editor.false_colour else "brief materials"
 	editor_text(fmt.tprintf("%s%s", editor.machine, "  unsaved" if editor.unsaved else ""), padding, padding, font, TEXT_COLOR)
 	editor_text(colours, padding, padding + font, font, TEXT_COLOR)
 	editor_text(editor_status_line(editor), padding, padding + 2 * font, font, EDITOR_STATUS_COLOR)
-	top := padding + f32(EDITOR_HEADER_LINES) * font + padding
-	footer := editor_footer_lines(editor)
-	footer_height := f32(len(footer)) * font + (2 * padding if len(footer) > 0 else 0)
-	strokes := editor_stroke_lines(editor.brush.counts) if editor.brush.on else nil
-	extra := f32(len(strokes)) * font
-	count := len(editor.run.pipeline.steps)
-	visible := max(int((f32(screen.y) - top - footer_height - extra) / row_height), 1)
-	first := editor_first_row(editor.selected, visible, count)
-	y := top
-	for index in first ..< min(first + visible, count) {
-		height := row_height + (extra if index == editor.selected else 0)
-		if index == editor.selected do rl.DrawRectangle(0, i32(y), width, i32(height), MENU_HIGHLIGHT_COLOR)
-		line, keys := editor_step_lines(editor.run, index, slice.contains(editor.shown[:], index))
-		failed := editor.run.status[index].state == .Failed
-		editor_text(line, padding, y, font, EDITOR_STATUS_COLOR if failed else TEXT_COLOR)
-		editor_text(keys, padding + 2 * font, y + font, font, TEXT_COLOR)
-		if index == editor.selected {
-			for stroke_line, line_index in strokes do editor_text(stroke_line, padding + 2 * font, y + f32(2 + line_index) * font, font, EDITOR_FRAME_COLOR)
-		}
-		y += height
-	}
+	if editor.list_open do editor_draw_rows(editor, top, f32(screen.y) - footer_height, width, font, padding, row_height)
 	if len(footer) == 0 do return
 	footer_top := f32(screen.y) - footer_height
 	rl.DrawRectangle(0, i32(footer_top), width, i32(footer_height), LABEL_BACKGROUND_COLOR)
 	for line, index in footer do editor_text(line, padding, footer_top + padding + f32(index) * font, font, TEXT_COLOR)
 }
 
-// The ring of the brush's radius round the hit and a cross at the cursor,
-// in the selected step's view.
-editor_draw_brush :: proc(editor: ^Editor, cells: [EDITOR_VIEWS_MAXIMUM]Editor_Rectangle, pixels_per_point: f32) {
-	brush := editor.brush
-	if !brush.on do return
-	cross := f32(6)
-	rl.DrawLineV({brush.cursor.x - cross, brush.cursor.y}, {brush.cursor.x + cross, brush.cursor.y}, EDITOR_FRAME_COLOR)
-	rl.DrawLineV({brush.cursor.x, brush.cursor.y - cross}, {brush.cursor.x, brush.cursor.y + cross}, EDITOR_FRAME_COLOR)
-	slot := editor_view_of_step(editor, editor.selected)
-	if !brush.hit || slot < 0 do return
-	rectangle := editor_points(cells[slot], pixels_per_point)
-	camera := editor_camera(editor)
-	canvas := [2]f32{rectangle.width, rectangle.height}
-	aspect := canvas.x / max(canvas.y, 1)
-	centre, visible := engine.world_to_screen(camera, aspect, canvas, brush.position)
-	if !visible do return
-	right := linalg.normalize(linalg.cross(camera.target - camera.position, camera.up))
-	edge, _ := engine.world_to_screen(camera, aspect, canvas, brush.position + right * brush.radius)
-	origin := [2]f32{rectangle.x, rectangle.y}
-	rl.DrawCircleLinesV(origin + centre, max(linalg.length(edge - centre), 2), EDITOR_FRAME_COLOR)
-}
-
-// A cell in points from a rectangle in pixels.
-editor_points :: proc(cell: Editor_Rectangle, pixels_per_point: f32) -> rl.Rectangle {
-	return {f32(cell.x) / pixels_per_point, f32(cell.y) / pixels_per_point, f32(cell.width) / pixels_per_point, f32(cell.height) / pixels_per_point}
-}
-
-// Each view's step and, while it has no output, the step's state; the
-// selected step's view framed.
-editor_draw_view_titles :: proc(editor: ^Editor, cells: [EDITOR_VIEWS_MAXIMUM]Editor_Rectangle, pixels_per_point: f32, screen: [2]i32) {
-	scale := f32(screen.y) / MENU_REFERENCE_HEIGHT
-	font := f32(LABEL_FONT_SIZE) * scale
-	padding := f32(EDITOR_LIST_PADDING) * scale
-	for upload, index in editor.uploads {
-		rectangle := editor_points(cells[index], pixels_per_point)
-		step := editor.run.pipeline.steps[upload.step]
-		title := fmt.tprintf("%d %s  %s", upload.step, pipeline.OP_NAMES[step.op], editor_result_text(editor.run, upload.step))
-		editor_text(title, rectangle.x + padding, rectangle.y + padding, font, TEXT_COLOR)
-		if upload.step == editor.selected do rl.DrawRectangleLinesEx(rectangle, f32(EDITOR_FRAME_WIDTH) * scale, EDITOR_FRAME_COLOR)
+// The step rows between top and bottom, the selected one highlighted and in view.
+@(private = "file")
+editor_draw_rows :: proc(editor: ^Editor, top, bottom: f32, width: i32, font, padding, row_height: f32) {
+	count := len(editor.run.pipeline.steps)
+	visible := max(int((bottom - top) / row_height), 1)
+	first := editor_first_row(editor.selected, visible, count)
+	y := top
+	for index in first ..< min(first + visible, count) {
+		if index == editor.selected do rl.DrawRectangle(0, i32(y), width, i32(row_height), MENU_HIGHLIGHT_COLOR)
+		line, keys := editor_step_lines(editor.run, index)
+		failed := editor.run.status[index].state == .Failed
+		editor_text(line, padding, y, font, EDITOR_STATUS_COLOR if failed else TEXT_COLOR)
+		editor_text(keys, padding + 2 * font, y + font, font, TEXT_COLOR)
+		y += row_height
 	}
 }
 
-// The views first, through the engine, then raylib's text over them. A
-// capture_path names the PNG the frame is written to; written is false
-// when that export fails.
+// The canvas point of a world point, from the top left with y down, and
+// whether it lies in front of the camera's near plane. Unlike
+// world_to_screen it keeps a point off the canvas, so an edge leaving the
+// view is still drawn.
+editor_project :: proc(camera: engine.Camera, canvas: [2]f32, world: [3]f32) -> (point: [2]f32, in_front: bool) {
+	aspect := canvas.x / max(canvas.y, 1)
+	clip := engine.projection_matrix(camera, aspect) * engine.view_matrix(camera) * [4]f32{world.x, world.y, world.z, 1}
+	if clip.w <= camera.near do return {}, false
+	normalised := clip.xy / clip.w
+	return {(normalised.x + 1) / 2 * canvas.x, (1 - normalised.y) / 2 * canvas.y}, true
+}
+
+// The plaques of the machines within upload range, the farthest first so
+// a nearer one covers it, the selected one last and highlighted, those
+// farther than EDITOR_PLAQUE_FULL_DISTANCE with their title alone (and
+// the state of a step not done).
+editor_draw_plaques :: proc(editor: ^Editor, camera: engine.Camera, canvas: [2]f32) {
+	Plaque :: struct {
+		index:    int,
+		distance: f32,
+	}
+	plaques := make([dynamic]Plaque, context.temp_allocator)
+	for machine, index in editor.machines {
+		distance := linalg.length(editor_plaque_anchor(machine.bounds, index) - camera.position)
+		if index != editor.selected && distance > EDITOR_UPLOAD_DISTANCE do continue
+		append(&plaques, Plaque{index, -1 if index == editor.selected else distance})
+	}
+	slice.sort_by(plaques[:], proc(first, second: Plaque) -> bool {return first.distance > second.distance})
+	for plaque in plaques {
+		point, in_front := editor_project(camera, canvas, editor_plaque_anchor(editor.machines[plaque.index].bounds, plaque.index))
+		if !in_front do continue
+		lines := editor_plaque_lines(editor.run, plaque.index)
+		selected := plaque.index == editor.selected
+		if !selected && plaque.distance > EDITOR_PLAQUE_FULL_DISTANCE do lines = editor_plaque_title(lines, editor.run.status[plaque.index].state)
+		if selected && editor.brush.on {
+			all := make([dynamic]string, context.temp_allocator)
+			append(&all, ..lines)
+			append(&all, ..editor_stroke_lines(editor.brush.counts))
+			lines = all[:]
+		}
+		editor_draw_plaque(lines, point, selected, canvas)
+	}
+}
+
+// A far plaque's lines: the title, and the state while it is not done.
+editor_plaque_title :: proc(lines: []string, state: pipeline.Step_State) -> []string {
+	if state == .Done do return lines[:1]
+	title := make([]string, 2, context.temp_allocator)
+	title[0], title[1] = lines[0], lines[len(lines) - 1]
+	return title
+}
+
+// Above the middle of the machine's top.
+editor_plaque_anchor :: proc(bounds: Editor_Bounds, index: int) -> [3]f32 {
+	world := editor_world_bounds(bounds, index)
+	return {(world.minimum.x + world.maximum.x) / 2, world.maximum.y + EDITOR_PLAQUE_LIFT, (world.minimum.z + world.maximum.z) / 2}
+}
+
+// The lines wrapped, each centred on the point's x, the block's bottom at
+// the point, on a dark plaque, the selected one's tinted, framed and kept
+// within the canvas, so its strokes' counts show while the camera is
+// close under its top.
+editor_draw_plaque :: proc(lines: []string, given_point: [2]f32, selected: bool, canvas: [2]f32) {
+	wrapped := make([dynamic]string, context.temp_allocator)
+	for line in lines do append(&wrapped, ..wrap_words(line, EDITOR_PLAQUE_WIDTH, measure_label_text))
+	widest := 0
+	for line in wrapped do widest = max(widest, measure_label_text(line))
+	point := given_point
+	if selected {
+		margin := f32(2 * LABEL_PADDING)
+		half_width := f32(widest) / 2 + margin
+		point.x = clamp(point.x, half_width, max(canvas.x - half_width, half_width))
+		point.y = clamp(point.y, f32(len(wrapped) * LABEL_FONT_SIZE) + margin, max(canvas.y - margin, margin))
+	}
+	top := i32(point.y) - i32(len(wrapped)) * LABEL_FONT_SIZE
+	left := i32(point.x) - i32(widest) / 2
+	plaque := rl.Rectangle{f32(left - LABEL_PADDING), f32(top - LABEL_PADDING), f32(i32(widest) + 2 * LABEL_PADDING), f32(i32(len(wrapped)) * LABEL_FONT_SIZE + 2 * LABEL_PADDING)}
+	rl.DrawRectangleRec(plaque, EDITOR_PLAQUE_SELECTED_COLOR if selected else LABEL_BACKGROUND_COLOR)
+	if selected do rl.DrawRectangleLinesEx(plaque, EDITOR_FRAME_WIDTH, EDITOR_FRAME_COLOR)
+	for line, index in wrapped {
+		x := i32(point.x) - i32(measure_label_text(line)) / 2
+		y := top + i32(index) * LABEL_FONT_SIZE
+		rl.DrawText(strings.clone_to_cstring(line, context.temp_allocator), x, y, LABEL_FONT_SIZE, LABEL_TEXT_COLOR)
+	}
+}
+
+// The twelve edges of the selected machine's bounds, each edge with an end
+// behind the camera left out.
+editor_draw_selected_bounds :: proc(editor: ^Editor, camera: engine.Camera, canvas: [2]f32) {
+	if editor.selected >= len(editor.machines) do return
+	box := editor_world_bounds(editor.machines[editor.selected].bounds, editor.selected)
+	corners: [8][3]f32
+	for &corner, index in corners {
+		for axis in 0 ..< 3 do corner[axis] = box.maximum[axis] if index & (1 << uint(axis)) != 0 else box.minimum[axis]
+	}
+	for first in 0 ..< 8 {
+		for axis in 0 ..< 3 {
+			if first & (1 << uint(axis)) != 0 do continue
+			start, start_in_front := editor_project(camera, canvas, corners[first])
+			end, end_in_front := editor_project(camera, canvas, corners[first | (1 << uint(axis))])
+			if start_in_front && end_in_front do rl.DrawLineEx(start, end, EDITOR_FRAME_WIDTH, EDITOR_FRAME_COLOR)
+		}
+	}
+}
+
+// A cross at the window's middle, and in brush mode a ring of the brush's
+// radius round the hit.
+editor_draw_crosshair :: proc(editor: ^Editor, camera: engine.Camera, canvas: [2]f32) {
+	centre := canvas / 2
+	size := EDITOR_CROSSHAIR_SIZE
+	rl.DrawLineV({centre.x - size, centre.y}, {centre.x + size, centre.y}, EDITOR_FRAME_COLOR)
+	rl.DrawLineV({centre.x, centre.y - size}, {centre.x, centre.y + size}, EDITOR_FRAME_COLOR)
+	brush := editor.brush
+	if !brush.on || !brush.hit do return
+	world := brush.position + editor_machine_offset(editor.selected)
+	hit, visible := editor_project(camera, canvas, world)
+	if !visible do return
+	right := linalg.normalize(linalg.cross(camera.target - camera.position, camera.up))
+	edge, _ := editor_project(camera, canvas, world + right * brush.radius)
+	rl.DrawCircleLinesV(hit, max(linalg.length(edge - hit), 2), EDITOR_FRAME_COLOR)
+}
+
+// The line first, through the engine, then raylib's plaques, lines and
+// text over it. A capture_path names the PNG the frame is written to;
+// written is false when that export fails.
 draw_editor_frame :: proc(editor: ^Editor, in_shot: bool, capture_path: string) -> (written: bool) {
 	size := render_size()
 	screen := screen_size()
 	rl.BeginDrawing()
 	rl.ClearBackground(BACKGROUND_COLOR)
-	cells := editor_grid_cells(len(editor.uploads), editor_view_area(size))
-	for upload, index in editor.uploads {
-		cell := cells[index]
-		editor_fill_draw_list(editor, upload)
-		engine.gl_renderer_draw_viewport(&editor.scene.renderer, editor.draw_list, editor.scene.library, cell.x, size.y - cell.y - cell.height, cell.width, cell.height)
-	}
+	editor_fill_draw_list(editor)
+	engine.gl_renderer_draw_viewport(&editor.scene.renderer, editor.draw_list, editor.scene.library, 0, 0, size.x, size.y)
 	give_state_back_to_rlgl(size)
-	pixels_per_point := f32(size.x) / f32(max(screen.x, 1))
-	editor_draw_list(editor, screen)
-	editor_draw_view_titles(editor, cells, pixels_per_point, screen)
-	editor_draw_brush(editor, cells, pixels_per_point)
+	camera := editor_camera(editor)
+	canvas := [2]f32{f32(screen.x), f32(screen.y)}
+	editor_draw_selected_bounds(editor, camera, canvas)
+	editor_draw_plaques(editor, camera, canvas)
+	editor_draw_crosshair(editor, camera, canvas)
+	editor_draw_overlay(editor, screen)
 	if !in_shot do rl.DrawText(BUILD_INFO, 16, screen.y - 16 - LABEL_FONT_SIZE, LABEL_FONT_SIZE, TEXT_COLOR)
 	written = true
 	// raylib draws its batch at EndDrawing, after the capture would read the screen.
