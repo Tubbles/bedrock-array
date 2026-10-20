@@ -4,15 +4,18 @@
 
 A .ply input goes through Blender's PLY importer with Y up, the glTF axes reconstruct.py keeps, anything else through the glTF importer.
 Every mesh part gets a collapse decimate at the one ratio that brings the whole model to the budget, so a part keeps its share of the triangles. Prints the triangle count before and after.
+Before the decimate each part is welded: vertices closer than WELD_METRES merge, since a generated mesh is split at its seams into patches lying edge to edge, and the collapse would simplify each patch on its own and crack the surface between them.
 The parts are then shaded smooth by angle: an edge sharper than SMOOTH_ANGLE_DEGREES keeps split normals, the rest share their vertices, so the export is not one vertex triple per triangle as a flat shaded mesh would be.
 """
 import argparse
 import math
 import sys
 
+import bmesh
 import bpy
 
 SMOOTH_ANGLE_DEGREES = 30
+WELD_METRES = 0.00001
 
 
 def parse_arguments():
@@ -45,6 +48,14 @@ def import_mesh(path):
         bpy.ops.import_scene.gltf(filepath=path)
 
 
+def weld(part):
+    mesh = bmesh.new()
+    mesh.from_mesh(part.data)
+    bmesh.ops.remove_doubles(mesh, verts=mesh.verts, dist=WELD_METRES)
+    mesh.to_mesh(part.data)
+    mesh.free()
+
+
 def decimate(part, ratio):
     modifier = part.modifiers.new("decimate", "DECIMATE")
     modifier.decimate_type = "COLLAPSE"
@@ -67,6 +78,8 @@ def main():
     reset_scene()
     import_mesh(arguments.mesh_in)
     parts = mesh_parts()
+    for part in parts:
+        weld(part)
     before = triangle_count(parts)
     ratio = min(1.0, arguments.triangles / max(before, 1))
     for part in parts:
