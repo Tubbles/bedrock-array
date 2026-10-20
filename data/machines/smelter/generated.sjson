@@ -24,3 +24,23 @@ overrides = {
 }
 // closing: brief part to "poisson" (the default for a part not listed) or "none" (decimation only), read by tools/models/finish_parts.sh. The small parts skip Poisson, which left copper lips on the steel around the fittings even at a 1 cm trim (user, 2026-10-20).
 closing = { fittings = "none", vents = "none", louvre = "none" }
+// The repairs before the split (doc/workflows/models.md, the finish step), the spots of item 0108 by number. extractions: the screws the generator fused into the body and the skirt, cut out into the fittings as screw_<index>. additions: the empty screw holes, each filled as addition_<index> with a copy of extraction `copy` (an index into extractions). near: metres in the brief's frame. facing: the face's outward axis.
+extractions = [
+	{ near = [-0.4442, 0.0676, 0.5448], facing = "+z" } // spot 1
+	{ near = [0.4454, 0.0681, 0.5460], facing = "+z" } // spot 2
+	{ near = [0.2606, 0.2599, 0.5346], facing = "+z" } // spot 3
+	{ near = [0.4410, 0.8151, 0.2686], facing = "+x" } // spot 4
+	{ near = [0.4388, 0.8138, -0.2801], facing = "+x" } // spot 5, corrected by a circle fit of its recess floor (the pick at z -0.2859 was 5.8 mm off the axis)
+	{ near = [0.4625, 0.4389, -0.2946], facing = "+x" } // spot 6
+	{ near = [0.4495, 0.0683, -0.4855], facing = "-z" } // spot 9
+	{ near = [-0.4513, 0.0684, -0.4856], facing = "-z" } // spot 10
+	{ near = [-0.4394, 0.8136, 0.2597], facing = "-x" } // spot 11
+	{ near = [-0.4632, 0.4407, -0.2434], facing = "-x" } // spot 12
+	{ near = [-0.5060, 0.2938, 0.4641], facing = "-x" } // spot 14
+	{ near = [-0.5188, 0.0709, 0.4760], facing = "-x" } // spot 15
+]
+additions = [
+	{ near = [0.4426, 0.2973, -0.4665], facing = "-z", copy = 6 } // spot 7, a copy of spot 9
+	{ near = [-0.4424, 0.2938, -0.4671], facing = "-z", copy = 7 } // spot 8, a copy of spot 10
+	{ near = [-0.4967, 0.2939, -0.4079], facing = "-x", copy = 10 } // spot 13, a copy of spot 14
+]
