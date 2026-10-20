@@ -6,7 +6,9 @@ package app
 // starts in that demo instead of the menu, --frames <n> stops after n frames
 // (0, the default, runs until the window closes or the menu is left),
 // --windowed keeps the window and the cursor instead of going borderless over
-// the monitor with the cursor captured in a demo.
+// the monitor with the cursor captured in a demo. --view and --configuration
+// set the demo's camera and configuration, --shot <path> writes the scene alone
+// to a PNG on the last frame and exits.
 
 import "core:fmt"
 import "core:os"
@@ -34,7 +36,21 @@ LABEL_BACKGROUND_COLOR :: rl.Color{0, 0, 0, 160}
 Options :: struct {
 	demo:     string,
 	frames:   int,
-	windowed: bool,
+	windowed:      bool,
+	shot:          string,
+	view:          Maybe(engine.Orbit),
+	configuration: int,
+}
+
+// Six numbers separated by commas: yaw, pitch, distance, then the target's x, y and z.
+parse_view :: proc(text: string) -> (orbit: engine.Orbit, ok: bool) {
+	parts := strings.split(text, ",", context.temp_allocator)
+	if len(parts) != 6 do return orbit, false
+	numbers: [6]f32
+	for part, index in parts {
+		numbers[index] = strconv.parse_f32(part) or_return
+	}
+	return engine.Orbit{target = {numbers[3], numbers[4], numbers[5]}, yaw = numbers[0], pitch = numbers[1], distance = numbers[2]}, true
 }
 
 // Parses the arguments after the program name. ok is false on an unknown
@@ -61,6 +77,32 @@ parse_options :: proc(arguments: []string) -> (options: Options, ok: bool) {
 				return options, false
 			}
 			options.frames = frames
+		case "--shot":
+			index += 1
+			if index >= len(arguments) {
+				return options, false
+			}
+			options.shot = arguments[index]
+		case "--view":
+			index += 1
+			if index >= len(arguments) {
+				return options, false
+			}
+			orbit, parsed := parse_view(arguments[index])
+			if !parsed {
+				return options, false
+			}
+			options.view = orbit
+		case "--configuration":
+			index += 1
+			if index >= len(arguments) {
+				return options, false
+			}
+			configuration, parsed := strconv.parse_int(arguments[index])
+			if !parsed || configuration < 0 {
+				return options, false
+			}
+			options.configuration = configuration
 		case:
 			return options, false
 		}
@@ -187,17 +229,30 @@ draw_configuration_name :: proc(view: ^engine.Scene_View, screen: [2]i32) {
 	rl.DrawText(text, x, screen.y - 16 - LABEL_FONT_SIZE, LABEL_FONT_SIZE, TEXT_COLOR)
 }
 
-draw_frame :: proc(view: ^engine.Scene_View, panel: Lod_Panel) {
+// In a shot only the scene is drawn. A capture_path names the PNG the frame is
+// written to; written is false when that export fails.
+draw_frame :: proc(view: ^engine.Scene_View, panel: Lod_Panel, in_shot: bool, capture_path: string) -> (written: bool) {
 	size := render_size()
 	screen := screen_size()
 	rl.BeginDrawing()
 	engine.scene_view_draw(view, size.x, size.y)
 	give_state_back_to_rlgl(size)
-	draw_labels(view, screen)
-	rl.DrawText(BUILD_INFO, 16, screen.y - 16 - LABEL_FONT_SIZE, LABEL_FONT_SIZE, TEXT_COLOR)
-	draw_configuration_name(view, screen)
-	lod_panel_draw(panel, view)
+	if !in_shot {
+		draw_labels(view, screen)
+		rl.DrawText(BUILD_INFO, 16, screen.y - 16 - LABEL_FONT_SIZE, LABEL_FONT_SIZE, TEXT_COLOR)
+		draw_configuration_name(view, screen)
+		lod_panel_draw(panel, view)
+	}
+	written = true
+	if capture_path != "" do written = capture_screen(capture_path)
 	rl.EndDrawing()
+	return written
+}
+
+capture_screen :: proc(path: string) -> bool {
+	image := rl.LoadImageFromScreen()
+	defer rl.UnloadImage(image)
+	return rl.ExportImage(image, strings.clone_to_cstring(path, context.temp_allocator))
 }
 
 draw_menu_frame :: proc(menu: Menu_State) {
@@ -230,6 +285,11 @@ enter_demo :: proc(view: ^engine.Scene_View, demo: Demo, options: Options) {
 	}
 	// The texture row flips and the shader strings of the native GL api are temp copies.
 	free_all(context.temp_allocator)
+	if orbit, has_view := options.view.?; has_view {
+		view.orbit = orbit
+		view.fly = engine.fly_from_orbit(orbit)
+	}
+	view.configuration = options.configuration % engine.scene_view_configuration_count(view)
 	if !options.windowed do rl.DisableCursor()
 }
 
@@ -255,10 +315,11 @@ exit_on_gl_error :: proc() {
 main :: proc() {
 	options, ok := parse_options(os.args[1:])
 	demo, known := demo_by_name(options.demo)
-	if !ok || (options.demo != "" && !known) {
-		fmt.eprintln("usage: bedrock-array [--demo light|surface|cave|models|decimation|parts|lod] [--frames <n>] [--windowed]")
+	if !ok || (options.demo != "" && !known) || (options.shot != "" && !known) {
+		fmt.eprintln("usage: bedrock-array [--demo light|surface|cave|models|decimation|parts|lod] [--frames <n>] [--windowed] [--view yaw,pitch,distance,x,y,z] [--configuration <n>] [--shot <path> (with --demo)]")
 		os.exit(2)
 	}
+	if options.shot != "" do options.frames = max(options.frames, 3)
 	rl.SetConfigFlags({.WINDOW_RESIZABLE, .WINDOW_HIGHDPI, .VSYNC_HINT})
 	rl.SetTraceLogLevel(.WARNING)
 	rl.InitWindow(1280, 720, "Bedrock Array")
@@ -339,7 +400,12 @@ main :: proc() {
 			if rl.IsKeyPressed(.T) do view.lod.tint = !view.lod.tint
 			if rl.IsKeyPressed(.F) do view.lod.freeze = !view.lod.freeze
 			engine.scene_view_step(&view, input, delta_time)
-			draw_frame(&view, lod_panel)
+			capture_path := options.shot if options.shot != "" && frames_drawn == options.frames - 1 else ""
+			if !draw_frame(&view, lod_panel, options.shot != "", capture_path) {
+				fmt.eprintfln("bedrock-array: the shot could not be written to %s", options.shot)
+				os.exit(1)
+			}
+			if capture_path != "" do fmt.printfln("shot: %s", capture_path)
 		}
 		if frames_drawn == 0 do exit_on_gl_error()
 		frames_drawn += 1
