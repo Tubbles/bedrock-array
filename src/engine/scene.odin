@@ -27,6 +27,9 @@ Scene_Item :: struct {
 	scale:          f32,
 	position:       [3]f32,
 	material:       Material_Id,
+	// Multiplies the material's albedo, white unless the item sets it, for
+	// inspection scenes that paint each part a striking colour.
+	tint:           [3]f32,
 }
 
 // A plaque naming what stands at position.
@@ -435,6 +438,12 @@ parse_scene_item :: proc(owner: string, value: json.Value, library: Material_Lib
 	if item.material, found = material_id_by_name(library, material_name); !found {
 		return {}, fmt.tprintf("%s: material %s not in the library", owner, material_name)
 	}
+	item.tint = {1, 1, 1}
+	if "tint" in fields {
+		if item.tint, problem = scene_vector_field(owner, "tint", fields); problem != "" {
+			return {}, problem
+		}
+	}
 	return item, ""
 }
 
@@ -483,7 +492,7 @@ parse_scene_label :: proc(owner: string, value: json.Value) -> (label: Scene_Lab
 
 @(private = "file")
 parse_scene_box :: proc(owner: string, fields: json.Object) -> (size: [3]f32, problem: string) {
-	if problem = scene_check_keys(owner, fields, {"shape", "size", "position", "material"}); problem != "" {
+	if problem = scene_check_keys(owner, fields, {"shape", "size", "position", "material", "tint"}); problem != "" {
 		return {}, problem
 	}
 	return scene_vector_field(owner, "size", fields)
@@ -491,7 +500,7 @@ parse_scene_box :: proc(owner: string, fields: json.Object) -> (size: [3]f32, pr
 
 @(private = "file")
 parse_scene_cylinder :: proc(owner: string, fields: json.Object) -> (radius, height: f32, segments: int, problem: string) {
-	if problem = scene_check_keys(owner, fields, {"shape", "radius", "height", "segments", "position", "material"}); problem != "" {
+	if problem = scene_check_keys(owner, fields, {"shape", "radius", "height", "segments", "position", "material", "tint"}); problem != "" {
 		return 0, 0, 0, problem
 	}
 	if radius, problem = scene_non_negative_field(owner, "radius", fields); problem != "" {
@@ -511,7 +520,7 @@ parse_scene_cylinder :: proc(owner: string, fields: json.Object) -> (radius, hei
 // above 0, 1 when absent.
 @(private = "file")
 parse_scene_mesh :: proc(owner: string, fields: json.Object, configuration_names: int) -> (files, levels: []string, scale: f32, problem: string) {
-	if problem = scene_check_keys(owner, fields, {"shape", "file", "files", "levels", "scale", "position", "material"}); problem != "" {
+	if problem = scene_check_keys(owner, fields, {"shape", "file", "files", "levels", "scale", "position", "material", "tint"}); problem != "" {
 		return nil, nil, 0, problem
 	}
 	if "levels" in fields {

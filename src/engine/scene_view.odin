@@ -189,6 +189,7 @@ scene_view_draw :: proc(view: ^Scene_View, width, height: i32) {
 		}
 		entry := index * count + view.configuration
 		draw_list_add(&view.draw_list, view.item_mesh_ids[entry], item.material, transform, view.item_half_extents[entry])
+		view.draw_list.items[len(view.draw_list.items) - 1].tint = item.tint
 	}
 	gl_renderer_draw(&view.renderer, view.draw_list, view.library, width, height)
 }
