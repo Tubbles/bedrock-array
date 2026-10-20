@@ -449,7 +449,7 @@ main :: proc() {
 		if screen == .Menu {
 			draw_menu_frame(menu, menu_rows[:])
 		} else if screen == .Editor {
-			editor_input := editor_read_input(editor.brush.on, editor.panel_open || editor.op_menu_open, editor.frames >= EDITOR_MOUSE_SETTLE_FRAMES, snapshot, pad_pressed, &editor_triggers, delta_time)
+			editor_input := editor_read_input(editor_mode(&editor), editor.frames >= EDITOR_MOUSE_SETTLE_FRAMES, snapshot, pad_pressed, &editor_triggers, delta_time)
 			if editor_step(&editor, editor_input) == .Leave {
 				leave_editor(&editor, options)
 				screen = .Menu

@@ -17,7 +17,7 @@ EDITOR_BRUSH_RADIUS_MINIMUM :: f32(0.002)
 EDITOR_BRUSH_RADIUS_MAXIMUM :: f32(0.05)
 // The radius is scaled by this per wheel notch or shoulder press.
 EDITOR_BRUSH_RADIUS_FACTOR :: f32(1.25)
-EDITOR_LEAVE_WARNING :: "unsaved: leave again to discard, Ctrl S to save"
+EDITOR_LEAVE_WARNING :: "leave again to discard"
 
 // What the brush's last pick was made from, so it is made again only
 // when one of them changes: the crosshair moves with the fly.
@@ -68,6 +68,11 @@ Editor_Action :: enum {
 	Save,
 	Paint,
 	Erase,
+	// The axes, read by editor_read_input from their rows.
+	Walk,
+	Look,
+	Rise_Sink,
+	Radius,
 }
 
 // One frame's presses. walk is metres in the fly's frame (right, up,
@@ -85,9 +90,11 @@ Editor_Command :: enum {
 }
 
 // A leave closes the insert menu, the panel or the brush first. With
-// unsaved edits the first leave warns, the next one leaves.
-editor_step :: proc(editor: ^Editor, input: Editor_Input) -> Editor_Command {
+// unsaved edits the first leave warns, the next one leaves. Only the
+// actions of the editor's mode are taken (EDITOR_MODE_ACTIONS).
+editor_step :: proc(editor: ^Editor, given: Editor_Input) -> Editor_Command {
 	editor.frames += 1
+	input := editor_input_for_mode(given, editor_mode(editor))
 	if .Leave in input.pressed && editor_leave(editor) do return .Leave
 	editor.fly = engine.fly_walk(engine.fly_turn(editor.fly, input.turn, 1), input.walk, 1)
 	if editor.op_menu_open {
@@ -103,6 +110,17 @@ editor_step :: proc(editor: ^Editor, input: Editor_Input) -> Editor_Command {
 	editor_select_under_crosshair(editor)
 	editor_refresh_counts(editor)
 	return .None
+}
+
+// The input with the actions and the axes the mode does not take dropped.
+editor_input_for_mode :: proc(input: Editor_Input, mode: Editor_Mode) -> Editor_Input {
+	actions := EDITOR_MODE_ACTIONS[mode]
+	result := input
+	result.pressed &= actions
+	if .Walk not_in actions do result.walk = {}
+	if .Look not_in actions do result.turn = {}
+	if .Radius not_in actions do result.radius_notches = 0
+	return result
 }
 
 editor_set_message :: proc(editor: ^Editor, text: string) {

@@ -202,3 +202,77 @@ parts = [
 	broken := editor_parse_brief_parts(transmute([]byte)string("parts = 3"))
 	testing.expect_value(t, len(broken), 0)
 }
+
+// Each mode's hints name exactly the actions its handling takes, every
+// row of the mode once, each with a keyboard or mouse input and a pad one.
+@(test)
+test_editor_mode_hints_cover_the_actions :: proc(t: ^testing.T) {
+	for mode in Editor_Mode {
+		hints := editor_mode_hints(mode)
+		actions: bit_set[Editor_Action]
+		for hint in hints {
+			actions += {hint.binding_action}
+			testing.expectf(t, hint.keys != "" && hint.pad != "", "%v %s lacks keys or pad", mode, hint.action)
+		}
+		testing.expectf(t, actions == EDITOR_MODE_ACTIONS[mode], "%v: hints %v, handled %v", mode, actions, EDITOR_MODE_ACTIONS[mode])
+		rows := 0
+		for row in EDITOR_BINDINGS {
+			if mode not_in row.modes do continue
+			rows += 1
+			found := false
+			for hint in hints do found ||= hint.binding_action == row.action && hint.action == row.label
+			testing.expectf(t, found, "%v: no hint for %v", mode, row.action)
+		}
+		testing.expect_value(t, len(hints), rows)
+	}
+}
+
+// No two rows of a mode share a key with its modifiers or a pad button
+// with the shoulder modifier.
+@(test)
+test_editor_bindings_do_not_clash :: proc(t: ^testing.T) {
+	for mode in Editor_Mode {
+		for first, first_index in EDITOR_BINDINGS {
+			if mode not_in first.modes do continue
+			for second in EDITOR_BINDINGS[first_index + 1:] {
+				if mode not_in second.modes do continue
+				same_key := first.key != .KEY_NULL && first.key == second.key && first.alt == second.alt && first.control == second.control
+				same_pad := first.pad & second.pad != {} && first.pad_modifier == second.pad_modifier
+				testing.expectf(t, !same_key && !same_pad, "%v: %v and %v clash", mode, first.action, second.action)
+			}
+		}
+	}
+}
+
+@(test)
+test_editor_hint_names :: proc(t: ^testing.T) {
+	insert, _ := editor_binding_of(.Walk, .Insert_Menu)
+	testing.expect_value(t, editor_hint_text({editor_keys_name(insert), editor_pad_name(insert), insert.label, insert.action}), "I / LB + A: insert step")
+	rise, _ := editor_binding_of(.Panel, .Rise_Sink)
+	testing.expect_value(t, editor_pad_name(rise), "LB + d-pad up down")
+	move, _ := editor_binding_of(.Walk, .Move_Up)
+	testing.expect_value(t, editor_keys_name(move), "Alt Up")
+	paint, _ := editor_binding_of(.Brush, .Paint)
+	testing.expect_value(t, editor_keys_name(paint), "left click")
+	testing.expect_value(t, editor_pad_name(paint), "RT")
+	save, _ := editor_binding_of(.Walk, .Save)
+	testing.expect_value(t, editor_keys_name(save), "Ctrl S")
+}
+
+@(test)
+test_editor_hint_rows :: proc(t: ^testing.T) {
+	rows, count := editor_hint_rows({40, 40, 40, 100}, 100, 10)
+	testing.expect(t, slice.equal(rows, []int{0, 0, 1, 2}))
+	testing.expect_value(t, count, 3)
+	_, none := editor_hint_rows({}, 100, 10)
+	testing.expect_value(t, none, 0)
+}
+
+@(test)
+test_editor_input_for_mode :: proc(t: ^testing.T) {
+	input := Editor_Input{pressed = {.Delete, .Up, .Save}, radius_notches = 1, walk = {1, 0, 0}}
+	panel := editor_input_for_mode(input, .Panel)
+	testing.expect_value(t, panel.pressed, bit_set[Editor_Action]{.Up, .Save})
+	testing.expect_value(t, panel.radius_notches, 0)
+	testing.expect_value(t, panel.walk, [3]f32{1, 0, 0})
+}

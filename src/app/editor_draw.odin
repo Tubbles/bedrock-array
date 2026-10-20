@@ -4,7 +4,8 @@ package app
 // over the whole window, then by raylib over it a plaque above each
 // machine near the camera, the selected machine's bounds as lines, the
 // crosshair with the brush's ring, and on the left the header, the step
-// list and the key panel or the insert menu. Positions are in points from
+// list and the key panel or the insert menu, along the bottom the mode's
+// key hints. Positions are in points from
 // the window's top left, raylib's 2D units.
 
 import "core:fmt"
@@ -174,27 +175,28 @@ editor_status_line :: proc(editor: ^Editor) -> string {
 }
 
 // In reference points of a 720 point high screen, scaled like the menu,
-// clipped to the overlay's column on a dark plaque: the header, the step
-// rows while the list is open, the panel or the insert menu at the bottom.
-editor_draw_overlay :: proc(editor: ^Editor, screen: [2]i32) {
+// clipped to the overlay's column above bottom on a dark plaque: the
+// header, the step rows while the list is open, the panel or the insert
+// menu at the bottom.
+editor_draw_overlay :: proc(editor: ^Editor, screen: [2]i32, bottom: f32) {
 	scale := f32(screen.y) / MENU_REFERENCE_HEIGHT
 	width := screen.x / EDITOR_LIST_FRACTION
 	font := f32(LABEL_FONT_SIZE) * scale
 	padding := f32(EDITOR_LIST_PADDING) * scale
 	row_height := 2 * font + f32(EDITOR_ROW_GAP) * scale
-	rl.BeginScissorMode(0, 0, width, screen.y)
+	rl.BeginScissorMode(0, 0, width, i32(bottom))
 	defer rl.EndScissorMode()
 	top := padding + f32(EDITOR_HEADER_LINES) * font + padding
 	footer := editor_footer_lines(editor)
 	footer_height := f32(len(footer)) * font + (2 * padding if len(footer) > 0 else 0)
-	rl.DrawRectangle(0, 0, width, i32(f32(screen.y) - footer_height) if editor.list_open else i32(top), LABEL_BACKGROUND_COLOR)
+	rl.DrawRectangle(0, 0, width, i32(bottom - footer_height) if editor.list_open else i32(top), LABEL_BACKGROUND_COLOR)
 	colours := "false colour" if editor.false_colour else "brief materials"
 	editor_text(fmt.tprintf("%s%s", editor.machine, "  unsaved" if editor.unsaved else ""), padding, padding, font, TEXT_COLOR)
 	editor_text(colours, padding, padding + font, font, TEXT_COLOR)
 	editor_text(editor_status_line(editor), padding, padding + 2 * font, font, EDITOR_STATUS_COLOR)
-	if editor.list_open do editor_draw_rows(editor, top, f32(screen.y) - footer_height, width, font, padding, row_height)
+	if editor.list_open do editor_draw_rows(editor, top, bottom - footer_height, width, font, padding, row_height)
 	if len(footer) == 0 do return
-	footer_top := f32(screen.y) - footer_height
+	footer_top := bottom - footer_height
 	rl.DrawRectangle(0, i32(footer_top), width, i32(footer_height), LABEL_BACKGROUND_COLOR)
 	for line, index in footer do editor_text(line, padding, footer_top + padding + f32(index) * font, font, TEXT_COLOR)
 }
@@ -354,12 +356,64 @@ draw_editor_frame :: proc(editor: ^Editor, in_shot: bool, capture_path: string) 
 	editor_draw_selected_bounds(editor, camera, canvas)
 	editor_draw_plaques(editor, camera, canvas)
 	editor_draw_crosshair(editor, camera, canvas)
-	editor_draw_overlay(editor, screen)
-	if !in_shot do rl.DrawText(BUILD_INFO, 16, screen.y - 16 - LABEL_FONT_SIZE, LABEL_FONT_SIZE, TEXT_COLOR)
+	bar_top := editor_draw_hints(editor_mode(editor), screen)
+	editor_draw_overlay(editor, screen, bar_top)
+	if !in_shot {
+		stamp := strings.clone_to_cstring(BUILD_INFO, context.temp_allocator)
+		rl.DrawText(stamp, screen.x - 16 - rl.MeasureText(stamp, LABEL_FONT_SIZE), 16, LABEL_FONT_SIZE, TEXT_COLOR)
+	}
 	written = true
 	// raylib draws its batch at EndDrawing, after the capture would read the screen.
 	rlgl.DrawRenderBatchActive()
 	if capture_path != "" do written = capture_screen(capture_path)
 	rl.EndDrawing()
 	return written
+}
+
+// The row each plaque of the given widths takes when they are laid left to
+// right with gap between them and wrapped at the available width, a plaque
+// wider than it alone on its row; and the count of rows.
+editor_hint_rows :: proc(widths: []f32, available, gap: f32) -> (rows: []int, count: int) {
+	rows = make([]int, len(widths), context.temp_allocator)
+	x := f32(0)
+	for width, index in widths {
+		if x > 0 && x + width > available {
+			count += 1
+			x = 0
+		}
+		rows[index] = count
+		x += width + gap
+	}
+	return rows, count + (1 if len(widths) > 0 else 0)
+}
+
+// The mode's name and its hints along the bottom, one plaque each, scaled
+// by the window's height like the menu, wrapping onto more rows. Returns
+// the bar's top.
+editor_draw_hints :: proc(mode: Editor_Mode, screen: [2]i32) -> f32 {
+	scale := f32(screen.y) / MENU_REFERENCE_HEIGHT
+	font := i32(f32(LABEL_FONT_SIZE) * scale)
+	padding := f32(LABEL_PADDING) * scale
+	gap := f32(EDITOR_ROW_GAP) * scale
+	margin := f32(EDITOR_LIST_PADDING) * scale
+	hints := editor_mode_hints(mode)
+	texts := make([]cstring, len(hints) + 1, context.temp_allocator)
+	texts[0] = strings.clone_to_cstring(EDITOR_MODE_NAMES[mode], context.temp_allocator)
+	for hint, index in hints do texts[index + 1] = strings.clone_to_cstring(editor_hint_text(hint), context.temp_allocator)
+	widths := make([]f32, len(texts), context.temp_allocator)
+	for text, index in texts do widths[index] = f32(rl.MeasureText(text, font)) + 2 * padding
+	rows, count := editor_hint_rows(widths, f32(screen.x) - 2 * margin, gap)
+	row_height := f32(font) + 2 * padding
+	top := f32(screen.y) - margin - f32(count) * row_height - f32(max(count - 1, 0)) * gap
+	x, row := margin, 0
+	for text, index in texts {
+		if rows[index] != row do x, row = margin, rows[index]
+		y := top + f32(row) * (row_height + gap)
+		plaque := rl.Rectangle{x, y, widths[index], row_height}
+		rl.DrawRectangleRec(plaque, EDITOR_PLAQUE_SELECTED_COLOR if index == 0 else LABEL_BACKGROUND_COLOR)
+		if index == 0 do rl.DrawRectangleLinesEx(plaque, EDITOR_FRAME_WIDTH, EDITOR_FRAME_COLOR)
+		rl.DrawText(text, i32(x + padding), i32(y + padding), font, LABEL_TEXT_COLOR)
+		x += widths[index] + gap
+	}
+	return top - margin
 }
