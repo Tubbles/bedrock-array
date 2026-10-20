@@ -11,6 +11,7 @@ package app
 // to a PNG on the last frame and exits.
 
 import "core:fmt"
+import "core:math/linalg"
 import "core:os"
 import "core:strconv"
 import "core:strings"
@@ -42,6 +43,16 @@ Options :: struct {
 	configuration: int,
 	// A scene and its meshes read from this directory instead of an embedded demo.
 	scene_directory: string,
+	// The sun follows the camera, so whichever face a shot looks at is lit.
+	camera_light: bool,
+}
+
+// The direction the camera light travels: along the view, from above and
+// to the left of the camera, so faces are lit with some modelling shade.
+camera_light_direction :: proc(camera: engine.Camera) -> [3]f32 {
+	forward := linalg.normalize(camera.target - camera.position)
+	right := linalg.normalize(linalg.cross(forward, camera.up))
+	return linalg.normalize(forward - 0.6 * camera.up + 0.4 * right)
 }
 
 // Six numbers separated by commas: yaw, pitch, distance, then the target's x, y and z.
@@ -61,6 +72,8 @@ parse_options :: proc(arguments: []string) -> (options: Options, ok: bool) {
 	index := 0
 	for index < len(arguments) {
 		switch arguments[index] {
+		case "--camera-light":
+			options.camera_light = true
 		case "--windowed":
 			options.windowed = true
 		case "--scene-directory":
@@ -328,7 +341,7 @@ main :: proc() {
 		if !known do fmt.eprintfln("bedrock-array: no scene.sjson and meshes/ under %s", options.scene_directory)
 	}
 	if !ok || ((options.demo != "" || options.scene_directory != "") && !known) || (options.shot != "" && !known) {
-		fmt.eprintln("usage: bedrock-array [--demo light|surface|cave|models|decimation|parts|lod] [--frames <n>] [--windowed] [--view yaw,pitch,distance,x,y,z] [--configuration <n>] [--scene-directory <dir>] [--shot <path> (with a demo)]")
+		fmt.eprintln("usage: bedrock-array [--demo light|surface|cave|models|decimation|parts|lod] [--frames <n>] [--windowed] [--view yaw,pitch,distance,x,y,z] [--configuration <n>] [--scene-directory <dir>] [--camera-light] [--shot <path> (with a demo)]")
 		os.exit(2)
 	}
 	if options.shot != "" do options.frames = max(options.frames, 3)
@@ -412,6 +425,7 @@ main :: proc() {
 			if rl.IsKeyPressed(.T) do view.lod.tint = !view.lod.tint
 			if rl.IsKeyPressed(.F) do view.lod.freeze = !view.lod.freeze
 			engine.scene_view_step(&view, input, delta_time)
+			if options.camera_light do view.scene.sun.direction = camera_light_direction(engine.scene_view_camera(&view))
 			capture_path := options.shot if options.shot != "" && frames_drawn == options.frames - 1 else ""
 			if !draw_frame(&view, lod_panel, options.shot != "", capture_path) {
 				fmt.eprintfln("bedrock-array: the shot could not be written to %s", options.shot)
